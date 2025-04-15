@@ -156,21 +156,30 @@ impl ArchetypeManager {
     fn add_component(&mut self, entity_id: EntityId, component: &dyn Component) {
         if let Some(value_c) = component.as_any().downcast_ref::<ValueComponent>() {
             // Already in good archetype, replace component
-            if let Some((i, _)) = self.value.borrow().entities.iter().enumerate().find(|(_, id)| **id == entity_id) {
+            let index = self.value.borrow().entities.iter().enumerate()
+                .find(|(_, id)| **id == entity_id)
+                .map(|(i, _)| i);
+            if let Some(i) = index {
                 self.value.borrow_mut().values[i] = *value_c;
                 return;
             }
             // In archetype without the component, move to right archetype
-            if let Some((i, id)) = self.hello.borrow().entities.iter().enumerate().find(|(_, id)| **id == entity_id) {
+            let index = self.hello.borrow().entities.iter().enumerate()
+                .find(|(_, id)| **id == entity_id)
+                .map(|(i, id)| (i, *id));
+            if let Some((i, id)) = index {
                 self.hello_value.borrow_mut().hellos.push(self.hello.borrow().hellos[i]);
                 self.hello_value.borrow_mut().values.push(*value_c);
-                self.hello_value.borrow_mut().entities.push(*id);
+                self.hello_value.borrow_mut().entities.push(id);
                 self.hello.borrow_mut().hellos.remove(i);
                 self.hello.borrow_mut().entities.remove(i);
                 return;
             }
             // In archetype with the component among others, replace component
-            if let Some((i, _)) = self.hello_value.borrow().entities.iter().enumerate().find(|(_, id)| **id == entity_id) {
+            let index = self.hello_value.borrow().entities.iter().enumerate()
+                .find(|(_, id)| **id == entity_id)
+                .map(|(i, _)| i);
+            if let Some(i) = index {
                 self.hello_value.borrow_mut().values[i] = *value_c;
                 return;
             }
@@ -180,21 +189,30 @@ impl ArchetypeManager {
         }
         else if let Some(hello_c) = component.as_any().downcast_ref::<HelloComponent>() {
             // Already in good archetype, replace component
-            if let Some((i, _)) = self.hello.borrow().entities.iter().enumerate().find(|(_, id)| **id == entity_id) {
+            let index = self.hello.borrow().entities.iter().enumerate()
+                .find(|(_, id)| **id == entity_id)
+                .map(|(i, _)| i);
+            if let Some(i) = index {
                 self.hello.borrow_mut().hellos[i] = *hello_c;
                 return;
             }
             // In archetype without the component, move to right archetype
-            if let Some((i, id)) = self.value.borrow().entities.iter().enumerate().find(|(_, id)| **id == entity_id) {
+            let index = self.value.borrow().entities.iter().enumerate()
+                .find(|(_, id)| **id == entity_id)
+                .map(|(i, id)| (i, *id));
+            if let Some((i, id)) = index {
                 self.hello_value.borrow_mut().values.push(self.value.borrow().values[i]);
                 self.hello_value.borrow_mut().hellos.push(*hello_c);
-                self.hello_value.borrow_mut().entities.push(*id);
+                self.hello_value.borrow_mut().entities.push(id);
                 self.value.borrow_mut().values.remove(i);
                 self.value.borrow_mut().entities.remove(i);
                 return;
             }
             // In archetype with the component among others, replace component
-            if let Some((i, _)) = self.hello_value.borrow().entities.iter().enumerate().find(|(_, id)| **id == entity_id) {
+            let index = self.hello_value.borrow().entities.iter().enumerate()
+                .find(|(_, id)| **id == entity_id)
+                .map(|(i, _)| i);
+            if let Some(i) = index {
                 self.hello_value.borrow_mut().hellos[i] = *hello_c;
                 return;
             }
@@ -234,11 +252,17 @@ impl World {
 
 fn main() {
     let mut world = World::new();
-    for i in 0..10 {
+    for i in 0..3 {
         world.archetype_manager.add_component(i, &ValueComponent::new((i as i32) * 100));
     }
-    for i in 0..10 {
-        world.archetype_manager.add_component(i + 10, &HelloComponent::new());
+    for i in 0..3 {
+        world.archetype_manager.add_component(i + 3, &HelloComponent::new());
+    }
+    for i in 0..3 {
+        world.archetype_manager.add_component(i + 6, &ValueComponent::new((i as i32) * 100));
+        world.archetype_manager.add_component(i + 6, &ValueComponent::new((i as i32) * 100 + 50));
+        world.archetype_manager.add_component(i + 6, &HelloComponent::new());
+        world.archetype_manager.add_component(i + 6, &HelloComponent::new());
     }
     world.run();
 }
