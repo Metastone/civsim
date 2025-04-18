@@ -1,29 +1,56 @@
-use std::{any::{type_name, Any}, cell::RefCell, rc::Rc};
+use std::{any::Any, collections::{HashMap, HashSet}};
 
-trait Component: Any {}
+#[derive(Eq, PartialEq, Hash, Clone, Copy)]
+enum ComponentType {
+    Value = 0,
+    Hello
+}
+
+trait Component: Any + CloneComponent {
+    fn get_type(&self) -> ComponentType;
+}
+
 impl dyn Component {
-    fn as_any(&self) -> &dyn Any {
+    fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+}
+
+trait CloneComponent {
+    fn clone_box(&self) -> Box<dyn Component>;
+}
+
+impl<T> CloneComponent for T
+where
+    T: 'static + Component + Clone,
+{
+    fn clone_box(&self) -> Box<dyn Component> {
+        Box::new(self.clone())
     }
 }
 
 #[derive(Clone, Copy)]
 struct HelloComponent;
-impl Component for HelloComponent {}
+impl Component for HelloComponent {
+    fn get_type(&self) -> ComponentType {
+        ComponentType::Hello
+    }
+}
 impl HelloComponent {
     fn new() -> Self {
         Self {}
     }
-}
-trait HasHello {
-    fn hellos(&mut self) -> &mut [HelloComponent];
 }
 
 #[derive(Clone, Copy)]
 struct ValueComponent {
     value: i32
 }
-impl Component for ValueComponent {}
+impl Component for ValueComponent {
+    fn get_type(&self) -> ComponentType {
+        ComponentType::Value
+    }
+}
 impl ValueComponent {
     fn new(value: i32) -> Self {
         Self {
@@ -31,84 +58,40 @@ impl ValueComponent {
         }
     }
 }
-trait HasValue {
-    fn values(&mut self) -> &mut [ValueComponent];
-}
 
 type EntityId = usize;
 
-struct ArchetypeHV {
-    hellos: Vec<HelloComponent>,
-    values: Vec<ValueComponent>,
+struct Archetype {
+    component_types: HashSet<ComponentType>,
+    data: HashMap<ComponentType, Vec<Box<dyn Component>>>,
     entities: Vec<EntityId>
-}
-impl ArchetypeHV {
-    fn new() -> Self {
-        Self {
-            hellos: Vec::new(),
-            values: Vec::new(),
-            entities: Vec::new()
-        }
-    }
-}
-impl HasHello for ArchetypeHV {
-    fn hellos(&mut self) -> &mut [HelloComponent] {
-        &mut self.hellos
-    }
-}
-impl HasValue for ArchetypeHV {
-    fn values(&mut self) -> &mut [ValueComponent] {
-        &mut self.values
-    }
 }
 
-struct ArchetypeH {
-    hellos: Vec<HelloComponent>,
-    entities: Vec<EntityId>
-}
-impl HasHello for ArchetypeH {
-    fn hellos(&mut self) -> &mut [HelloComponent] {
-        &mut self.hellos
-    }
-}
-impl ArchetypeH {
-    fn new() -> Self {
+impl Archetype {
+    fn new(component_types: HashSet<ComponentType>) -> Self {
+        let data = component_types.iter().map(|t| (*t, Vec::new())).collect();
         Self {
-            hellos: Vec::new(),
-            entities: Vec::new()
-        }
-    }
-}
-
-struct ArchetypeV {
-    values: Vec<ValueComponent>,
-    entities: Vec<EntityId>
-}
-impl HasValue for ArchetypeV {
-    fn values(&mut self) -> &mut [ValueComponent] {
-        &mut self.values
-    }
-}
-impl ArchetypeV {
-    fn new() -> Self {
-        Self {
-            values: Vec::new(),
+            component_types,
+            data,
             entities: Vec::new()
         }
     }
 }
 
 trait System {
-    fn run(&self, archetypes: &mut ArchetypeManager);
+    fn run(&self, manager: &mut ArchetypeManager);
 }
 
 struct IncrementSytem;
 impl System for IncrementSytem {
-    fn run(&self, archetypes: &mut ArchetypeManager) {
-        for arch in archetypes.has_value_archs.iter_mut() {
-            for value_comp in arch.borrow_mut().values().iter_mut() {
-                value_comp.value += 1;
-                println!("Value {}", value_comp.value);
+    fn run(&self, manager: &mut ArchetypeManager) {
+        for arch_index in manager.with(HashSet::from([ComponentType::Value])) {
+            let data = &mut manager.archetypes[arch_index].data;
+            for component in data.get_mut(&ComponentType::Value).unwrap().iter_mut() {
+                if let Some(value_comp) = component.as_any_mut().downcast_mut::<ValueComponent>() {
+                    value_comp.value += 1;
+                    println!("Value {}", value_comp.value);
+                }
             }
         }
     }
@@ -116,9 +99,10 @@ impl System for IncrementSytem {
 
 struct HelloSystem;
 impl System for HelloSystem {
-    fn run(&self, archetypes: &mut ArchetypeManager) {
-        for arch in archetypes.has_hello_archs.iter_mut() {
-            for _i in 0..arch.borrow_mut().hellos().len() {
+    fn run(&self, manager: &mut ArchetypeManager) {
+        for arch_index in manager.with(HashSet::from([ComponentType::Value])) {
+            let data = &mut manager.archetypes[arch_index].data;
+            for _ in 0..data.get(&ComponentType::Value).unwrap().len() {
                 println!("Hello");
             }
         }
@@ -126,103 +110,79 @@ impl System for HelloSystem {
 }
 
 struct ArchetypeManager {
-    hello: Rc<RefCell<ArchetypeH>>,
-    value: Rc<RefCell<ArchetypeV>>,
-    hello_value: Rc<RefCell<ArchetypeHV>>,
-    has_hello_archs: Vec<Rc<RefCell<dyn HasHello>>>,
-    has_value_archs: Vec<Rc<RefCell<dyn HasValue>>>,
+    archetypes: Vec<Archetype>
 }
 
 impl ArchetypeManager {
     fn new() -> Self {
-        let hello = Rc::new(RefCell::new(ArchetypeH::new()));
-        let value = Rc::new(RefCell::new(ArchetypeV::new()));
-        let hello_value = Rc::new(RefCell::new(ArchetypeHV::new()));
         Self {
-            hello: Rc::clone(&hello),
-            value: Rc::clone(&value),
-            hello_value: Rc::clone(&hello_value),
-            has_hello_archs: vec![
-                hello as Rc<RefCell<dyn HasHello>>,
-                Rc::clone(&hello_value) as Rc<RefCell<dyn HasHello>>
-            ],
-            has_value_archs: vec![
-                value as Rc<RefCell<dyn HasValue>>,
-                hello_value as Rc<RefCell<dyn HasValue>>
-            ]
+            archetypes: Vec::new()
         }
     }
 
-    fn add_component(&mut self, entity_id: EntityId, component: &dyn Component) {
-        if let Some(value_c) = component.as_any().downcast_ref::<ValueComponent>() {
-            // Already in good archetype, replace component
-            let index = self.value.borrow().entities.iter().enumerate()
-                .find(|(_, id)| **id == entity_id)
-                .map(|(i, _)| i);
-            if let Some(i) = index {
-                self.value.borrow_mut().values[i] = *value_c;
-                return;
+    fn with(&self, required_ctypes: HashSet<ComponentType>) -> Vec<usize> {
+        self.archetypes.iter().enumerate()
+            .filter(|(_, a)| a.component_types.is_superset(&required_ctypes))
+            .map(|(i, _)| i).collect()
+    }
+
+    fn add_component(&mut self, entity_id: EntityId, new_comp: &dyn Component) {
+        // Find in which archetype is the entity
+        let mut entity_found = false;
+        let mut archetype_id = 0;
+        let mut entity_index = 0;
+        for (a_index, archetype) in self.archetypes.iter().enumerate() {
+            if let Some((e_index, _)) = archetype.entities.iter().enumerate().find(|(_, e_id)| entity_id == **e_id) {
+                entity_found = true;
+                archetype_id = a_index;
+                entity_index = e_index;
+                break;
             }
-            // In archetype without the component, move to right archetype
-            let index = self.hello.borrow().entities.iter().enumerate()
-                .find(|(_, id)| **id == entity_id)
-                .map(|(i, id)| (i, *id));
-            if let Some((i, id)) = index {
-                self.hello_value.borrow_mut().hellos.push(self.hello.borrow().hellos[i]);
-                self.hello_value.borrow_mut().values.push(*value_c);
-                self.hello_value.borrow_mut().entities.push(id);
-                self.hello.borrow_mut().hellos.remove(i);
-                self.hello.borrow_mut().entities.remove(i);
-                return;
-            }
-            // In archetype with the component among others, replace component
-            let index = self.hello_value.borrow().entities.iter().enumerate()
-                .find(|(_, id)| **id == entity_id)
-                .map(|(i, _)| i);
-            if let Some(i) = index {
-                self.hello_value.borrow_mut().values[i] = *value_c;
-                return;
-            }
-            // Entity does not exist, create it
-            self.value.borrow_mut().values.push(*value_c);
-            self.value.borrow_mut().entities.push(entity_id);
         }
-        else if let Some(hello_c) = component.as_any().downcast_ref::<HelloComponent>() {
-            // Already in good archetype, replace component
-            let index = self.hello.borrow().entities.iter().enumerate()
-                .find(|(_, id)| **id == entity_id)
-                .map(|(i, _)| i);
-            if let Some(i) = index {
-                self.hello.borrow_mut().hellos[i] = *hello_c;
+
+        let mut cur_ctypes = HashSet::new();
+        let mut required_ctypes = HashSet::from([new_comp.get_type()]);
+        let mut cur_comps = Vec::new();
+
+        if entity_found {
+            // If the archetype has the component, replace it
+            let archetype = &mut self.archetypes[archetype_id];
+            if archetype.component_types.contains(&new_comp.get_type()) {
+                archetype.data.get_mut(&new_comp.get_type()).unwrap()[entity_index] = new_comp.clone_box();
                 return;
             }
-            // In archetype without the component, move to right archetype
-            let index = self.value.borrow().entities.iter().enumerate()
-                .find(|(_, id)| **id == entity_id)
-                .map(|(i, id)| (i, *id));
-            if let Some((i, id)) = index {
-                self.hello_value.borrow_mut().values.push(self.value.borrow().values[i]);
-                self.hello_value.borrow_mut().hellos.push(*hello_c);
-                self.hello_value.borrow_mut().entities.push(id);
-                self.value.borrow_mut().values.remove(i);
-                self.value.borrow_mut().entities.remove(i);
-                return;
-            }
-            // In archetype with the component among others, replace component
-            let index = self.hello_value.borrow().entities.iter().enumerate()
-                .find(|(_, id)| **id == entity_id)
-                .map(|(i, _)| i);
-            if let Some(i) = index {
-                self.hello_value.borrow_mut().hellos[i] = *hello_c;
-                return;
-            }
-            // Entity does not exist, create it
-            self.hello.borrow_mut().hellos.push(*hello_c);
-            self.hello.borrow_mut().entities.push(entity_id);
+
+            // Get already existing components associated to this entity
+            cur_ctypes = cur_ctypes.union(&archetype.component_types).cloned().collect();
+            required_ctypes = required_ctypes.union(&archetype.component_types).cloned().collect();
+            let mut cur_comps_temp: Vec<Box<dyn Component>> = cur_ctypes.iter()
+                .map(|ctype| archetype.data.get(ctype).unwrap()[entity_index].clone_box())
+                .collect();
+            cur_comps.append(&mut cur_comps_temp);
+
+            // Remove entity from old archetype
+            cur_ctypes.iter().for_each(|ctype| { archetype.data.get_mut(ctype).unwrap().remove(entity_index); });
+            archetype.entities.remove(entity_index);
         }
+
+        // If we find an archetype that has exactly the required components, move the entity to it
+        if let Some(new_archetype) = self.archetypes.iter_mut().find(|a| a.component_types == required_ctypes) {
+            Self::copy_entity_to_new_arch(new_archetype, cur_comps, new_comp, entity_id);
+        }
+        // Otherwise, create a new archetype and move the entity to it
         else {
-            panic!("Unknown component type {}", type_name::<&dyn Component>());
+            let mut new_archetype = Archetype::new(required_ctypes.clone());
+            Self::copy_entity_to_new_arch(&mut new_archetype, cur_comps, new_comp, entity_id);
+            self.archetypes.push(new_archetype);
         }
+    }
+
+    fn copy_entity_to_new_arch(new_archetype: &mut Archetype, cur_comps: Vec<Box<dyn Component>>, new_comp: &dyn Component, entity_id: EntityId) {
+        for old_c in cur_comps {
+            new_archetype.data.get_mut(&old_c.get_type()).unwrap().push(old_c);
+        }
+        new_archetype.data.get_mut(&new_comp.get_type()).unwrap().push(new_comp.clone_box());
+        new_archetype.entities.push(entity_id);
     }
 }
 
