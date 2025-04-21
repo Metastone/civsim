@@ -1,74 +1,203 @@
 mod ecs;
 
-use std::{collections::HashSet, sync::Arc};
-use ecs::{ArchetypeManager, Component, ComponentType, System, World};
+use std::{sync::Arc, thread, time};
+use ecs::{ArchetypeManager, Component, ComponentType, EntityId, System};
 use pixels::{Pixels, SurfaceTexture};
 use winit::{application::ApplicationHandler, dpi::LogicalSize, event::WindowEvent, event_loop::{ActiveEventLoop, ControlFlow, EventLoop}, window::{Window, WindowId}};
 
 const WIDTH: u32 = 640;
 const HEIGHT: u32 = 480;
+const PLACEHOLDER_PIXEL_SIZE: u32 = 30;
+const HUNGER_RATE: f32 = 1.0;
+const EXHAUSTION_RATE: f32 = 1.0;
 
 #[derive(Clone, Copy)]
-struct HelloComponent;
-impl Component for HelloComponent {
+struct PersonComponent {
+    energy: f32,
+    health: f32,
+}
+impl Component for PersonComponent {
     fn get_type(&self) -> ComponentType {
-        ComponentType::Hello
+        ComponentType::Person
     }
 }
-impl HelloComponent {
+impl PersonComponent {
     fn new() -> Self {
-        Self {}
-    }
-}
-
-#[derive(Clone, Copy)]
-struct ValueComponent {
-    value: i32
-}
-impl Component for ValueComponent {
-    fn get_type(&self) -> ComponentType {
-        ComponentType::Value
-    }
-}
-impl ValueComponent {
-    fn new(value: i32) -> Self {
         Self {
-            value
+            energy: 100.0,
+            health: 100.0,
         }
     }
 }
 
-struct IncrementSytem;
-impl System for IncrementSytem {
+#[derive(Clone, Copy)]
+struct PositionComponent {
+    x: f64,
+    y: f64,
+}
+impl Component for PositionComponent {
+    fn get_type(&self) -> ComponentType {
+        ComponentType::Position
+    }
+}
+impl PositionComponent {
+    fn new() -> Self {
+        let x = rand::random_range(-300.0..300.0);
+        let y = rand::random_range(-200.0..200.0);
+        Self {
+            x,
+            y,
+        }
+    }
+}
+
+
+struct HungerSystem;
+impl System for HungerSystem {
     fn run(&self, manager: &mut ArchetypeManager) {
-        for arch_index in manager.with(HashSet::from([ComponentType::Value])) {
-            for component in manager.get_components(arch_index, &ComponentType::Value).iter_mut() {
-                if let Some(value_comp) = component.as_any_mut().downcast_mut::<ValueComponent>() {
-                    value_comp.value += 1;
-                    println!("Value {}", value_comp.value);
+        for arch_index in manager.with_comp(&ComponentType::Person) {
+            for component in manager.get_components(arch_index, &ComponentType::Person).iter_mut() {
+                if let Some(person) = component.as_any_mut().downcast_mut::<PersonComponent>() {
+                    person.energy -= HUNGER_RATE;
+                    if person.energy <= 0.0 {
+                        person.energy = 0.0;
+                    }
                 }
             }
         }
     }
 }
 
-struct HelloSystem;
-impl System for HelloSystem {
+struct ExhaustionSystem;
+impl System for ExhaustionSystem {
     fn run(&self, manager: &mut ArchetypeManager) {
-        for arch_index in manager.with(HashSet::from([ComponentType::Hello])) {
-            for _ in 0..manager.get_components(arch_index, &ComponentType::Hello).len() {
-                println!("Hello");
+        for arch_index in manager.with_comp(&ComponentType::Person) {
+            for component in manager.get_components(arch_index, &ComponentType::Person).iter_mut() {
+                if let Some(person) = component.as_any_mut().downcast_mut::<PersonComponent>() {
+                    if person.energy <= 0.0 {
+                        person.health -= EXHAUSTION_RATE;
+                    }
+                    if person.health <= 0.0 {
+                        person.health = 0.0;
+                    }
+                }
             }
         }
     }
 }
 
-#[derive(Default)]
+struct DeathSystem;
+impl System for DeathSystem {
+    fn run(&self, manager: &mut ArchetypeManager) {
+         for arch_index in manager.with_comp(&ComponentType::Person) {
+            let mut entities_to_remove: Vec<usize> = manager.get_components(arch_index, &ComponentType::Person).iter().enumerate()
+                .filter(|(_, component)| {
+                    if let Some(person) = component.as_any().downcast_ref::<PersonComponent>() {
+                        person.health <= 0.0
+                    } else {
+                        false
+                    }
+                })
+                .map(|(i, _)| i)
+                .collect();
+            // Ugly: sort in decreased order so that indexes stay valid even while modifying the internal vectors
+            entities_to_remove.sort_by(|a, b| b.cmp(a));
+            for entity_index in entities_to_remove.iter() {
+                manager.remove_entity(arch_index, *entity_index);
+            }
+        }
+    }
+}
+
+struct MoveEastSystem;
+impl System for MoveEastSystem {
+    fn run(&self, manager: &mut ArchetypeManager) {
+        for arch_index in manager.with_comp(&ComponentType::Position) {
+            for component in manager.get_components(arch_index, &ComponentType::Position).iter_mut() {
+                if let Some(position) = component.as_any_mut().downcast_mut::<PositionComponent>() {
+                    position.x += 1.0;
+                }
+            };
+        }
+    }
+}
+
+pub struct World {
+    archetype_manager: ArchetypeManager,
+    systems: Vec<Box<dyn System>>,
+}
+
+impl World {
+    pub fn new() -> Self {
+        Self {
+            archetype_manager: ArchetypeManager::new(),
+            systems: Vec::new()
+        }
+    }
+
+    pub fn add_system(&mut self, system: Box<dyn System>) {
+        self.systems.push(system);
+    }
+
+    pub fn add_component(&mut self, entity_id: EntityId, new_comp: &dyn Component) {
+        self.archetype_manager.add_component(entity_id, new_comp);
+    }
+
+    pub fn iterate(&mut self) {
+        for s in &self.systems {
+            s.run(&mut self.archetype_manager);
+        }
+    }
+
+    pub fn draw(&mut self, pixels: &mut [u8], window_width: u32, window_height: u32) {
+        // Background
+        for (_i, pixel) in pixels.chunks_exact_mut(4).enumerate() {
+            pixel.copy_from_slice(&[0xcc, 0xcc, 0xcc, 0xff]);
+        }
+
+        // Draw entities with position
+        for arch_index in self.archetype_manager.with_comp(&ComponentType::Position) {
+            for component in self.archetype_manager.get_components(arch_index, &ComponentType::Position).iter_mut() {
+                if let Some(position) = component.as_any_mut().downcast_mut::<PositionComponent>() {
+                    let pos_in_window = (position.x + (window_width as f64) / 2.0, position.y * -1.0 + (window_height as f64) / 2.0);
+                    for i in 0..PLACEHOLDER_PIXEL_SIZE {
+                        for j in 0..PLACEHOLDER_PIXEL_SIZE {
+                            let pixel_pos = (pos_in_window.0 as i64 + i as i64, pos_in_window.1 as i64 + j as i64);
+                            if pixel_pos.0 >= 0 && pixel_pos.0 < window_width as i64 && pixel_pos.1 >= 0 && pixel_pos.1 < window_height as i64 {
+                                let index = ((pixel_pos.1 as usize) * (window_width as usize) + (pixel_pos.0 as usize)) * 4;
+                                pixels[index..(index + 4)].copy_from_slice(&[0xff, 0x55, 0x11, 0xff]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 struct App<'window> {
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'window>>,
+    world: World,
 }
-
+impl<'window> Default for App<'window> {
+    fn default() -> Self {
+        let mut world = World::new();
+        for i in 0..2 {
+            world.add_component(i, &PersonComponent::new());
+            world.add_component(i, &PositionComponent::new());
+        }
+        world.add_system(Box::new(HungerSystem));
+        world.add_system(Box::new(ExhaustionSystem));
+        world.add_system(Box::new(DeathSystem));
+        world.add_system(Box::new(MoveEastSystem));
+        Self {
+            window: Default::default(),
+            pixels: Default::default(),
+            world
+        }
+    }
+}
 impl<'window> ApplicationHandler for App<'window> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(event_loop.create_window(
@@ -94,12 +223,14 @@ impl<'window> ApplicationHandler for App<'window> {
                 self.pixels.as_mut().unwrap().resize_surface(size.width, size.height).unwrap();
             },
             WindowEvent::RedrawRequested => {
-                for (_i, pixel) in self.pixels.as_mut().unwrap().frame_mut().chunks_exact_mut(4).enumerate() {
-                    //let x = (i % WIDTH as usize) as i16;
-                    //let y = (i / WIDTH as usize) as i16;
-                    pixel.copy_from_slice(&[0xff, 0x50, 0x00, 0xff]);
-                }
+                self.world.iterate();
+
+                let window_size = self.window.as_ref().unwrap().inner_size();
+                self.world.draw(self.pixels.as_mut().unwrap().frame_mut(), window_size.width, window_size.height);
                 self.pixels.as_mut().unwrap().render().unwrap();
+
+                thread::sleep(time::Duration::from_millis(100));
+                self.window.as_ref().unwrap().request_redraw();
             }
             _ => (),
         }
@@ -107,22 +238,7 @@ impl<'window> ApplicationHandler for App<'window> {
 }
 
 fn main() {
-    let mut world = World::new();
-    for i in 0..3 {
-        world.add_component(i, &ValueComponent::new((i as i32) * 100));
-    }
-    for i in 0..3 {
-        world.add_component(i + 3, &HelloComponent::new());
-    }
-    for i in 0..3 {
-        world.add_component(i + 6, &ValueComponent::new((i as i32) * 100));
-        world.add_component(i + 6, &ValueComponent::new((i as i32) * 100 + 50));
-        world.add_component(i + 6, &HelloComponent::new());
-        world.add_component(i + 6, &HelloComponent::new());
-    }
-    world.add_system(Box::new(HelloSystem));
-    world.add_system(Box::new(IncrementSytem));
-    world.run();
+    env_logger::init();
 
     let event_loop = EventLoop::new().unwrap();
     event_loop.set_control_flow(ControlFlow::Wait);

@@ -1,9 +1,11 @@
 use std::{any::Any, collections::{HashMap, HashSet}};
 
+use log::error;
+
 #[derive(Eq, PartialEq, Hash, Clone, Copy)]
 pub enum ComponentType {
-    Value = 0,
-    Hello
+    Person = 0,
+    Position,
 }
 
 pub trait Component: Any + CloneComponent {
@@ -11,6 +13,9 @@ pub trait Component: Any + CloneComponent {
 }
 
 impl dyn Component {
+    pub fn as_any(&self) -> &dyn Any {
+        self
+    }
     pub fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
@@ -29,7 +34,7 @@ where
     }
 }
 
-type EntityId = usize;
+pub type EntityId = usize;
 
 struct Archetype {
     component_types: HashSet<ComponentType>,
@@ -57,24 +62,49 @@ pub struct ArchetypeManager {
 }
 
 impl ArchetypeManager {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             archetypes: Vec::new()
         }
     }
 
-    pub fn with(&self, required_ctypes: HashSet<ComponentType>) -> Vec<usize> {
+    pub fn with_comps(&self, required_ctypes: HashSet<ComponentType>) -> Vec<usize> {
         self.archetypes.iter().enumerate()
             .filter(|(_, a)| a.component_types.is_superset(&required_ctypes))
             .map(|(i, _)| i).collect()
     }
 
+    pub fn with_comp(&self, ctype: &ComponentType) -> Vec<usize> {
+        self.with_comps(HashSet::from([*ctype]))
+    }   
+
     pub fn get_components(&mut self, arch_index: usize, comp_type: &ComponentType) -> &mut Vec<Box<dyn Component>> {
-        let data = &mut self.archetypes[arch_index].data;
-        data.get_mut(comp_type).unwrap()
+        if arch_index < self.archetypes.len() {
+            let data = &mut self.archetypes[arch_index].data;
+            data.get_mut(comp_type).unwrap()
+        } else {
+            panic!("Cannot get components from archetype {}: Archetype does not exist", arch_index);
+        }
     }
 
-    fn add_component(&mut self, entity_id: EntityId, new_comp: &dyn Component) {
+    pub fn remove_entity(&mut self, arch_index: usize, entity_index: usize) {
+        if arch_index < self.archetypes.len() {
+            if entity_index >= self.archetypes[arch_index].entities.len() {
+                error!("Cannot remove entity with index {} in archetype {}: Entity does not exist", entity_index, arch_index);
+                return;
+            }
+            // We assume that by construction all component vecs have the same length as the entities vec
+            self.archetypes[arch_index].entities.remove(entity_index);
+            let data = &mut self.archetypes[arch_index].data;
+            for comps in data.values_mut() {
+                comps.remove(entity_index);
+            }
+        } else {
+            error!("Cannot remove entity with index {} in archetype {}: Archetype does not exist", entity_index, arch_index);
+        }
+    }
+
+    pub fn add_component(&mut self, entity_id: EntityId, new_comp: &dyn Component) {
         // Find in which archetype is the entity
         let mut entity_found = false;
         let mut archetype_id = 0;
@@ -134,30 +164,3 @@ impl ArchetypeManager {
     }
 }
 
-pub struct World {
-    archetype_manager: ArchetypeManager,
-    systems: Vec<Box<dyn System>>,
-}
-
-impl World {
-    pub fn new() -> Self {
-        Self {
-            archetype_manager: ArchetypeManager::new(),
-            systems: Vec::new()
-        }
-    }
-
-    pub fn add_system(&mut self, system: Box<dyn System>) {
-        self.systems.push(system);
-    }
-
-    pub fn add_component(&mut self, entity_id: EntityId, new_comp: &dyn Component) {
-        self.archetype_manager.add_component(entity_id, new_comp);
-    }
-
-    pub fn run(&mut self) {
-        for s in &self.systems {
-            s.run(&mut self.archetype_manager);
-        }
-    }
-}
