@@ -6,6 +6,8 @@ use log::error;
 pub enum ComponentType {
     Person = 0,
     Position,
+    Food,
+    Behavior,
 }
 
 pub trait Component: Any + CloneComponent {
@@ -35,6 +37,23 @@ where
 }
 
 pub type EntityId = usize;
+
+pub struct EntityIdAllocator {
+    next_id: EntityId
+}
+impl EntityIdAllocator {
+    pub fn new() -> Self {
+        EntityIdAllocator {
+            next_id: 0
+        }
+    }
+
+    pub fn get_next_id(&mut self) -> usize {
+        let ret = self.next_id;
+        self.next_id += 1;
+        ret
+    }
+}
 
 struct Archetype {
     component_types: HashSet<ComponentType>,
@@ -70,7 +89,7 @@ impl ArchetypeManager {
 
     pub fn with_comps(&self, required_ctypes: HashSet<ComponentType>) -> Vec<usize> {
         self.archetypes.iter().enumerate()
-            .filter(|(_, a)| a.component_types.is_superset(&required_ctypes))
+            .filter(|(_, a)| a.component_types.is_superset(&required_ctypes) && a.entities.len() > 0)
             .map(|(i, _)| i).collect()
     }
 
@@ -82,6 +101,25 @@ impl ArchetypeManager {
         if arch_index < self.archetypes.len() {
             let data = &mut self.archetypes[arch_index].data;
             data.get_mut(comp_type).unwrap()
+        } else {
+            panic!("Cannot get components from archetype {}: Archetype does not exist", arch_index);
+        }
+    }
+
+    pub fn get_components_with_eids(&mut self, arch_index: usize, comp_type: &ComponentType) -> (&mut Vec<Box<dyn Component>>, &Vec<EntityId>) {
+        if arch_index < self.archetypes.len() {
+            let archetype = &mut self.archetypes[arch_index];
+            let data = archetype.data.get_mut(comp_type).unwrap();
+            let entities = &archetype.entities;
+            (data, entities)
+        } else {
+            panic!("Cannot get components from archetype {}: Archetype does not exist", arch_index);
+        }
+    }
+
+    pub fn get_component_types(&self, arch_index: usize) -> &HashSet<ComponentType> {
+        if arch_index < self.archetypes.len() {
+            return &self.archetypes[arch_index].component_types;
         } else {
             panic!("Cannot get components from archetype {}: Archetype does not exist", arch_index);
         }

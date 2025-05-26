@@ -1,15 +1,18 @@
 mod ecs;
 
-use std::{sync::Arc, thread, time};
-use ecs::{ArchetypeManager, Component, ComponentType, EntityId, System};
+use std::{collections::HashMap, iter::zip, sync::Arc, thread, time, usize};
+use ecs::{ArchetypeManager, Component, ComponentType, EntityId, EntityIdAllocator, System};
 use pixels::{Pixels, SurfaceTexture};
 use winit::{application::ApplicationHandler, dpi::LogicalSize, event::WindowEvent, event_loop::{ActiveEventLoop, ControlFlow, EventLoop}, window::{Window, WindowId}};
 
 const WIDTH: u32 = 640;
 const HEIGHT: u32 = 480;
-const PLACEHOLDER_PIXEL_SIZE: u32 = 30;
 const HUNGER_RATE: f32 = 1.0;
 const EXHAUSTION_RATE: f32 = 1.0;
+const PERSON_PLACEHOLDER_PIXEL_SIZE: u32 = 30;
+const FOOD_PLACEHOLDER_PIXEL_SIZE: u32 = 10;
+const PERSON_COLOR: &[u8] = &[0xff, 0x55, 0x11, 0xff];
+const FOOD_COLOR: &[u8] = &[0x22, 0xbb, 0x11, 0xff];
 
 #[derive(Clone, Copy)]
 struct PersonComponent {
@@ -51,6 +54,33 @@ impl PositionComponent {
     }
 }
 
+#[derive(Clone, Copy)]
+struct FoodComponent {
+}
+impl Component for FoodComponent {
+    fn get_type(&self) -> ComponentType {
+        ComponentType::Food
+    }
+}
+impl FoodComponent {
+    fn new() -> Self {
+        Self {}
+    }
+}
+
+#[derive(Clone, Copy)]
+struct BehaviorComponent {
+}
+impl Component for BehaviorComponent {
+    fn get_type(&self) -> ComponentType {
+        ComponentType::Behavior
+    }
+}
+impl BehaviorComponent {
+    fn new() -> Self {
+        Self {}
+    }
+}
 
 struct HungerSystem;
 impl System for HungerSystem {
@@ -109,6 +139,7 @@ impl System for DeathSystem {
     }
 }
 
+#[allow(dead_code)]
 struct MoveEastSystem;
 impl System for MoveEastSystem {
     fn run(&self, manager: &mut ArchetypeManager) {
@@ -121,6 +152,65 @@ impl System for MoveEastSystem {
         }
     }
 }
+
+struct BehaviorSystem;
+impl System for BehaviorSystem {
+    fn run(&self, manager: &mut ArchetypeManager) {
+        // Get the positions of all entities with a behavior
+        let mut behavior_positions = HashMap::new();
+        for arch_index in manager.with_comp(&ComponentType::Behavior) {
+            let (data, entities) = manager.get_components_with_eids(arch_index, &ComponentType::Position);
+            for (component, entity) in zip(data.into_iter(), entities.into_iter()) {
+                if let Some(position) = component.as_any_mut().downcast_mut::<PositionComponent>() {
+                    behavior_positions.insert(entity.clone(), position.clone());
+               }
+            };
+        }
+
+        // For each position, find the closest food
+        let mut found: HashMap<EntityId, bool> = HashMap::new();
+        let mut closest_position: HashMap<EntityId, PositionComponent> = HashMap::new();
+        for (entity, position) in &behavior_positions {
+            let mut closest_distance_squared = f64::MAX;
+            found.insert(*entity, false);
+            closest_position.insert(*entity, PositionComponent { x: 0.0, y: 0.0 });
+            for arch_index in manager.with_comp(&ComponentType::Food) {
+                let (data, entities) = manager.get_components_with_eids(arch_index, &ComponentType::Position);
+                for (component, _) in zip(data.into_iter(), entities.into_iter()) {
+                    if let Some(food_position) = component.as_any_mut().downcast_mut::<PositionComponent>() {
+                        let distance_squared = (food_position.x - position.x).powi(2) + (food_position.y - position.y).powi(2);
+                        if distance_squared < closest_distance_squared {
+                            closest_distance_squared = distance_squared;
+                            found.insert(*entity, true);
+                            closest_position.insert(*entity, food_position.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        // Move all entities with a behavior in direction of the closest food
+        for arch_index in manager.with_comp(&ComponentType::Behavior) {
+            let (data, entities) = manager.get_components_with_eids(arch_index, &ComponentType::Position);
+            for (component, entity) in zip(data.into_iter(), entities.into_iter()) {
+                if let Some(position) = component.as_any_mut().downcast_mut::<PositionComponent>() {
+                    if *found.get(entity).unwrap() {
+                        let food_position = closest_position.get(entity).unwrap();
+                        let food_direction = (
+                            food_position.x - position.x,
+                            food_position.y - position.y
+                        );
+                        let direction_norm = (food_direction.0.powi(2) + food_direction.1.powi(2)).sqrt();
+                        position.x += food_direction.0 / direction_norm;
+                        position.y += food_direction.1 / direction_norm;
+                    }
+
+                }
+            }
+        }
+    }
+}
+
 
 pub struct World {
     archetype_manager: ArchetypeManager,
@@ -157,15 +247,22 @@ impl World {
 
         // Draw entities with position
         for arch_index in self.archetype_manager.with_comp(&ComponentType::Position) {
+            let (color, placeholder_pixel_size) =
+            if self.archetype_manager.get_component_types(arch_index).contains(&ComponentType::Person) {
+                (PERSON_COLOR, PERSON_PLACEHOLDER_PIXEL_SIZE)
+            } else {
+                (FOOD_COLOR, FOOD_PLACEHOLDER_PIXEL_SIZE)
+            };
+
             for component in self.archetype_manager.get_components(arch_index, &ComponentType::Position).iter_mut() {
                 if let Some(position) = component.as_any_mut().downcast_mut::<PositionComponent>() {
                     let pos_in_window = (position.x + (window_width as f64) / 2.0, position.y * -1.0 + (window_height as f64) / 2.0);
-                    for i in 0..PLACEHOLDER_PIXEL_SIZE {
-                        for j in 0..PLACEHOLDER_PIXEL_SIZE {
+                    for i in 0..placeholder_pixel_size {
+                        for j in 0..placeholder_pixel_size {
                             let pixel_pos = (pos_in_window.0 as i64 + i as i64, pos_in_window.1 as i64 + j as i64);
                             if pixel_pos.0 >= 0 && pixel_pos.0 < window_width as i64 && pixel_pos.1 >= 0 && pixel_pos.1 < window_height as i64 {
                                 let index = ((pixel_pos.1 as usize) * (window_width as usize) + (pixel_pos.0 as usize)) * 4;
-                                pixels[index..(index + 4)].copy_from_slice(&[0xff, 0x55, 0x11, 0xff]);
+                                pixels[index..(index + 4)].copy_from_slice(color);
                             }
                         }
                     }
@@ -183,14 +280,27 @@ struct App<'window> {
 impl<'window> Default for App<'window> {
     fn default() -> Self {
         let mut world = World::new();
-        for i in 0..2 {
-            world.add_component(i, &PersonComponent::new());
-            world.add_component(i, &PositionComponent::new());
+        let mut ids = EntityIdAllocator::new();
+
+        for _ in 0..2 {
+            let id = ids.get_next_id();
+            world.add_component(id, &PersonComponent::new());
+            world.add_component(id, &PositionComponent::new());
+            world.add_component(id, &BehaviorComponent::new());
         }
+
+        for _ in 0..10 {
+            let id = ids.get_next_id();
+            world.add_component(id, &FoodComponent::new());
+            world.add_component(id, &PositionComponent::new());
+        }
+
         world.add_system(Box::new(HungerSystem));
         world.add_system(Box::new(ExhaustionSystem));
         world.add_system(Box::new(DeathSystem));
-        world.add_system(Box::new(MoveEastSystem));
+        world.add_system(Box::new(BehaviorSystem));
+        //world.add_system(Box::new(MoveEastSystem));
+
         Self {
             window: Default::default(),
             pixels: Default::default(),
