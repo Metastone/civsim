@@ -8,6 +8,7 @@ pub enum ComponentType {
     Position,
     Food,
     Behavior,
+    EatingFood,
 }
 
 pub trait Component: Any + CloneComponent {
@@ -142,13 +143,33 @@ impl ArchetypeManager {
         }
     }
 
-    pub fn add_component(&mut self, entity_id: EntityId, new_comp: &dyn Component) {
+    pub fn remove_entity_with_id(&mut self, entity: usize) {
+        let mut entity_found = false;
+
+        // Look in all archetypes to find the entity
+        for archetype in self.archetypes.iter_mut() {
+            if let Some((entity_index, _)) = archetype.entities.iter().enumerate().find(|(_, e_id)| entity == **e_id) {
+                // If found, remove entity from archetype
+                entity_found = true;
+                //let cur_ctypes = &archetype.component_types.clone();
+                archetype.component_types.iter().for_each(|ctype| { archetype.data.get_mut(ctype).unwrap().remove(entity_index); });
+                archetype.entities.remove(entity_index);
+                break;
+            }
+        }
+
+        if !entity_found {
+            error!("Cannot remove entity {}: Entity does not exist", entity);
+        }
+    }
+
+    pub fn add_component(&mut self, entity: EntityId, new_comp: &dyn Component) {
         // Find in which archetype is the entity
         let mut entity_found = false;
         let mut archetype_id = 0;
         let mut entity_index = 0;
         for (a_index, archetype) in self.archetypes.iter().enumerate() {
-            if let Some((e_index, _)) = archetype.entities.iter().enumerate().find(|(_, e_id)| entity_id == **e_id) {
+            if let Some((e_index, _)) = archetype.entities.iter().enumerate().find(|(_, e_id)| entity == **e_id) {
                 entity_found = true;
                 archetype_id = a_index;
                 entity_index = e_index;
@@ -183,22 +204,77 @@ impl ArchetypeManager {
 
         // If we find an archetype that has exactly the required components, move the entity to it
         if let Some(new_archetype) = self.archetypes.iter_mut().find(|a| a.component_types == required_ctypes) {
-            Self::copy_entity_to_new_arch(new_archetype, cur_comps, new_comp, entity_id);
+            Self::copy_entity_to_new_arch(new_archetype, cur_comps, new_comp, entity);
         }
         // Otherwise, create a new archetype and move the entity to it
         else {
             let mut new_archetype = Archetype::new(required_ctypes.clone());
-            Self::copy_entity_to_new_arch(&mut new_archetype, cur_comps, new_comp, entity_id);
+            Self::copy_entity_to_new_arch(&mut new_archetype, cur_comps, new_comp, entity);
             self.archetypes.push(new_archetype);
         }
     }
 
-    fn copy_entity_to_new_arch(new_archetype: &mut Archetype, cur_comps: Vec<Box<dyn Component>>, new_comp: &dyn Component, entity_id: EntityId) {
+    pub fn remove_component(&mut self, entity: EntityId, comp_type: &ComponentType) {
+        /* TODO
+        // Find in which archetype is the entity
+        let mut entity_found = false;
+        let mut archetype_id = 0;
+        let mut entity_index = 0;
+        for (a_index, archetype) in self.archetypes.iter().enumerate() {
+            if let Some((e_index, _)) = archetype.entities.iter().enumerate().find(|(_, e_id)| entity == **e_id) {
+                entity_found = true;
+                archetype_id = a_index;
+                entity_index = e_index;
+                break;
+            }
+        }
+
+        let mut cur_ctypes = HashSet::new();
+        let mut required_ctypes = HashSet::new();
+        let mut cur_comps = Vec::new();
+
+        // TODO TODOOOOOOOOOOOO
+
+        if entity_found {
+            // If the archetype has the component, replace it
+            let archetype = &mut self.archetypes[archetype_id];
+            if archetype.component_types.contains(comp_type) {
+                archetype.data.get_mut(&new_comp.get_type()).unwrap()[entity_index] = new_comp.clone_box();
+                return;
+            }
+
+            // Get already existing components associated to this entity
+            cur_ctypes = cur_ctypes.union(&archetype.component_types).cloned().collect();
+            required_ctypes = required_ctypes.union(&archetype.component_types).cloned().collect();
+            let mut cur_comps_temp: Vec<Box<dyn Component>> = cur_ctypes.iter()
+                .map(|ctype| archetype.data.get(ctype).unwrap()[entity_index].clone_box())
+                .collect();
+            cur_comps.append(&mut cur_comps_temp);
+
+            // Remove entity from old archetype
+            cur_ctypes.iter().for_each(|ctype| { archetype.data.get_mut(ctype).unwrap().remove(entity_index); });
+            archetype.entities.remove(entity_index);
+        }
+
+        // If we find an archetype that has exactly the required components, move the entity to it
+        if let Some(new_archetype) = self.archetypes.iter_mut().find(|a| a.component_types == required_ctypes) {
+            Self::copy_entity_to_new_arch(new_archetype, cur_comps, new_comp, entity);
+        }
+        // Otherwise, create a new archetype and move the entity to it
+        else {
+            let mut new_archetype = Archetype::new(required_ctypes.clone());
+            Self::copy_entity_to_new_arch(&mut new_archetype, cur_comps, new_comp, entity);
+            self.archetypes.push(new_archetype);
+        }
+        */
+    }
+
+    fn copy_entity_to_new_arch(new_archetype: &mut Archetype, cur_comps: Vec<Box<dyn Component>>, new_comp: &dyn Component, entity: EntityId) {
         for old_c in cur_comps {
             new_archetype.data.get_mut(&old_c.get_type()).unwrap().push(old_c);
         }
         new_archetype.data.get_mut(&new_comp.get_type()).unwrap().push(new_comp.clone_box());
-        new_archetype.entities.push(entity_id);
+        new_archetype.entities.push(entity);
     }
 }
 

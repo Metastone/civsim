@@ -9,6 +9,9 @@ const WIDTH: u32 = 640;
 const HEIGHT: u32 = 480;
 const HUNGER_RATE: f32 = 1.0;
 const EXHAUSTION_RATE: f32 = 1.0;
+const FOOD_ENERGY: f32 = 20.0;
+const MAX_ENERGY: f32 = 100.0;
+const MAX_HEALTH: f32 = 100.0;
 const PERSON_PLACEHOLDER_PIXEL_SIZE: u32 = 30;
 const FOOD_PLACEHOLDER_PIXEL_SIZE: u32 = 10;
 const PERSON_COLOR: &[u8] = &[0xff, 0x55, 0x11, 0xff];
@@ -27,8 +30,8 @@ impl Component for PersonComponent {
 impl PersonComponent {
     fn new() -> Self {
         Self {
-            energy: 100.0,
-            health: 100.0,
+            energy: MAX_ENERGY,
+            health: MAX_HEALTH,
         }
     }
 }
@@ -65,6 +68,23 @@ impl Component for FoodComponent {
 impl FoodComponent {
     fn new() -> Self {
         Self {}
+    }
+}
+
+#[derive(Clone, Copy)]
+struct EatingFoodComponent {
+    food_entity: EntityId
+}
+impl Component for EatingFoodComponent {
+    fn get_type(&self) -> ComponentType {
+        ComponentType::EatingFood
+    }
+}
+impl EatingFoodComponent {
+    fn new(food_entity: EntityId) -> Self {
+        Self {
+            food_entity
+        }
     }
 }
 
@@ -153,8 +173,8 @@ impl System for MoveEastSystem {
     }
 }
 
-struct BehaviorSystem;
-impl System for BehaviorSystem {
+struct MoveToFoodSystem;
+impl System for MoveToFoodSystem {
     fn run(&self, manager: &mut ArchetypeManager) {
         // Get the positions of all entities with a behavior
         let mut behavior_positions = HashMap::new();
@@ -170,19 +190,22 @@ impl System for BehaviorSystem {
         // For each position, find the closest food
         let mut found: HashMap<EntityId, bool> = HashMap::new();
         let mut closest_position: HashMap<EntityId, PositionComponent> = HashMap::new();
+        let mut closest_entity: HashMap<EntityId, EntityId> = HashMap::new();
         for (entity, position) in &behavior_positions {
             let mut closest_distance_squared = f64::MAX;
             found.insert(*entity, false);
-            closest_position.insert(*entity, PositionComponent { x: 0.0, y: 0.0 });
+            //closest_position.insert(*entity, PositionComponent { x: 0.0, y: 0.0 });
+            //closest_entity.insert(*entity, EntityId::MAX);
             for arch_index in manager.with_comp(&ComponentType::Food) {
                 let (data, entities) = manager.get_components_with_eids(arch_index, &ComponentType::Position);
-                for (component, _) in zip(data.into_iter(), entities.into_iter()) {
+                for (component, food_entity) in zip(data.into_iter(), entities.into_iter()) {
                     if let Some(food_position) = component.as_any_mut().downcast_mut::<PositionComponent>() {
                         let distance_squared = (food_position.x - position.x).powi(2) + (food_position.y - position.y).powi(2);
                         if distance_squared < closest_distance_squared {
                             closest_distance_squared = distance_squared;
                             found.insert(*entity, true);
                             closest_position.insert(*entity, food_position.clone());
+                            closest_entity.insert(*entity, *food_entity);
                         }
                     }
                 }
@@ -190,27 +213,79 @@ impl System for BehaviorSystem {
         }
 
         // Move all entities with a behavior in direction of the closest food
+        let mut person_to_food: HashMap<EntityId, EntityId> = HashMap::new();
         for arch_index in manager.with_comp(&ComponentType::Behavior) {
             let (data, entities) = manager.get_components_with_eids(arch_index, &ComponentType::Position);
             for (component, entity) in zip(data.into_iter(), entities.into_iter()) {
                 if let Some(position) = component.as_any_mut().downcast_mut::<PositionComponent>() {
                     if *found.get(entity).unwrap() {
                         let food_position = closest_position.get(entity).unwrap();
-                        let food_direction = (
+                        let food_entity = closest_entity.get(entity).unwrap();
+                        let vec_to_food = (
                             food_position.x - position.x,
                             food_position.y - position.y
                         );
-                        let direction_norm = (food_direction.0.powi(2) + food_direction.1.powi(2)).sqrt();
-                        position.x += food_direction.0 / direction_norm;
-                        position.y += food_direction.1 / direction_norm;
+                        let norm = (vec_to_food.0.powi(2) + vec_to_food.1.powi(2)).sqrt();
+                        if norm < (PERSON_PLACEHOLDER_PIXEL_SIZE as f64 / 2.0 + FOOD_PLACEHOLDER_PIXEL_SIZE as f64 / 2.0) {
+                            // Food reached -> will go to eating state
+                            person_to_food.insert(*entity, *food_entity);
+                        } else {
+                            // Get closer to the food
+                            position.x += vec_to_food.0 / norm;
+                            position.y += vec_to_food.1 / norm;
+                        }
                     }
-
                 }
             }
+        }
+
+        // If food reached, go to eating state
+        for (entity, food_entity) in person_to_food {
+            manager.add_component(entity, &EatingFoodComponent::new(food_entity));
         }
     }
 }
 
+struct EatSystem;
+impl System for EatSystem {
+    fn run(&self, manager: &mut ArchetypeManager) {
+        // Make sure that a food is not eaten by more than one person
+        let mut food_to_person: HashMap<EntityId, EntityId> = HashMap::new();
+        for arch_index in manager.with_comp(&ComponentType::EatingFood) {
+            let (data, entities) = manager.get_components_with_eids(arch_index, &ComponentType::EatingFood);
+            for (component, entity) in zip(data.into_iter(), entities.into_iter()) {
+                if let Some(eating_food) = component.as_any_mut().downcast_mut::<EatingFoodComponent>() {
+                    food_to_person.insert(eating_food.food_entity, *entity);
+                }
+            };
+        }
+
+        // Increase energy of persons that ate a food
+        for arch_index in manager.with_comp(&ComponentType::EatingFood) {
+            let (data, entities) = manager.get_components_with_eids(arch_index, &ComponentType::Person);
+            for (component, entity) in zip(data.into_iter(), entities.into_iter()) {
+                if food_to_person.values().any(|&person_entity| person_entity == *entity) {
+                    if let Some(person) = component.as_any_mut().downcast_mut::<PersonComponent>() {
+                        person.energy += FOOD_ENERGY;
+                        if person.energy > MAX_ENERGY {
+                            person.energy = MAX_ENERGY;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Remove eaten food entities
+        for food_entity in food_to_person.keys() {
+            manager.remove_entity_with_id(*food_entity);
+        }
+
+        // Remove "eating food" component of persons that ate
+        for entity in food_to_person.values() {
+            manager.remove_component(*entity, &ComponentType::EatingFood);
+        }
+    }
+}
 
 pub struct World {
     archetype_manager: ArchetypeManager,
@@ -298,7 +373,8 @@ impl<'window> Default for App<'window> {
         world.add_system(Box::new(HungerSystem));
         world.add_system(Box::new(ExhaustionSystem));
         world.add_system(Box::new(DeathSystem));
-        world.add_system(Box::new(BehaviorSystem));
+        world.add_system(Box::new(MoveToFoodSystem));
+        world.add_system(Box::new(EatSystem));
         //world.add_system(Box::new(MoveEastSystem));
 
         Self {
