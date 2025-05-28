@@ -5,8 +5,8 @@ use ecs::{ArchetypeManager, Component, ComponentType, EntityId, EntityIdAllocato
 use pixels::{Pixels, SurfaceTexture};
 use winit::{application::ApplicationHandler, dpi::LogicalSize, event::WindowEvent, event_loop::{ActiveEventLoop, ControlFlow, EventLoop}, window::{Window, WindowId}};
 
-const WIDTH: u32 = 640;
-const HEIGHT: u32 = 480;
+const WIDTH: u32 = 1920;
+const HEIGHT: u32 = 1080;
 const HUNGER_RATE: f32 = 1.0;
 const EXHAUSTION_RATE: f32 = 1.0;
 const FOOD_ENERGY: f32 = 20.0;
@@ -16,6 +16,10 @@ const PERSON_PLACEHOLDER_PIXEL_SIZE: u32 = 30;
 const FOOD_PLACEHOLDER_PIXEL_SIZE: u32 = 10;
 const PERSON_COLOR: &[u8] = &[0xff, 0x55, 0x11, 0xff];
 const FOOD_COLOR: &[u8] = &[0x22, 0xbb, 0x11, 0xff];
+const PERSON_SPEED: f64 = 3.0;  // Pixels per iteration
+const MS_PER_ITERATION: u64 = 16;
+const PERSON_NB: usize = 10;
+const FOOD_NB: usize = 200;
 
 #[derive(Clone, Copy)]
 struct PersonComponent {
@@ -48,8 +52,8 @@ impl Component for PositionComponent {
 }
 impl PositionComponent {
     fn new() -> Self {
-        let x = rand::random_range(-300.0..300.0);
-        let y = rand::random_range(-200.0..200.0);
+        let x = rand::random_range((-1.0 * WIDTH as f64 / 2.0)..(WIDTH as f64 / 2.0));
+        let y = rand::random_range((-1.0 * HEIGHT as f64 / 2.0)..(HEIGHT as f64 / 2.0));
         Self {
             x,
             y,
@@ -194,8 +198,6 @@ impl System for MoveToFoodSystem {
         for (entity, position) in &behavior_positions {
             let mut closest_distance_squared = f64::MAX;
             found.insert(*entity, false);
-            //closest_position.insert(*entity, PositionComponent { x: 0.0, y: 0.0 });
-            //closest_entity.insert(*entity, EntityId::MAX);
             for arch_index in manager.with_comp(&ComponentType::Food) {
                 let (data, entities) = manager.get_components_with_eids(arch_index, &ComponentType::Position);
                 for (component, food_entity) in zip(data.into_iter(), entities.into_iter()) {
@@ -231,8 +233,8 @@ impl System for MoveToFoodSystem {
                             person_to_food.insert(*entity, *food_entity);
                         } else {
                             // Get closer to the food
-                            position.x += vec_to_food.0 / norm;
-                            position.y += vec_to_food.1 / norm;
+                            position.x += vec_to_food.0 / norm * PERSON_SPEED;
+                            position.y += vec_to_food.1 / norm * PERSON_SPEED;
                         }
                     }
                 }
@@ -332,9 +334,10 @@ impl World {
             for component in self.archetype_manager.get_components(arch_index, &ComponentType::Position).iter_mut() {
                 if let Some(position) = component.as_any_mut().downcast_mut::<PositionComponent>() {
                     let pos_in_window = (position.x + (window_width as f64) / 2.0, position.y * -1.0 + (window_height as f64) / 2.0);
-                    for i in 0..placeholder_pixel_size {
-                        for j in 0..placeholder_pixel_size {
-                            let pixel_pos = (pos_in_window.0 as i64 + i as i64, pos_in_window.1 as i64 + j as i64);
+                    let r = placeholder_pixel_size as i64 / 2;
+                    for i in (-1 * r)..r {
+                        for j in (-1 * r)..r {
+                            let pixel_pos = (pos_in_window.0 as i64 + i, pos_in_window.1 as i64 + j);
                             if pixel_pos.0 >= 0 && pixel_pos.0 < window_width as i64 && pixel_pos.1 >= 0 && pixel_pos.1 < window_height as i64 {
                                 let index = ((pixel_pos.1 as usize) * (window_width as usize) + (pixel_pos.0 as usize)) * 4;
                                 pixels[index..(index + 4)].copy_from_slice(color);
@@ -357,14 +360,14 @@ impl<'window> Default for App<'window> {
         let mut world = World::new();
         let mut ids = EntityIdAllocator::new();
 
-        for _ in 0..2 {
+        for _ in 0..PERSON_NB {
             let id = ids.get_next_id();
             world.add_component(id, &PersonComponent::new());
             world.add_component(id, &PositionComponent::new());
             world.add_component(id, &BehaviorComponent::new());
         }
 
-        for _ in 0..10 {
+        for _ in 0..FOOD_NB {
             let id = ids.get_next_id();
             world.add_component(id, &FoodComponent::new());
             world.add_component(id, &PositionComponent::new());
@@ -415,7 +418,7 @@ impl<'window> ApplicationHandler for App<'window> {
                 self.world.draw(self.pixels.as_mut().unwrap().frame_mut(), window_size.width, window_size.height);
                 self.pixels.as_mut().unwrap().render().unwrap();
 
-                thread::sleep(time::Duration::from_millis(100));
+                thread::sleep(time::Duration::from_millis(MS_PER_ITERATION));
                 self.window.as_ref().unwrap().request_redraw();
             }
             _ => (),
