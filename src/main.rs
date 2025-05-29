@@ -163,20 +163,6 @@ impl System for DeathSystem {
     }
 }
 
-#[allow(dead_code)]
-struct MoveEastSystem;
-impl System for MoveEastSystem {
-    fn run(&self, manager: &mut ArchetypeManager) {
-        for arch_index in manager.with_comp(&ComponentType::Position) {
-            for component in manager.get_components(arch_index, &ComponentType::Position).iter_mut() {
-                if let Some(position) = component.as_any_mut().downcast_mut::<PositionComponent>() {
-                    position.x += 1.0;
-                }
-            };
-        }
-    }
-}
-
 struct MoveToFoodSystem;
 impl System for MoveToFoodSystem {
     fn run(&self, manager: &mut ArchetypeManager) {
@@ -380,7 +366,6 @@ impl<'window> Default for App<'window> {
         world.add_system(Box::new(DeathSystem));
         world.add_system(Box::new(MoveToFoodSystem));
         world.add_system(Box::new(EatSystem));
-        //world.add_system(Box::new(MoveEastSystem));
 
         Self {
             window: Default::default(),
