@@ -18,8 +18,8 @@ const PERSON_COLOR: &[u8] = &[0xff, 0x55, 0x11, 0xff];
 const FOOD_COLOR: &[u8] = &[0x22, 0xbb, 0x11, 0xff];
 const PERSON_SPEED: f64 = 3.0;  // Pixels per iteration
 const MS_PER_ITERATION: u64 = 16;
-const PERSON_NB: usize = 10;
-const FOOD_NB: usize = 200;
+const PERSON_NB: usize = 1000;
+const FOOD_NB: usize = 20000;
 
 #[derive(Clone, Copy)]
 struct PersonComponent {
@@ -253,12 +253,14 @@ impl System for EatSystem {
     fn run(&self, manager: &mut ArchetypeManager) {
         // Make sure that a food is not eaten by more than one person
         let mut food_to_person: HashMap<EntityId, EntityId> = HashMap::new();
+        let mut persons_trying_to_eat: Vec<EntityId> = Vec::new();
         for arch_index in manager.with_comp(&ComponentType::EatingFood) {
             let (data, entities) = manager.get_components_with_eids(arch_index, &ComponentType::EatingFood);
             for (component, entity) in zip(data.into_iter(), entities.into_iter()) {
                 if let Some(eating_food) = component.as_any_mut().downcast_mut::<EatingFoodComponent>() {
                     food_to_person.insert(eating_food.food_entity, *entity);
                 }
+                persons_trying_to_eat.push(*entity);
             };
         }
 
@@ -282,8 +284,8 @@ impl System for EatSystem {
             manager.remove_entity_with_id(*food_entity);
         }
 
-        // Remove "eating food" component of persons that ate
-        for entity in food_to_person.values() {
+        // Remove all "eating food" components
+        for entity in persons_trying_to_eat.iter() {
             manager.remove_component(*entity, &ComponentType::EatingFood);
         }
     }
