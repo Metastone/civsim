@@ -56,7 +56,7 @@ impl EntityIdAllocator {
     }
 }
 
-struct Archetype {
+pub struct Archetype {
     component_types: HashSet<ComponentType>,
     data: HashMap<ComponentType, Vec<Box<dyn Component>>>,
     entities: Vec<EntityId>
@@ -70,6 +70,57 @@ impl Archetype {
             data,
             entities: Vec::new()
         }
+    }
+}
+
+type ArchetypeEntityInfo = Vec<EntityId>;
+
+pub struct EntityIterator {
+    entity_index: usize,
+    i_arch: usize,
+    archetype_indexes: Vec<usize>,  // Only refers to archetypes not empty
+    archetype_entities: Vec<ArchetypeEntityInfo>
+}
+
+impl EntityIterator {
+    pub fn new(archetype_manager: & ArchetypeManager, required_ctypes: HashSet<ComponentType>) -> Self {
+        EntityIterator {
+            entity_index: 0,
+            i_arch: 0,
+            archetype_indexes: archetype_manager.with_comps(required_ctypes),
+            archetype_entities: archetype_manager.get_archetype_entity_info()
+        }
+    }
+}
+
+impl Iterator for EntityIterator {
+    type Item = (usize, usize, EntityId);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.i_arch >= self.archetype_indexes.len() {
+            return None;
+        }
+        let mut arch_index = self.archetype_indexes[self.i_arch];
+
+        let mut entities = &self.archetype_entities[arch_index];
+
+        // If we finished iterating over the current archertype, continue in next one (assume it's not empty)
+        if self.entity_index >= entities.len() {
+            self.entity_index = 0;
+            self.i_arch += 1;
+            if self.i_arch >= self.archetype_indexes.len() {
+                return None;
+            }
+            arch_index = self.archetype_indexes[self.i_arch];
+            entities = &self.archetype_entities[arch_index];
+        }
+
+        // Get entity reference info to return
+        let entity = entities[self.entity_index];
+        let entity_ref = Some((arch_index, self.entity_index, entity));
+        self.entity_index += 1;
+
+        entity_ref
     }
 }
 
@@ -88,62 +139,45 @@ impl ArchetypeManager {
         }
     }
 
-    pub fn with_comps(&self, required_ctypes: HashSet<ComponentType>) -> Vec<usize> {
+    pub fn get_component<C>(&mut self, arch_index: usize, entity_index: usize, ctype: &ComponentType) -> Option<&mut C>
+        where C: Component
+    {
+        if arch_index >= self.archetypes.len() {
+            None
+        } else if entity_index >= self.archetypes[arch_index].entities.len() {
+            None
+        } else if let Some(components) = self.archetypes[arch_index].data.get_mut(ctype) {
+            components[entity_index].as_any_mut().downcast_mut::<C>()
+        } else {
+            None
+        }
+    }
+
+    fn with_comps(&self, required_ctypes: HashSet<ComponentType>) -> Vec<usize> {
         self.archetypes.iter().enumerate()
             .filter(|(_, a)| a.component_types.is_superset(&required_ctypes) && a.entities.len() > 0)
             .map(|(i, _)| i).collect()
     }
 
-    pub fn with_comp(&self, ctype: &ComponentType) -> Vec<usize> {
-        self.with_comps(HashSet::from([*ctype]))
-    }   
-
-    pub fn get_components(&mut self, arch_index: usize, comp_type: &ComponentType) -> &mut Vec<Box<dyn Component>> {
-        if arch_index < self.archetypes.len() {
-            let data = &mut self.archetypes[arch_index].data;
-            data.get_mut(comp_type).unwrap()
-        } else {
-            panic!("Cannot get components from archetype {}: Archetype does not exist", arch_index);
-        }
+    fn get_archetype_entity_info(&self) -> Vec<ArchetypeEntityInfo> {
+        self.archetypes.iter()
+            .map(|a| a.entities.clone())
+            .collect()
     }
 
-    pub fn get_components_with_eids(&mut self, arch_index: usize, comp_type: &ComponentType) -> (&mut Vec<Box<dyn Component>>, &Vec<EntityId>) {
-        if arch_index < self.archetypes.len() {
-            let archetype = &mut self.archetypes[arch_index];
-            let data = archetype.data.get_mut(comp_type).unwrap();
-            let entities = &archetype.entities;
-            (data, entities)
-        } else {
-            panic!("Cannot get components from archetype {}: Archetype does not exist", arch_index);
-        }
+    pub fn iter_entities(&self, required_ctype: ComponentType) -> EntityIterator {
+        self.iter_entities_with_types(HashSet::from([required_ctype]))
     }
 
-    pub fn get_component_types(&self, arch_index: usize) -> &HashSet<ComponentType> {
-        if arch_index < self.archetypes.len() {
-            return &self.archetypes[arch_index].component_types;
-        } else {
-            panic!("Cannot get components from archetype {}: Archetype does not exist", arch_index);
-        }
+    pub fn iter_entities_with(&self, required_ctypes: &[ComponentType]) -> EntityIterator {
+        self.iter_entities_with_types(required_ctypes.iter().copied().collect())
     }
 
-    pub fn remove_entity(&mut self, arch_index: usize, entity_index: usize) {
-        if arch_index < self.archetypes.len() {
-            if entity_index >= self.archetypes[arch_index].entities.len() {
-                error!("Cannot remove entity with index {} in archetype {}: Entity does not exist", entity_index, arch_index);
-                return;
-            }
-            // We assume that by construction all component vecs have the same length as the entities vec
-            self.archetypes[arch_index].entities.remove(entity_index);
-            let data = &mut self.archetypes[arch_index].data;
-            for comps in data.values_mut() {
-                comps.remove(entity_index);
-            }
-        } else {
-            error!("Cannot remove entity with index {} in archetype {}: Archetype does not exist", entity_index, arch_index);
-        }
+    fn iter_entities_with_types(&self, required_ctypes: HashSet<ComponentType>) -> EntityIterator {
+        EntityIterator::new(self, required_ctypes)
     }
 
-    pub fn remove_entity_with_id(&mut self, entity: usize) {
+    pub fn remove_entity(&mut self, entity: usize) {
         let mut entity_found = false;
 
         // Look in all archetypes to find the entity
