@@ -2,7 +2,7 @@ mod ecs;
 
 use ecs::{ArchetypeManager, Component, ComponentType, EntityId, EntityIdAllocator, System};
 use pixels::{Pixels, SurfaceTexture};
-use std::{collections::HashMap, sync::Arc, thread, time, usize};
+use std::{collections::HashMap, sync::Arc, thread, time};
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
@@ -58,8 +58,8 @@ impl Component for PositionComponent {
 }
 impl PositionComponent {
     fn new() -> Self {
-        let x = rand::random_range((-1.0 * WIDTH as f64 / 2.0)..(WIDTH as f64 / 2.0));
-        let y = rand::random_range((-1.0 * HEIGHT as f64 / 2.0)..(HEIGHT as f64 / 2.0));
+        let x = rand::random_range((WIDTH as f64 / -2.0)..(WIDTH as f64 / 2.0));
+        let y = rand::random_range((HEIGHT as f64 / -2.0)..(HEIGHT as f64 / 2.0));
         Self { x, y }
     }
 }
@@ -177,7 +177,7 @@ impl System for MoveToFoodSystem {
                 entity_index,
                 &ComponentType::Position,
             ) {
-                behavior_positions.insert(entity.clone(), position.clone());
+                behavior_positions.insert(entity, *position);
             }
         }
 
@@ -201,7 +201,7 @@ impl System for MoveToFoodSystem {
                     if distance_squared < closest_distance_squared {
                         closest_distance_squared = distance_squared;
                         found.insert(*entity, true);
-                        closest_position.insert(*entity, food_position.clone());
+                        closest_position.insert(*entity, *food_position);
                         closest_entity.insert(*entity, food_entity);
                     }
                 }
@@ -300,6 +300,12 @@ pub struct World {
     systems: Vec<Box<dyn System>>,
 }
 
+impl Default for World {
+    fn default() -> Self {
+        World::new()
+    }
+}
+
 impl World {
     pub fn new() -> Self {
         Self {
@@ -324,7 +330,7 @@ impl World {
 
     pub fn draw(&mut self, pixels: &mut [u8], window_width: u32, window_height: u32) {
         // Background
-        for (_i, pixel) in pixels.chunks_exact_mut(4).enumerate() {
+        for pixel in pixels.chunks_exact_mut(4) {
             pixel.copy_from_slice(&[0xcc, 0xcc, 0xcc, 0xff]);
         }
 
@@ -333,12 +339,11 @@ impl World {
             .archetype_manager
             .iter_entities(ComponentType::Position)
         {
-            let (color, placeholder_pixel_size) = if let Some(_) =
-                self.archetype_manager.get_component::<PersonComponent>(
-                    arch_index,
-                    entity_index,
-                    &ComponentType::Person,
-                ) {
+            let (color, placeholder_pixel_size) = if self
+                .archetype_manager
+                .get_component::<PersonComponent>(arch_index, entity_index, &ComponentType::Person)
+                .is_some()
+            {
                 (PERSON_COLOR, PERSON_PLACEHOLDER_PIXEL_SIZE)
             } else {
                 (FOOD_COLOR, FOOD_PLACEHOLDER_PIXEL_SIZE)
@@ -351,11 +356,11 @@ impl World {
             ) {
                 let pos_in_window = (
                     position.x + (window_width as f64) / 2.0,
-                    position.y * -1.0 + (window_height as f64) / 2.0,
+                    -position.y + (window_height as f64) / 2.0,
                 );
                 let r = placeholder_pixel_size as i64 / 2;
-                for i in (-1 * r)..r {
-                    for j in (-1 * r)..r {
+                for i in -r..r {
+                    for j in -r..r {
                         let pixel_pos = (pos_in_window.0 as i64 + i, pos_in_window.1 as i64 + j);
                         if pixel_pos.0 >= 0
                             && pixel_pos.0 < window_width as i64

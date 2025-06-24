@@ -136,6 +136,12 @@ pub struct ArchetypeManager {
     archetypes: Vec<Archetype>,
 }
 
+impl Default for ArchetypeManager {
+    fn default() -> Self {
+        ArchetypeManager::new()
+    }
+}
+
 impl ArchetypeManager {
     pub fn new() -> Self {
         Self {
@@ -152,9 +158,9 @@ impl ArchetypeManager {
     where
         C: Component,
     {
-        if arch_index >= self.archetypes.len() {
-            None
-        } else if entity_index >= self.archetypes[arch_index].entities.len() {
+        if arch_index >= self.archetypes.len()
+            || entity_index >= self.archetypes[arch_index].entities.len()
+        {
             None
         } else if let Some(components) = self.archetypes[arch_index].data.get_mut(ctype) {
             components[entity_index].as_any_mut().downcast_mut::<C>()
@@ -168,7 +174,7 @@ impl ArchetypeManager {
             .iter()
             .enumerate()
             .filter(|(_, a)| {
-                a.component_types.is_superset(&required_ctypes) && a.entities.len() > 0
+                a.component_types.is_superset(&required_ctypes) && !a.entities.is_empty()
             })
             .map(|(i, _)| i)
             .collect()
@@ -213,7 +219,7 @@ impl ArchetypeManager {
         }
 
         if !entity_found {
-            error!("Cannot remove entity {}: Entity does not exist", entity);
+            error!("Cannot remove entity {entity}: Entity does not exist");
         }
     }
 
@@ -309,8 +315,7 @@ impl ArchetypeManager {
         // Check if the entity exists
         if !entity_found {
             error!(
-                "Cannot remove component {:?} from entity {}: Entity does not exist",
-                comp_type, entity
+                "Cannot remove component {comp_type:?} from entity {entity}: Entity does not exist"
             );
         }
 
@@ -321,8 +326,7 @@ impl ArchetypeManager {
         required_ctypes.remove(comp_type);
         if !cur_ctypes.contains(comp_type) {
             error!(
-                "Cannot remove component {:?} from entity {}: Entity does not have this component",
-                comp_type, entity
+                "Cannot remove component {comp_type:?} from entity {entity}: Entity does not have this component"
             );
         }
 
