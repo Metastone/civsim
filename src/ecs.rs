@@ -12,6 +12,7 @@ pub enum ComponentType {
     Food,
     Herbivorous,
     EatingFood,
+    Corpse,
 }
 
 pub trait Component: Any + CloneComponent {

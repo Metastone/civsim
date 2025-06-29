@@ -22,9 +22,10 @@ const REPROD_ENERGY_THRESHOLD: f32 = 90.0;
 const START_ENERGY: f32 = 30.0;
 const MAX_ENERGY: f32 = 100.0;
 const MAX_HEALTH: f32 = 100.0;
+const CORPSE_MASS: f32 = 100.0;
 
-const CREATURE_PLACEHOLDER_PIXEL_SIZE: u32 = 60;
-const FOOD_PLACEHOLDER_PIXEL_SIZE: u32 = 20;
+const CREATURE_PIXEL_SIZE: u32 = 60;
+const FOOD_PIXEL_SIZE: u32 = 20;
 
 const BAR_WIDTH: u32 = 60;
 const BAR_HEIGHT: u32 = 10;
@@ -33,6 +34,7 @@ const CREATURE_COLOR: &[u8] = &[0xff, 0x99, 0x11, 0xff];
 const FOOD_COLOR: &[u8] = &[0x22, 0xbb, 0x11, 0xff];
 const ENERGY_COLOR: &[u8] = &[0x11, 0xff, 0x88, 0xff];
 const HEALTH_COLOR: &[u8] = &[0xff, 0x11, 0x11, 0xff];
+const CORPSE_COLOR: &[u8] = &[0x44, 0x11, 0x11, 0xff];
 
 const CREATURE_SPEED: f64 = 3.0; // Pixels per iteration
 const MS_PER_ITERATION: u64 = 16;
@@ -111,6 +113,21 @@ impl EatingFoodComponent {
 }
 
 #[derive(Clone, Copy)]
+struct CorpseComponent {
+    mass: f32,
+}
+impl Component for CorpseComponent {
+    fn get_type(&self) -> ComponentType {
+        ComponentType::Corpse
+    }
+}
+impl CorpseComponent {
+    fn new() -> Self {
+        Self { mass: CORPSE_MASS }
+    }
+}
+
+#[derive(Clone, Copy)]
 struct HerbivorousComponent {}
 impl Component for HerbivorousComponent {
     fn get_type(&self) -> ComponentType {
@@ -165,7 +182,12 @@ struct DeathSystem;
 impl System for DeathSystem {
     fn run(&self, manager: &mut ArchetypeManager) {
         let mut to_remove = Vec::new();
-        for (arch_index, entity_index, entity) in manager.iter_entities(ComponentType::Creature) {
+        let mut positions = Vec::new();
+
+        for (arch_index, entity_index, entity) in
+            manager.iter_entities_with(&[ComponentType::Creature, ComponentType::Position])
+        {
+            // Check if the creature should die
             if let Some(creature) = manager.get_component::<CreatureComponent>(
                 arch_index,
                 entity_index,
@@ -173,12 +195,30 @@ impl System for DeathSystem {
             ) {
                 if creature.health <= 0.0 {
                     to_remove.push(entity);
+                } else {
+                    continue;
                 }
             }
+
+            // Store the creature's position
+            if let Some(position) = manager.get_component::<PositionComponent>(
+                arch_index,
+                entity_index,
+                &ComponentType::Position,
+            ) {
+                positions.push(*position);
+            }
         }
+
+        // Delete dead creature entities
         to_remove
             .iter()
             .for_each(|entity| manager.remove_entity(*entity));
+
+        // Create a corpse
+        for position in positions {
+            manager.create_entity_with(&[&CorpseComponent::new(), &position]);
+        }
     }
 }
 
@@ -241,10 +281,7 @@ impl System for MoveToFoodSystem {
                     let food_entity = closest_entity.get(&entity).unwrap();
                     let vec_to_food = (food_position.x - position.x, food_position.y - position.y);
                     let norm = (vec_to_food.0.powi(2) + vec_to_food.1.powi(2)).sqrt();
-                    if norm
-                        < (CREATURE_PLACEHOLDER_PIXEL_SIZE as f64 / 2.0
-                            + FOOD_PLACEHOLDER_PIXEL_SIZE as f64 / 2.0)
-                    {
+                    if norm < (CREATURE_PIXEL_SIZE as f64 / 2.0 + FOOD_PIXEL_SIZE as f64 / 2.0) {
                         // Food reached -> will go to eating state
                         creature_to_food.insert(entity, *food_entity);
                     } else {
@@ -349,10 +386,7 @@ impl System for ReproductionSystem {
             manager.create_entity_with(&[
                 &CreatureComponent::new(),
                 &HerbivorousComponent::new(),
-                &PositionComponent::from(
-                    position.x + CREATURE_PLACEHOLDER_PIXEL_SIZE as f64,
-                    position.y,
-                ),
+                &PositionComponent::from(position.x + CREATURE_PIXEL_SIZE as f64, position.y),
             ]);
         }
     }
@@ -410,6 +444,27 @@ impl World {
             pixel.copy_from_slice(&[0xcc, 0xcc, 0xcc, 0xff]);
         }
 
+        // Draw corpses
+        for (arch_index, entity_index, _) in self
+            .archetype_manager
+            .iter_entities_with(&[ComponentType::Corpse, ComponentType::Position])
+        {
+            if let Some(position) = self.archetype_manager.get_component::<PositionComponent>(
+                arch_index,
+                entity_index,
+                &ComponentType::Position,
+            ) {
+                self.draw_square(
+                    position,
+                    CORPSE_COLOR,
+                    CREATURE_PIXEL_SIZE,
+                    pixels,
+                    window_width,
+                    window_height,
+                );
+            }
+        }
+
         // Draw creatures
         for (arch_index, entity_index, _) in self
             .archetype_manager
@@ -425,7 +480,7 @@ impl World {
                 self.draw_square(
                     position,
                     CREATURE_COLOR,
-                    CREATURE_PLACEHOLDER_PIXEL_SIZE,
+                    CREATURE_PIXEL_SIZE,
                     pixels,
                     window_width,
                     window_height,
@@ -443,10 +498,7 @@ impl World {
                 self.draw_rec(
                     (
                         pos.x,
-                        pos.y
-                            + CREATURE_PLACEHOLDER_PIXEL_SIZE as f64 / 2.0
-                            + BAR_HEIGHT as f64 / 2.0
-                            + 5.0,
+                        pos.y + CREATURE_PIXEL_SIZE as f64 / 2.0 + BAR_HEIGHT as f64 / 2.0 + 5.0,
                     ),
                     HEALTH_COLOR,
                     (
@@ -463,7 +515,7 @@ impl World {
                     (
                         pos.x,
                         pos.y
-                            + CREATURE_PLACEHOLDER_PIXEL_SIZE as f64 / 2.0
+                            + CREATURE_PIXEL_SIZE as f64 / 2.0
                             + BAR_HEIGHT as f64 * 1.5
                             + 5.0 * 2.0,
                     ),
@@ -492,7 +544,7 @@ impl World {
                 self.draw_square(
                     position,
                     FOOD_COLOR,
-                    FOOD_PLACEHOLDER_PIXEL_SIZE,
+                    FOOD_PIXEL_SIZE,
                     pixels,
                     window_width,
                     window_height,
