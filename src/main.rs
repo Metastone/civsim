@@ -1,6 +1,6 @@
 mod ecs;
 
-use ecs::{ArchetypeManager, Component, ComponentType, EntityId, EntityIdAllocator, System};
+use ecs::{ArchetypeManager, Component, ComponentType, EntityId, System};
 use pixels::{Pixels, SurfaceTexture};
 use std::{collections::HashMap, sync::Arc, thread, time};
 use winit::{
@@ -14,8 +14,10 @@ use winit::{
 const SCREEN_WIDTH: u32 = 1920;
 const SCREEN_HEIGHT: u32 = 1080;
 const HUNGER_RATE: f32 = 1.0;
-const EXHAUSTION_RATE: f32 = 1.0;
+const EXHAUSTION_RATE: f32 = 0.5;
 const FOOD_ENERGY: f32 = 20.0;
+const REPROD_ENERGY_THRESHOLD: f32 = 90.0;
+const START_ENERGY: f32 = 30.0;
 const MAX_ENERGY: f32 = 100.0;
 const MAX_HEALTH: f32 = 100.0;
 const CREATURE_PLACEHOLDER_PIXEL_SIZE: u32 = 60;
@@ -44,7 +46,7 @@ impl Component for CreatureComponent {
 impl CreatureComponent {
     fn new() -> Self {
         Self {
-            energy: MAX_ENERGY,
+            energy: START_ENERGY,
             health: MAX_HEALTH,
         }
     }
@@ -64,6 +66,10 @@ impl PositionComponent {
     fn new() -> Self {
         let x = rand::random_range((SCREEN_WIDTH as f64 / -2.0)..(SCREEN_WIDTH as f64 / 2.0));
         let y = rand::random_range((SCREEN_HEIGHT as f64 / -2.0)..(SCREEN_HEIGHT as f64 / 2.0));
+        Self { x, y }
+    }
+
+    fn from(x: f64, y: f64) -> Self {
         Self { x, y }
     }
 }
@@ -97,13 +103,13 @@ impl EatingFoodComponent {
 }
 
 #[derive(Clone, Copy)]
-struct BehaviorComponent {}
-impl Component for BehaviorComponent {
+struct HerbivorousComponent {}
+impl Component for HerbivorousComponent {
     fn get_type(&self) -> ComponentType {
-        ComponentType::Behavior
+        ComponentType::Herbivorous
     }
 }
-impl BehaviorComponent {
+impl HerbivorousComponent {
     fn new() -> Self {
         Self {}
     }
@@ -171,17 +177,17 @@ impl System for DeathSystem {
 struct MoveToFoodSystem;
 impl System for MoveToFoodSystem {
     fn run(&self, manager: &mut ArchetypeManager) {
-        // Get the positions of all entities with a behavior
-        let mut behavior_positions = HashMap::new();
+        // Get the positions of all herbivorous entities
+        let mut herbivorous_positions = HashMap::new();
         for (arch_index, entity_index, entity) in
-            manager.iter_entities_with(&[ComponentType::Behavior, ComponentType::Position])
+            manager.iter_entities_with(&[ComponentType::Herbivorous, ComponentType::Position])
         {
             if let Some(position) = manager.get_component::<PositionComponent>(
                 arch_index,
                 entity_index,
                 &ComponentType::Position,
             ) {
-                behavior_positions.insert(entity, *position);
+                herbivorous_positions.insert(entity, *position);
             }
         }
 
@@ -189,7 +195,7 @@ impl System for MoveToFoodSystem {
         let mut found: HashMap<EntityId, bool> = HashMap::new();
         let mut closest_position: HashMap<EntityId, PositionComponent> = HashMap::new();
         let mut closest_entity: HashMap<EntityId, EntityId> = HashMap::new();
-        for (entity, position) in &behavior_positions {
+        for (entity, position) in &herbivorous_positions {
             let mut closest_distance_squared = f64::MAX;
             found.insert(*entity, false);
             for (arch_index, entity_index, food_entity) in
@@ -212,10 +218,10 @@ impl System for MoveToFoodSystem {
             }
         }
 
-        // Move all entities with a behavior in direction of the closest food
+        // Move all herbivorous entities in direction of the closest food
         let mut creature_to_food: HashMap<EntityId, EntityId> = HashMap::new();
         for (arch_index, entity_index, entity) in
-            manager.iter_entities_with(&[ComponentType::Behavior, ComponentType::Position])
+            manager.iter_entities_with(&[ComponentType::Herbivorous, ComponentType::Position])
         {
             if let Some(position) = manager.get_component_mut::<PositionComponent>(
                 arch_index,
@@ -299,6 +305,51 @@ impl System for EatSystem {
     }
 }
 
+struct ReproductionSystem;
+impl System for ReproductionSystem {
+    fn run(&self, manager: &mut ArchetypeManager) {
+        // Find creatures that can reproduce
+        let mut positions = Vec::new();
+        for (arch_index, entity_index, _entity) in
+            manager.iter_entities_with(&[ComponentType::Creature, ComponentType::Position])
+        {
+            // If the creature can reproduce, reset its energy to start value
+            if let Some(creature) = manager.get_component_mut::<CreatureComponent>(
+                arch_index,
+                entity_index,
+                &ComponentType::Creature,
+            ) {
+                if creature.energy >= REPROD_ENERGY_THRESHOLD {
+                    creature.energy = START_ENERGY;
+                } else {
+                    continue;
+                }
+            }
+
+            // Store the creature's position
+            if let Some(position) = manager.get_component::<PositionComponent>(
+                arch_index,
+                entity_index,
+                &ComponentType::Position,
+            ) {
+                positions.push(*position);
+            }
+        }
+
+        // Create one new creature next to each reproducing create
+        for position in positions {
+            manager.create_entity_with(&[
+                &CreatureComponent::new(),
+                &HerbivorousComponent::new(),
+                &PositionComponent::from(
+                    position.x + CREATURE_PLACEHOLDER_PIXEL_SIZE as f64,
+                    position.y,
+                ),
+            ]);
+        }
+    }
+}
+
 pub struct World {
     archetype_manager: ArchetypeManager,
     systems: Vec<Box<dyn System>>,
@@ -324,6 +375,10 @@ impl World {
 
     pub fn add_component(&mut self, entity_id: EntityId, new_comp: &dyn Component) {
         self.archetype_manager.add_component(entity_id, new_comp);
+    }
+
+    pub fn create_entity_with(&mut self, components: &[&dyn Component]) {
+        self.archetype_manager.create_entity_with(components);
     }
 
     pub fn iterate(&mut self) {
@@ -489,19 +544,19 @@ struct App<'window> {
 impl<'window> Default for App<'window> {
     fn default() -> Self {
         let mut world = World::new();
-        let mut ids = EntityIdAllocator::new();
 
         for _ in 0..CREATURE_NB {
-            let id = ids.get_next_id();
-            world.add_component(id, &CreatureComponent::new());
-            world.add_component(id, &PositionComponent::new());
-            world.add_component(id, &BehaviorComponent::new());
+            world.create_entity_with(&[
+                &CreatureComponent::new(),
+                &PositionComponent::new(),
+                &HerbivorousComponent::new(),
+            ]);
         }
 
         for _ in 0..FOOD_NB {
-            let id = ids.get_next_id();
-            world.add_component(id, &FoodComponent::new());
-            world.add_component(id, &PositionComponent::new());
+            let a = FoodComponent::new();
+            let b = PositionComponent::new();
+            world.create_entity_with(&[&a, &b]);
         }
 
         world.add_system(Box::new(HungerSystem));
@@ -509,6 +564,7 @@ impl<'window> Default for App<'window> {
         world.add_system(Box::new(DeathSystem));
         world.add_system(Box::new(MoveToFoodSystem));
         world.add_system(Box::new(EatSystem));
+        world.add_system(Box::new(ReproductionSystem));
 
         Self {
             window: Default::default(),

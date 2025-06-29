@@ -10,7 +10,7 @@ pub enum ComponentType {
     Creature = 0,
     Position,
     Food,
-    Behavior,
+    Herbivorous,
     EatingFood,
 }
 
@@ -134,6 +134,7 @@ pub trait System {
 
 pub struct ArchetypeManager {
     archetypes: Vec<Archetype>,
+    ids: EntityIdAllocator,
 }
 
 impl Default for ArchetypeManager {
@@ -146,6 +147,7 @@ impl ArchetypeManager {
     pub fn new() -> Self {
         Self {
             archetypes: Vec::new(),
+            ids: EntityIdAllocator::new(),
         }
     }
 
@@ -240,6 +242,13 @@ impl ArchetypeManager {
 
         if !entity_found {
             error!("Cannot remove entity {entity}: Entity does not exist");
+        }
+    }
+
+    pub fn create_entity_with(&mut self, components: &[&dyn Component]) {
+        let entity = self.ids.get_next_id();
+        for comp in components {
+            self.add_component(entity, *comp);
         }
     }
 
