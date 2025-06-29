@@ -7,7 +7,7 @@ use log::error;
 
 #[derive(Eq, PartialEq, Hash, Clone, Copy, Debug)]
 pub enum ComponentType {
-    Person = 0,
+    Creature = 0,
     Position,
     Food,
     Behavior,

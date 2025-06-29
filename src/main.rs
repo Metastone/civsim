@@ -18,30 +18,30 @@ const EXHAUSTION_RATE: f32 = 1.0;
 const FOOD_ENERGY: f32 = 20.0;
 const MAX_ENERGY: f32 = 100.0;
 const MAX_HEALTH: f32 = 100.0;
-const PERSON_PLACEHOLDER_PIXEL_SIZE: u32 = 60;
+const CREATURE_PLACEHOLDER_PIXEL_SIZE: u32 = 60;
 const FOOD_PLACEHOLDER_PIXEL_SIZE: u32 = 20;
 const BAR_WIDTH: u32 = 60;
 const BAR_HEIGHT: u32 = 10;
-const PERSON_COLOR: &[u8] = &[0xff, 0x99, 0x11, 0xff];
+const CREATURE_COLOR: &[u8] = &[0xff, 0x99, 0x11, 0xff];
 const FOOD_COLOR: &[u8] = &[0x22, 0xbb, 0x11, 0xff];
 const ENERGY_COLOR: &[u8] = &[0x11, 0xff, 0x88, 0xff];
 const HEALTH_COLOR: &[u8] = &[0xff, 0x11, 0x11, 0xff];
-const PERSON_SPEED: f64 = 3.0; // Pixels per iteration
+const CREATURE_SPEED: f64 = 3.0; // Pixels per iteration
 const MS_PER_ITERATION: u64 = 16;
-const PERSON_NB: usize = 10;
+const CREATURE_NB: usize = 10;
 const FOOD_NB: usize = 200;
 
 #[derive(Clone, Copy)]
-struct PersonComponent {
+struct CreatureComponent {
     energy: f32,
     health: f32,
 }
-impl Component for PersonComponent {
+impl Component for CreatureComponent {
     fn get_type(&self) -> ComponentType {
-        ComponentType::Person
+        ComponentType::Creature
     }
 }
-impl PersonComponent {
+impl CreatureComponent {
     fn new() -> Self {
         Self {
             energy: MAX_ENERGY,
@@ -112,15 +112,15 @@ impl BehaviorComponent {
 struct HungerSystem;
 impl System for HungerSystem {
     fn run(&self, manager: &mut ArchetypeManager) {
-        for (arch_index, entity_index, _) in manager.iter_entities(ComponentType::Person) {
-            if let Some(person) = manager.get_component_mut::<PersonComponent>(
+        for (arch_index, entity_index, _) in manager.iter_entities(ComponentType::Creature) {
+            if let Some(creature) = manager.get_component_mut::<CreatureComponent>(
                 arch_index,
                 entity_index,
-                &ComponentType::Person,
+                &ComponentType::Creature,
             ) {
-                person.energy -= HUNGER_RATE;
-                if person.energy <= 0.0 {
-                    person.energy = 0.0;
+                creature.energy -= HUNGER_RATE;
+                if creature.energy <= 0.0 {
+                    creature.energy = 0.0;
                 }
             }
         }
@@ -130,17 +130,17 @@ impl System for HungerSystem {
 struct ExhaustionSystem;
 impl System for ExhaustionSystem {
     fn run(&self, manager: &mut ArchetypeManager) {
-        for (arch_index, entity_index, _) in manager.iter_entities(ComponentType::Person) {
-            if let Some(person) = manager.get_component_mut::<PersonComponent>(
+        for (arch_index, entity_index, _) in manager.iter_entities(ComponentType::Creature) {
+            if let Some(creature) = manager.get_component_mut::<CreatureComponent>(
                 arch_index,
                 entity_index,
-                &ComponentType::Person,
+                &ComponentType::Creature,
             ) {
-                if person.energy <= 0.0 {
-                    person.health -= EXHAUSTION_RATE;
+                if creature.energy <= 0.0 {
+                    creature.health -= EXHAUSTION_RATE;
                 }
-                if person.health <= 0.0 {
-                    person.health = 0.0;
+                if creature.health <= 0.0 {
+                    creature.health = 0.0;
                 }
             }
         }
@@ -151,13 +151,13 @@ struct DeathSystem;
 impl System for DeathSystem {
     fn run(&self, manager: &mut ArchetypeManager) {
         let mut to_remove = Vec::new();
-        for (arch_index, entity_index, entity) in manager.iter_entities(ComponentType::Person) {
-            if let Some(person) = manager.get_component::<PersonComponent>(
+        for (arch_index, entity_index, entity) in manager.iter_entities(ComponentType::Creature) {
+            if let Some(creature) = manager.get_component::<CreatureComponent>(
                 arch_index,
                 entity_index,
-                &ComponentType::Person,
+                &ComponentType::Creature,
             ) {
-                if person.health <= 0.0 {
+                if creature.health <= 0.0 {
                     to_remove.push(entity);
                 }
             }
@@ -213,7 +213,7 @@ impl System for MoveToFoodSystem {
         }
 
         // Move all entities with a behavior in direction of the closest food
-        let mut person_to_food: HashMap<EntityId, EntityId> = HashMap::new();
+        let mut creature_to_food: HashMap<EntityId, EntityId> = HashMap::new();
         for (arch_index, entity_index, entity) in
             manager.iter_entities_with(&[ComponentType::Behavior, ComponentType::Position])
         {
@@ -228,22 +228,22 @@ impl System for MoveToFoodSystem {
                     let vec_to_food = (food_position.x - position.x, food_position.y - position.y);
                     let norm = (vec_to_food.0.powi(2) + vec_to_food.1.powi(2)).sqrt();
                     if norm
-                        < (PERSON_PLACEHOLDER_PIXEL_SIZE as f64 / 2.0
+                        < (CREATURE_PLACEHOLDER_PIXEL_SIZE as f64 / 2.0
                             + FOOD_PLACEHOLDER_PIXEL_SIZE as f64 / 2.0)
                     {
                         // Food reached -> will go to eating state
-                        person_to_food.insert(entity, *food_entity);
+                        creature_to_food.insert(entity, *food_entity);
                     } else {
                         // Get closer to the food
-                        position.x += vec_to_food.0 / norm * PERSON_SPEED;
-                        position.y += vec_to_food.1 / norm * PERSON_SPEED;
+                        position.x += vec_to_food.0 / norm * CREATURE_SPEED;
+                        position.y += vec_to_food.1 / norm * CREATURE_SPEED;
                     }
                 }
             }
         }
 
         // If food reached, go to eating state
-        for (entity, food_entity) in person_to_food {
+        for (entity, food_entity) in creature_to_food {
             manager.add_component(entity, &EatingFoodComponent::new(food_entity));
         }
     }
@@ -252,48 +252,48 @@ impl System for MoveToFoodSystem {
 struct EatSystem;
 impl System for EatSystem {
     fn run(&self, manager: &mut ArchetypeManager) {
-        // Make sure that a food is not eaten by more than one person
-        let mut food_to_person: HashMap<EntityId, EntityId> = HashMap::new();
-        let mut persons_trying_to_eat: Vec<EntityId> = Vec::new();
+        // Make sure that a food is not eaten by more than one creature
+        let mut food_to_creature: HashMap<EntityId, EntityId> = HashMap::new();
+        let mut creatures_trying_to_eat: Vec<EntityId> = Vec::new();
         for (arch_index, entity_index, entity) in manager.iter_entities(ComponentType::EatingFood) {
             if let Some(eating_food) = manager.get_component::<EatingFoodComponent>(
                 arch_index,
                 entity_index,
                 &ComponentType::EatingFood,
             ) {
-                food_to_person.insert(eating_food.food_entity, entity);
+                food_to_creature.insert(eating_food.food_entity, entity);
             }
-            persons_trying_to_eat.push(entity);
+            creatures_trying_to_eat.push(entity);
         }
 
-        // Increase energy of persons that ate a food
+        // Increase energy of creatures that ate a food
         for (arch_index, entity_index, entity) in
-            manager.iter_entities_with(&[ComponentType::EatingFood, ComponentType::Person])
+            manager.iter_entities_with(&[ComponentType::EatingFood, ComponentType::Creature])
         {
-            if let Some(person) = manager.get_component_mut::<PersonComponent>(
+            if let Some(creature) = manager.get_component_mut::<CreatureComponent>(
                 arch_index,
                 entity_index,
-                &ComponentType::Person,
+                &ComponentType::Creature,
             ) {
-                if food_to_person
+                if food_to_creature
                     .values()
-                    .any(|&person_entity| person_entity == entity)
+                    .any(|&creature_entity| creature_entity == entity)
                 {
-                    person.energy += FOOD_ENERGY;
-                    if person.energy > MAX_ENERGY {
-                        person.energy = MAX_ENERGY;
+                    creature.energy += FOOD_ENERGY;
+                    if creature.energy > MAX_ENERGY {
+                        creature.energy = MAX_ENERGY;
                     }
                 }
             }
         }
 
         // Remove eaten food entities
-        for food_entity in food_to_person.keys() {
+        for food_entity in food_to_creature.keys() {
             manager.remove_entity(*food_entity);
         }
 
         // Remove all "eating food" components
-        for entity in persons_trying_to_eat.iter() {
+        for entity in creatures_trying_to_eat.iter() {
             manager.remove_component(*entity, &ComponentType::EatingFood);
         }
     }
@@ -338,10 +338,10 @@ impl World {
             pixel.copy_from_slice(&[0xcc, 0xcc, 0xcc, 0xff]);
         }
 
-        // Draw persons
+        // Draw creatures
         for (arch_index, entity_index, _) in self
             .archetype_manager
-            .iter_entities_with(&[ComponentType::Person, ComponentType::Position])
+            .iter_entities_with(&[ComponentType::Creature, ComponentType::Position])
         {
             let pos;
             if let Some(position) = self.archetype_manager.get_component::<PositionComponent>(
@@ -352,8 +352,8 @@ impl World {
                 pos = *position;
                 self.draw_square(
                     position,
-                    PERSON_COLOR,
-                    PERSON_PLACEHOLDER_PIXEL_SIZE,
+                    CREATURE_COLOR,
+                    CREATURE_PLACEHOLDER_PIXEL_SIZE,
                     pixels,
                     window_width,
                     window_height,
@@ -362,23 +362,25 @@ impl World {
                 continue;
             }
 
-            if let Some(person) = self.archetype_manager.get_component::<PersonComponent>(
+            if let Some(creature) = self.archetype_manager.get_component::<CreatureComponent>(
                 arch_index,
                 entity_index,
-                &ComponentType::Person,
+                &ComponentType::Creature,
             ) {
                 // Draw health bar
                 self.draw_rec(
                     (
                         pos.x,
                         pos.y
-                            + PERSON_PLACEHOLDER_PIXEL_SIZE as f64 / 2.0
+                            + CREATURE_PLACEHOLDER_PIXEL_SIZE as f64 / 2.0
                             + BAR_HEIGHT as f64 / 2.0
                             + 5.0,
                     ),
                     HEALTH_COLOR,
-                    (BAR_WIDTH as f32 * person.health / MAX_HEALTH) as u32,
-                    BAR_HEIGHT,
+                    (
+                        (BAR_WIDTH as f32 * creature.health / MAX_HEALTH) as u32,
+                        BAR_HEIGHT,
+                    ),
                     pixels,
                     window_width,
                     window_height,
@@ -389,13 +391,15 @@ impl World {
                     (
                         pos.x,
                         pos.y
-                            + PERSON_PLACEHOLDER_PIXEL_SIZE as f64 / 2.0
+                            + CREATURE_PLACEHOLDER_PIXEL_SIZE as f64 / 2.0
                             + BAR_HEIGHT as f64 * 1.5
                             + 5.0 * 2.0,
                     ),
                     ENERGY_COLOR,
-                    (BAR_WIDTH as f32 * person.energy / MAX_ENERGY) as u32,
-                    BAR_HEIGHT,
+                    (
+                        (BAR_WIDTH as f32 * creature.energy / MAX_ENERGY) as u32,
+                        BAR_HEIGHT,
+                    ),
                     pixels,
                     window_width,
                     window_height,
@@ -434,34 +438,21 @@ impl World {
         window_width: u32,
         window_height: u32,
     ) {
-        let pos_in_window = (
-            position.x + (window_width as f64) / 2.0,
-            -position.y + (window_height as f64) / 2.0,
+        self.draw_rec(
+            (position.x, position.y),
+            color,
+            (size, size),
+            pixels,
+            window_width,
+            window_height,
         );
-        let r = size as i64 / 2;
-        for i in -r..r {
-            for j in -r..r {
-                let pixel_pos = (pos_in_window.0 as i64 + i, pos_in_window.1 as i64 + j);
-                if pixel_pos.0 >= 0
-                    && pixel_pos.0 < window_width as i64
-                    && pixel_pos.1 >= 0
-                    && pixel_pos.1 < window_height as i64
-                {
-                    let index = ((pixel_pos.1 as usize) * (window_width as usize)
-                        + (pixel_pos.0 as usize))
-                        * 4;
-                    pixels[index..(index + 4)].copy_from_slice(color);
-                }
-            }
-        }
     }
 
     fn draw_rec(
         &self,
         (x, y): (f64, f64),
         color: &[u8],
-        width: u32,
-        height: u32,
+        (width, height): (u32, u32),
         pixels: &mut [u8],
         window_width: u32,
         window_height: u32,
@@ -500,9 +491,9 @@ impl<'window> Default for App<'window> {
         let mut world = World::new();
         let mut ids = EntityIdAllocator::new();
 
-        for _ in 0..PERSON_NB {
+        for _ in 0..CREATURE_NB {
             let id = ids.get_next_id();
-            world.add_component(id, &PersonComponent::new());
+            world.add_component(id, &CreatureComponent::new());
             world.add_component(id, &PositionComponent::new());
             world.add_component(id, &BehaviorComponent::new());
         }
