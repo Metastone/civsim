@@ -11,27 +11,35 @@ use winit::{
     window::{Window, WindowId},
 };
 
-const SCREEN_WIDTH: u32 = 1920;
-const SCREEN_HEIGHT: u32 = 1080;
+const SCREEN_WIDTH: u32 = 2880;
+const SCREEN_HEIGHT: u32 = 1620;
+
 const HUNGER_RATE: f32 = 1.0;
 const EXHAUSTION_RATE: f32 = 0.5;
+
 const FOOD_ENERGY: f32 = 20.0;
 const REPROD_ENERGY_THRESHOLD: f32 = 90.0;
 const START_ENERGY: f32 = 30.0;
 const MAX_ENERGY: f32 = 100.0;
 const MAX_HEALTH: f32 = 100.0;
+
 const CREATURE_PLACEHOLDER_PIXEL_SIZE: u32 = 60;
 const FOOD_PLACEHOLDER_PIXEL_SIZE: u32 = 20;
+
 const BAR_WIDTH: u32 = 60;
 const BAR_HEIGHT: u32 = 10;
+
 const CREATURE_COLOR: &[u8] = &[0xff, 0x99, 0x11, 0xff];
 const FOOD_COLOR: &[u8] = &[0x22, 0xbb, 0x11, 0xff];
 const ENERGY_COLOR: &[u8] = &[0x11, 0xff, 0x88, 0xff];
 const HEALTH_COLOR: &[u8] = &[0xff, 0x11, 0x11, 0xff];
+
 const CREATURE_SPEED: f64 = 3.0; // Pixels per iteration
 const MS_PER_ITERATION: u64 = 16;
+
 const CREATURE_NB: usize = 10;
 const FOOD_NB: usize = 200;
+const NEW_FOOD_PER_TICK: usize = 2;
 
 #[derive(Clone, Copy)]
 struct CreatureComponent {
@@ -350,6 +358,15 @@ impl System for ReproductionSystem {
     }
 }
 
+struct FoodGrowthSystem;
+impl System for FoodGrowthSystem {
+    fn run(&self, manager: &mut ArchetypeManager) {
+        for _ in 0..NEW_FOOD_PER_TICK {
+            manager.create_entity_with(&[&FoodComponent::new(), &PositionComponent::new()]);
+        }
+    }
+}
+
 pub struct World {
     archetype_manager: ArchetypeManager,
     systems: Vec<Box<dyn System>>,
@@ -554,9 +571,7 @@ impl<'window> Default for App<'window> {
         }
 
         for _ in 0..FOOD_NB {
-            let a = FoodComponent::new();
-            let b = PositionComponent::new();
-            world.create_entity_with(&[&a, &b]);
+            world.create_entity_with(&[&FoodComponent::new(), &PositionComponent::new()]);
         }
 
         world.add_system(Box::new(HungerSystem));
@@ -565,6 +580,7 @@ impl<'window> Default for App<'window> {
         world.add_system(Box::new(MoveToFoodSystem));
         world.add_system(Box::new(EatSystem));
         world.add_system(Box::new(ReproductionSystem));
+        world.add_system(Box::new(FoodGrowthSystem));
 
         Self {
             window: Default::default(),
