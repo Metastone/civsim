@@ -150,6 +150,26 @@ impl ArchetypeManager {
     }
 
     pub fn get_component<C>(
+        &self,
+        arch_index: usize,
+        entity_index: usize,
+        ctype: &ComponentType,
+    ) -> Option<&C>
+    where
+        C: Component,
+    {
+        if arch_index >= self.archetypes.len()
+            || entity_index >= self.archetypes[arch_index].entities.len()
+        {
+            None
+        } else if let Some(components) = self.archetypes[arch_index].data.get(ctype) {
+            components[entity_index].as_any().downcast_ref::<C>()
+        } else {
+            None
+        }
+    }
+
+    pub fn get_component_mut<C>(
         &mut self,
         arch_index: usize,
         entity_index: usize,
