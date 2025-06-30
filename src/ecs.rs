@@ -12,7 +12,9 @@ pub enum ComponentType {
     Food,
     Herbivorous,
     EatingFood,
+    EatingCorpse,
     Corpse,
+    Carnivorous,
 }
 
 pub trait Component: Any + CloneComponent {
@@ -150,6 +152,13 @@ impl ArchetypeManager {
             archetypes: Vec::new(),
             ids: EntityIdAllocator::new(),
         }
+    }
+
+    pub fn has_component(&self, arch_index: usize, ctype: &ComponentType) -> bool {
+        if arch_index < self.archetypes.len() {
+            return self.archetypes[arch_index].component_types.contains(ctype);
+        }
+        false
     }
 
     pub fn get_component<C>(
