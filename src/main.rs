@@ -11,8 +11,12 @@ use display::Display;
 use ecs::{Component, Ecs, System, Update};
 use pixels::{Pixels, SurfaceTexture};
 use shared_data::biome::humidity;
-use std::any::TypeId;
-use std::{sync::Arc, thread, time};
+use std::{
+    any::TypeId,
+    sync::Arc,
+    thread,
+    time::{self, Instant},
+};
 
 use components::all::*;
 use components::body_component::BodyComponent;
@@ -35,7 +39,7 @@ use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
     event::{ElementState, MouseScrollDelta, WindowEvent},
-    event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
+    event_loop::ActiveEventLoop,
     keyboard::{Key, NamedKey},
     window::{Window, WindowId},
 };
@@ -90,6 +94,14 @@ impl World {
 
     pub fn toogle_pause(&mut self) {
         self.pause = !self.pause;
+    }
+
+    pub fn print_summary(&self) {
+        let plants = iter_entities!(self.ecs, PlantComponent).count();
+        let herbivorous = iter_entities!(self.ecs, HerbivorousComponent).count();
+        let carnivorous = iter_entities!(self.ecs, CarnivorousComponent).count();
+        let corpses = iter_entities!(self.ecs, CorpseComponent).count();
+        println!("\tplants = {plants}\n\therbivorous = {herbivorous}\n\tcarnivorous = {carnivorous}\n\tcorpses = {corpses}\n");
     }
 }
 
@@ -337,7 +349,28 @@ impl ApplicationHandler for App<'_> {
 fn main() {
     env_logger::init();
 
-    let event_loop = EventLoop::new().unwrap();
-    event_loop.set_control_flow(ControlFlow::Wait);
-    event_loop.run_app(&mut App::default()).unwrap();
+    let config = load_config("config.toml");
+    rng::init(&config);
+    body_grid::init(&config);
+    let mut world = create_world(&config);
+
+    let old = Instant::now();
+    let mut i: usize = 0;
+    let nb_iter_step = 10;
+    loop {
+        world.iterate(&config);
+
+        if i.is_multiple_of(nb_iter_step) {
+            println!("{}", i);
+            world.print_summary();
+
+            let elapsed_seconds = (Instant::now() - old).as_secs();
+            if elapsed_seconds != 0 {
+                let iter_per_sec = i as u64 / elapsed_seconds;
+                println!("iterations per second: {iter_per_sec:?}");
+            }
+        }
+
+        i += 1;
+    }
 }
