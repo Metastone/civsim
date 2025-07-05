@@ -1,7 +1,7 @@
 pub const RNG_SEED: u64 = 1; // 0 means not seeded
 
-pub const SCREEN_WIDTH: u32 = 2560;
-pub const SCREEN_HEIGHT: u32 = 1440;
+pub const SCREEN_WIDTH: u32 = 11520;
+pub const SCREEN_HEIGHT: u32 = 6480;
 
 pub const HUNGER_RATE: f32 = 0.2;
 pub const EXHAUSTION_RATE: f32 = 1.0;
@@ -35,8 +35,8 @@ pub const CARNIVOROUS_SPEED: f64 = 2.0; // Pixels per iteration
 
 pub const MS_PER_ITERATION: u64 = 16;
 
-pub const HERBIVOROUS_NB: usize = 40;
+pub const HERBIVOROUS_NB: usize = 10;
 pub const CARNIVOROUS_NB: usize = 1;
 pub const FOOD_NB: usize = 100;
-pub const CORPSE_NB: usize = 20;
-pub const NEW_FOOD_PER_TICK: usize = 1;
+pub const CORPSE_NB: usize = 100;
+pub const NEW_FOOD_PER_TICK: usize = 16;
