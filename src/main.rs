@@ -10,14 +10,18 @@ use std::{sync::Arc, thread, time};
 
 use components::*;
 use constants::*;
+use systems::attack_herbivorous_system::AttackHerbivorousSystem;
+use systems::carnivorous_mind_system::CarnivorousMindSystem;
 use systems::death_system::DeathSystem;
 use systems::eat_corpse_system::EatCorpseSystem;
 use systems::eat_food_system::EatFoodSystem;
 use systems::exhaustion_system::ExhaustionSystem;
 use systems::food_growth_system::FoodGrowthSystem;
+use systems::herbivorous_mind_system::HerbivorousMindSystem;
 use systems::hunger_system::HungerSystem;
 use systems::move_to_corpse_system::MoveToCorpseSystem;
 use systems::move_to_food_system::MoveToFoodSystem;
+use systems::move_to_herbivorous_system::MoveToHerbivorousSystem;
 use systems::reproduction_system::ReproductionSystem;
 
 use winit::{
@@ -88,6 +92,7 @@ impl<'window> Default for App<'window> {
                 &CreatureComponent::new(),
                 &PositionComponent::new(),
                 &HerbivorousComponent::new(),
+                &InactiveComponent::new(),
             ]);
         }
 
@@ -96,22 +101,28 @@ impl<'window> Default for App<'window> {
                 &CreatureComponent::new(),
                 &PositionComponent::new(),
                 &CarnivorousComponent::new(),
+                &InactiveComponent::new(),
             ]);
         }
 
+        #[allow(clippy::reversed_empty_ranges)]
         for _ in 0..CORPSE_NB {
             world.create_entity_with(&[&CorpseComponent::new(), &PositionComponent::new()]);
         }
 
+        world.add_system(Box::new(FoodGrowthSystem));
+        world.add_system(Box::new(ReproductionSystem));
+        world.add_system(Box::new(HerbivorousMindSystem));
+        world.add_system(Box::new(MoveToFoodSystem));
+        world.add_system(Box::new(EatFoodSystem));
+        world.add_system(Box::new(CarnivorousMindSystem));
+        world.add_system(Box::new(MoveToCorpseSystem));
+        world.add_system(Box::new(MoveToHerbivorousSystem));
+        world.add_system(Box::new(EatCorpseSystem));
+        world.add_system(Box::new(AttackHerbivorousSystem));
         world.add_system(Box::new(HungerSystem));
         world.add_system(Box::new(ExhaustionSystem));
         world.add_system(Box::new(DeathSystem));
-        world.add_system(Box::new(MoveToFoodSystem));
-        world.add_system(Box::new(EatFoodSystem));
-        world.add_system(Box::new(MoveToCorpseSystem));
-        world.add_system(Box::new(EatCorpseSystem));
-        world.add_system(Box::new(ReproductionSystem));
-        world.add_system(Box::new(FoodGrowthSystem));
 
         Self {
             window: Default::default(),

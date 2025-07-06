@@ -7,7 +7,7 @@ pub struct EatCorpseSystem;
 impl System for EatCorpseSystem {
     fn run(&self, manager: &mut ArchetypeManager) {
         // Make sure that a corpse is not eaten by more than one creature
-        let mut corpse_to_creature: HashMap<EntityId, EntityId> = HashMap::new();
+        let mut corpse_to_creature: HashMap<EntityId, (usize, usize, EntityId)> = HashMap::new();
         let mut creatures_trying_to_eat: Vec<EntityId> = Vec::new();
         for (arch_index, entity_index, entity) in manager.iter_entities(ComponentType::EatingCorpse)
         {
@@ -16,28 +16,24 @@ impl System for EatCorpseSystem {
                 entity_index,
                 &ComponentType::EatingCorpse,
             ) {
-                corpse_to_creature.insert(eating_corpse.corpse_entity, entity);
+                corpse_to_creature.insert(
+                    eating_corpse.corpse_entity,
+                    (entity, arch_index, entity_index),
+                );
             }
             creatures_trying_to_eat.push(entity);
         }
 
         // Increase energy of creatures that ate a corpse
-        for (arch_index, entity_index, entity) in
-            manager.iter_entities_with(&[ComponentType::EatingCorpse, ComponentType::Creature])
-        {
+        for (_, arch_index, entity_index) in corpse_to_creature.values() {
             if let Some(creature) = manager.get_component_mut::<CreatureComponent>(
-                arch_index,
-                entity_index,
+                *arch_index,
+                *entity_index,
                 &ComponentType::Creature,
             ) {
-                if corpse_to_creature
-                    .values()
-                    .any(|&creature_entity| creature_entity == entity)
-                {
-                    creature.energy += CORPSE_ENERGY;
-                    if creature.energy > MAX_ENERGY {
-                        creature.energy = MAX_ENERGY;
-                    }
+                creature.energy += CORPSE_ENERGY;
+                if creature.energy > MAX_ENERGY {
+                    creature.energy = MAX_ENERGY;
                 }
             }
         }
@@ -47,9 +43,10 @@ impl System for EatCorpseSystem {
             manager.remove_entity(*corpse_entity);
         }
 
-        // Remove all "eating corpse" components
+        // Go into inactive state
         for entity in creatures_trying_to_eat.iter() {
             manager.remove_component(*entity, &ComponentType::EatingCorpse);
+            manager.add_component(*entity, &InactiveComponent::new());
         }
     }
 }

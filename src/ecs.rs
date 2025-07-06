@@ -13,8 +13,13 @@ pub enum ComponentType {
     Herbivorous,
     EatingFood,
     EatingCorpse,
+    AttackingHerbivorous,
     Corpse,
     Carnivorous,
+    MoveToFood,
+    MoveToCorpse,
+    MoveToHerbivorous,
+    Inactive,
 }
 
 pub trait Component: Any + CloneComponent {
@@ -253,6 +258,23 @@ impl ArchetypeManager {
         if !entity_found {
             error!("Cannot remove entity {entity}: Entity does not exist");
         }
+    }
+
+    pub fn get_entity_indexes(&mut self, entity: usize) -> Option<(usize, usize)> {
+        // Look in all archetypes to find the entity
+        for (arch_index, archetype) in self.archetypes.iter_mut().enumerate() {
+            if let Some((entity_index, _)) = archetype
+                .entities
+                .iter()
+                .enumerate()
+                .find(|(_, e)| entity == **e)
+            {
+                return Some((arch_index, entity_index));
+            }
+        }
+
+        // Entity not found
+        None
     }
 
     pub fn create_entity_with(&mut self, components: &[&dyn Component]) {

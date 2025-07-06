@@ -1,11 +1,12 @@
-pub const SCREEN_WIDTH: u32 = 2880;
-pub const SCREEN_HEIGHT: u32 = 1620;
+pub const SCREEN_WIDTH: u32 = 2560;
+pub const SCREEN_HEIGHT: u32 = 1440;
 
 pub const HUNGER_RATE: f32 = 0.2;
 pub const EXHAUSTION_RATE: f32 = 1.0;
 
 pub const FOOD_ENERGY: f32 = 20.0;
 pub const CORPSE_ENERGY: f32 = 20.0;
+pub const CARNIVOROUS_ATTACK: f32 = 20.0;
 pub const REPROD_ENERGY_THRESHOLD: f32 = 90.0;
 pub const REPROD_ENERGY_COST: f32 = 50.0;
 pub const START_ENERGY: f32 = 40.0;
@@ -25,11 +26,13 @@ pub const ENERGY_COLOR: &[u8] = &[0x11, 0xff, 0x88, 0xff];
 pub const HEALTH_COLOR: &[u8] = &[0xff, 0x11, 0x11, 0xff];
 pub const CORPSE_COLOR: &[u8] = &[0x44, 0x11, 0x11, 0xff];
 
-pub const CREATURE_SPEED: f64 = 3.0; // Pixels per iteration
+pub const HERBIVOROUS_SPEED: f64 = 3.0; // Pixels per iteration
+pub const CARNIVOROUS_SPEED: f64 = 4.0; // Pixels per iteration
+
 pub const MS_PER_ITERATION: u64 = 16;
 
 pub const HERBIVOROUS_NB: usize = 10;
 pub const CARNIVOROUS_NB: usize = 1;
 pub const FOOD_NB: usize = 100;
-pub const CORPSE_NB: usize = 30;
+pub const CORPSE_NB: usize = 0;
 pub const NEW_FOOD_PER_TICK: usize = 1;

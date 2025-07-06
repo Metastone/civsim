@@ -1,6 +1,6 @@
 use crate::components::*;
 use crate::constants::*;
-use crate::ecs::{ArchetypeManager, ComponentType};
+use crate::ecs::{ArchetypeManager, ComponentType, EntityId};
 
 pub fn draw(
     archetype_manager: &ArchetypeManager,
@@ -33,10 +33,16 @@ pub fn draw(
         }
     }
 
+    // Get all creatures in the order of their entity ID.
+    // The point is to always draw them in the same order, to avoid an ugly "flickering" effect
+    // (they change archetype from one iteration to the next)
+    let mut creature_indexes: Vec<(usize, usize, EntityId)> = archetype_manager
+        .iter_entities_with(&[ComponentType::Creature, ComponentType::Position])
+        .collect();
+    creature_indexes.sort_by(|a, b| a.2.cmp(&b.2));
+
     // Draw creatures
-    for (arch_index, entity_index, _) in
-        archetype_manager.iter_entities_with(&[ComponentType::Creature, ComponentType::Position])
-    {
+    for (arch_index, entity_index, _) in creature_indexes {
         // Check what kind of creature this is
         let color = if archetype_manager.has_component(arch_index, &ComponentType::Herbivorous) {
             HERBIVOROUS_COLOR

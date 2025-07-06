@@ -1,9 +1,14 @@
+pub mod attack_herbivorous_system;
+pub mod carnivorous_mind_system;
 pub mod death_system;
 pub mod eat_corpse_system;
 pub mod eat_food_system;
 pub mod exhaustion_system;
 pub mod food_growth_system;
+pub mod herbivorous_mind_system;
 pub mod hunger_system;
 pub mod move_to_corpse_system;
 pub mod move_to_food_system;
+pub mod move_to_herbivorous_system;
 pub mod reproduction_system;
+pub mod utils;

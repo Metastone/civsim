@@ -46,12 +46,14 @@ impl System for ReproductionSystem {
                     &CreatureComponent::new(),
                     &HerbivorousComponent::new(),
                     &PositionComponent::from(position.x + CREATURE_PIXEL_SIZE as f64, position.y),
+                    &InactiveComponent::new(),
                 ]);
             } else {
                 manager.create_entity_with(&[
                     &CreatureComponent::new(),
                     &CarnivorousComponent::new(),
                     &PositionComponent::from(position.x + CREATURE_PIXEL_SIZE as f64, position.y),
+                    &InactiveComponent::new(),
                 ]);
             }
         }
