@@ -1,5 +1,5 @@
 use crate::components::*;
-use crate::ecs::{ArchetypeManager, ComponentType};
+use crate::ecs::{ArchetypeManager, ComponentType, EntityId};
 
 pub fn move_towards_position(
     manager: &mut ArchetypeManager,
@@ -30,4 +30,30 @@ pub fn move_towards_position(
         }
     }
     false
+}
+
+pub fn find_closest(
+    manager: &ArchetypeManager,
+    position: &PositionComponent,
+    c_type: ComponentType,
+) -> Option<(f64, EntityId)> {
+    let mut closest_distance_squared = f64::MAX;
+    let mut opt_entity = None;
+    for (arch_index, entity_index, entity) in
+        manager.iter_entities_with(&[c_type, ComponentType::Position])
+    {
+        if let Some(o_position) = manager.get_component::<PositionComponent>(
+            arch_index,
+            entity_index,
+            &ComponentType::Position,
+        ) {
+            let distance_squared =
+                (o_position.x - position.x).powi(2) + (o_position.y - position.y).powi(2);
+            if distance_squared < closest_distance_squared {
+                closest_distance_squared = distance_squared;
+                opt_entity = Some(entity);
+            }
+        }
+    }
+    opt_entity.map(|entity| (closest_distance_squared, entity))
 }
