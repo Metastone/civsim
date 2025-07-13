@@ -1,5 +1,6 @@
 use crate::components::*;
-use crate::ecs::{ArchetypeManager, ComponentType, System};
+use crate::ecs::{ArchetypeManager, System};
+use std::any::TypeId;
 
 pub struct DeathSystem;
 impl System for DeathSystem {
@@ -8,14 +9,12 @@ impl System for DeathSystem {
         let mut positions = Vec::new();
 
         for (arch_index, entity_index, entity) in
-            manager.iter_entities_with(&[ComponentType::Creature, ComponentType::Position])
+            iter_entities_with!(manager, CreatureComponent, PositionComponent)
         {
             // Check if the creature should die
-            if let Some(creature) = manager.get_component::<CreatureComponent>(
-                arch_index,
-                entity_index,
-                &ComponentType::Creature,
-            ) {
+            if let Some(creature) =
+                manager.get_component::<CreatureComponent>(arch_index, entity_index)
+            {
                 if creature.health <= 0.0 {
                     to_remove.push(entity);
                 } else {
@@ -24,11 +23,9 @@ impl System for DeathSystem {
             }
 
             // Store the creature's position
-            if let Some(position) = manager.get_component::<PositionComponent>(
-                arch_index,
-                entity_index,
-                &ComponentType::Position,
-            ) {
+            if let Some(position) =
+                manager.get_component::<PositionComponent>(arch_index, entity_index)
+            {
                 positions.push(*position);
             }
         }

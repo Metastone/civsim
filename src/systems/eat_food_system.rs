@@ -1,6 +1,7 @@
 use crate::components::*;
 use crate::constants::*;
-use crate::ecs::{ArchetypeManager, ComponentType, EntityId, System};
+use crate::ecs::{ArchetypeManager, EntityId, System};
+use std::any::TypeId;
 use std::collections::HashMap;
 
 pub struct EatFoodSystem;
@@ -9,12 +10,10 @@ impl System for EatFoodSystem {
         // Make sure that a food is not eaten by more than one creature
         let mut food_to_creature: HashMap<EntityId, (EntityId, usize, usize)> = HashMap::new();
         let mut creatures_trying_to_eat: Vec<EntityId> = Vec::new();
-        for (arch_index, entity_index, entity) in manager.iter_entities(ComponentType::EatingFood) {
-            if let Some(eating_food) = manager.get_component::<EatingFoodComponent>(
-                arch_index,
-                entity_index,
-                &ComponentType::EatingFood,
-            ) {
+        for (arch_index, entity_index, entity) in iter_entities!(manager, EatingFoodComponent) {
+            if let Some(eating_food) =
+                manager.get_component::<EatingFoodComponent>(arch_index, entity_index)
+            {
                 food_to_creature
                     .insert(eating_food.food_entity, (entity, arch_index, entity_index));
             }
@@ -23,11 +22,9 @@ impl System for EatFoodSystem {
 
         // Increase energy of creatures that ate a food
         for (_, arch_index, entity_index) in food_to_creature.values() {
-            if let Some(creature) = manager.get_component_mut::<CreatureComponent>(
-                *arch_index,
-                *entity_index,
-                &ComponentType::Creature,
-            ) {
+            if let Some(creature) =
+                manager.get_component_mut::<CreatureComponent>(*arch_index, *entity_index)
+            {
                 creature.energy += FOOD_ENERGY;
                 if creature.energy > MAX_ENERGY {
                     creature.energy = MAX_ENERGY;
@@ -42,7 +39,7 @@ impl System for EatFoodSystem {
 
         // Remove all "eating food" components and go into inactive state
         for entity in creatures_trying_to_eat.iter() {
-            manager.remove_component(*entity, &ComponentType::EatingFood);
+            manager.remove_component(*entity, to_ctype!(EatingFoodComponent));
             manager.add_component(*entity, &InactiveComponent::new());
         }
     }

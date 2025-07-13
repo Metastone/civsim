@@ -1,5 +1,6 @@
 use crate::components::*;
 use crate::ecs::{ArchetypeManager, ComponentType, EntityId};
+use std::any::TypeId;
 
 pub fn move_towards_position(
     manager: &mut ArchetypeManager,
@@ -10,11 +11,8 @@ pub fn move_towards_position(
     entity_size: f64,
     speed: f64,
 ) -> bool {
-    if let Some(position) = manager.get_component_mut::<PositionComponent>(
-        arch_index,
-        entity_index,
-        &ComponentType::Position,
-    ) {
+    if let Some(position) = manager.get_component_mut::<PositionComponent>(arch_index, entity_index)
+    {
         let vec_to_target = (
             target_position.x - position.x,
             target_position.y - position.y,
@@ -40,13 +38,11 @@ pub fn find_closest(
     let mut closest_distance_squared = f64::MAX;
     let mut opt_entity = None;
     for (arch_index, entity_index, entity) in
-        manager.iter_entities_with(&[c_type, ComponentType::Position])
+        manager.iter_entities_with(&[c_type, to_ctype!(PositionComponent)])
     {
-        if let Some(o_position) = manager.get_component::<PositionComponent>(
-            arch_index,
-            entity_index,
-            &ComponentType::Position,
-        ) {
+        if let Some(o_position) =
+            manager.get_component::<PositionComponent>(arch_index, entity_index)
+        {
             let distance_squared =
                 (o_position.x - position.x).powi(2) + (o_position.y - position.y).powi(2);
             if distance_squared < closest_distance_squared {

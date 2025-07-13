@@ -1,6 +1,7 @@
 use crate::components::*;
 use crate::constants::*;
-use crate::ecs::{ArchetypeManager, ComponentType, System};
+use crate::ecs::{ArchetypeManager, System};
+use std::any::TypeId;
 
 pub struct ReproductionSystem;
 impl System for ReproductionSystem {
@@ -9,14 +10,12 @@ impl System for ReproductionSystem {
         let mut positions = Vec::new();
         let mut is_herbivorous = Vec::new();
         for (arch_index, entity_index, _entity) in
-            manager.iter_entities_with(&[ComponentType::Creature, ComponentType::Position])
+            iter_entities_with!(manager, CreatureComponent, PositionComponent)
         {
             // If the creature can reproduce, reset its energy to start value
-            if let Some(creature) = manager.get_component_mut::<CreatureComponent>(
-                arch_index,
-                entity_index,
-                &ComponentType::Creature,
-            ) {
+            if let Some(creature) =
+                manager.get_component_mut::<CreatureComponent>(arch_index, entity_index)
+            {
                 if creature.energy >= REPROD_ENERGY_THRESHOLD {
                     creature.energy -= REPROD_ENERGY_COST;
                 } else {
@@ -25,18 +24,17 @@ impl System for ReproductionSystem {
             }
 
             // Store the creature's position
-            if let Some(position) = manager.get_component::<PositionComponent>(
-                arch_index,
-                entity_index,
-                &ComponentType::Position,
-            ) {
+            if let Some(position) =
+                manager.get_component::<PositionComponent>(arch_index, entity_index)
+            {
                 positions.push(*position);
             } else {
                 continue;
             }
 
             // Check if herbivorous or carnivorous
-            is_herbivorous.push(manager.has_component(arch_index, &ComponentType::Herbivorous));
+            is_herbivorous
+                .push(manager.has_component(arch_index, &to_ctype!(HerbivorousComponent)));
         }
 
         // Create one new creature next to each reproducing create

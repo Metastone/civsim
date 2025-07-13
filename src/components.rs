@@ -1,16 +1,12 @@
 use crate::constants::*;
-use crate::ecs::{Component, ComponentType, EntityId};
+use crate::ecs::{Component, EntityId};
 
 #[derive(Clone, Copy)]
 pub struct CreatureComponent {
     pub energy: f32,
     pub health: f32,
 }
-impl Component for CreatureComponent {
-    fn get_type(&self) -> ComponentType {
-        ComponentType::Creature
-    }
-}
+impl Component for CreatureComponent {}
 impl CreatureComponent {
     pub fn new() -> Self {
         Self {
@@ -25,11 +21,7 @@ pub struct PositionComponent {
     pub x: f64,
     pub y: f64,
 }
-impl Component for PositionComponent {
-    fn get_type(&self) -> ComponentType {
-        ComponentType::Position
-    }
-}
+impl Component for PositionComponent {}
 impl PositionComponent {
     pub fn new() -> Self {
         let x = rand::random_range((SCREEN_WIDTH as f64 / -2.0)..(SCREEN_WIDTH as f64 / 2.0));
@@ -44,11 +36,7 @@ impl PositionComponent {
 
 #[derive(Clone, Copy)]
 pub struct FoodComponent {}
-impl Component for FoodComponent {
-    fn get_type(&self) -> ComponentType {
-        ComponentType::Food
-    }
-}
+impl Component for FoodComponent {}
 impl FoodComponent {
     pub fn new() -> Self {
         Self {}
@@ -59,11 +47,7 @@ impl FoodComponent {
 pub struct EatingFoodComponent {
     pub food_entity: EntityId,
 }
-impl Component for EatingFoodComponent {
-    fn get_type(&self) -> ComponentType {
-        ComponentType::EatingFood
-    }
-}
+impl Component for EatingFoodComponent {}
 impl EatingFoodComponent {
     pub fn new(food_entity: EntityId) -> Self {
         Self { food_entity }
@@ -74,11 +58,7 @@ impl EatingFoodComponent {
 pub struct EatingCorpseComponent {
     pub corpse_entity: EntityId,
 }
-impl Component for EatingCorpseComponent {
-    fn get_type(&self) -> ComponentType {
-        ComponentType::EatingCorpse
-    }
-}
+impl Component for EatingCorpseComponent {}
 impl EatingCorpseComponent {
     pub fn new(corpse_entity: EntityId) -> Self {
         Self { corpse_entity }
@@ -89,11 +69,7 @@ impl EatingCorpseComponent {
 pub struct AttackingHerbivorousComponent {
     pub herbivorous_entity: EntityId,
 }
-impl Component for AttackingHerbivorousComponent {
-    fn get_type(&self) -> ComponentType {
-        ComponentType::AttackingHerbivorous
-    }
-}
+impl Component for AttackingHerbivorousComponent {}
 impl AttackingHerbivorousComponent {
     pub fn new(herbivorous_entity: EntityId) -> Self {
         Self { herbivorous_entity }
@@ -102,11 +78,7 @@ impl AttackingHerbivorousComponent {
 
 #[derive(Clone, Copy)]
 pub struct CorpseComponent;
-impl Component for CorpseComponent {
-    fn get_type(&self) -> ComponentType {
-        ComponentType::Corpse
-    }
-}
+impl Component for CorpseComponent {}
 impl CorpseComponent {
     pub fn new() -> Self {
         Self {}
@@ -115,11 +87,7 @@ impl CorpseComponent {
 
 #[derive(Clone, Copy)]
 pub struct HerbivorousComponent {}
-impl Component for HerbivorousComponent {
-    fn get_type(&self) -> ComponentType {
-        ComponentType::Herbivorous
-    }
-}
+impl Component for HerbivorousComponent {}
 impl HerbivorousComponent {
     pub fn new() -> Self {
         Self {}
@@ -128,11 +96,7 @@ impl HerbivorousComponent {
 
 #[derive(Clone, Copy)]
 pub struct CarnivorousComponent {}
-impl Component for CarnivorousComponent {
-    fn get_type(&self) -> ComponentType {
-        ComponentType::Carnivorous
-    }
-}
+impl Component for CarnivorousComponent {}
 impl CarnivorousComponent {
     pub fn new() -> Self {
         Self {}
@@ -143,11 +107,7 @@ impl CarnivorousComponent {
 pub struct MoveToCorpseComponent {
     pub corpse_entity: EntityId,
 }
-impl Component for MoveToCorpseComponent {
-    fn get_type(&self) -> ComponentType {
-        ComponentType::MoveToCorpse
-    }
-}
+impl Component for MoveToCorpseComponent {}
 impl MoveToCorpseComponent {
     pub fn new(corpse_entity: EntityId) -> Self {
         Self { corpse_entity }
@@ -158,11 +118,7 @@ impl MoveToCorpseComponent {
 pub struct MoveToFoodComponent {
     pub food_entity: EntityId,
 }
-impl Component for MoveToFoodComponent {
-    fn get_type(&self) -> ComponentType {
-        ComponentType::MoveToFood
-    }
-}
+impl Component for MoveToFoodComponent {}
 impl MoveToFoodComponent {
     pub fn new(food_entity: EntityId) -> Self {
         Self { food_entity }
@@ -173,11 +129,7 @@ impl MoveToFoodComponent {
 pub struct MoveToHerbivorousComponent {
     pub herbivorous_entity: EntityId,
 }
-impl Component for MoveToHerbivorousComponent {
-    fn get_type(&self) -> ComponentType {
-        ComponentType::MoveToHerbivorous
-    }
-}
+impl Component for MoveToHerbivorousComponent {}
 impl MoveToHerbivorousComponent {
     pub fn new(herbivorous_entity: EntityId) -> Self {
         Self { herbivorous_entity }
@@ -186,11 +138,7 @@ impl MoveToHerbivorousComponent {
 
 #[derive(Clone, Copy)]
 pub struct InactiveComponent {}
-impl Component for InactiveComponent {
-    fn get_type(&self) -> ComponentType {
-        ComponentType::Inactive
-    }
-}
+impl Component for InactiveComponent {}
 impl InactiveComponent {
     pub fn new() -> Self {
         Self {}

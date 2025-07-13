@@ -1,29 +1,36 @@
 use std::{
-    any::Any,
+    any::{Any, TypeId},
     collections::{HashMap, HashSet},
 };
 
 use log::error;
 
-#[derive(Eq, PartialEq, Hash, Clone, Copy, Debug)]
-pub enum ComponentType {
-    Creature = 0,
-    Position,
-    Food,
-    Herbivorous,
-    EatingFood,
-    EatingCorpse,
-    AttackingHerbivorous,
-    Corpse,
-    Carnivorous,
-    MoveToFood,
-    MoveToCorpse,
-    MoveToHerbivorous,
-    Inactive,
+pub type ComponentType = TypeId;
+
+macro_rules! to_ctype {
+    ($CompType:ident) => {
+        TypeId::of::<$CompType>()
+    };
+}
+macro_rules! iter_entities {
+    ($self:expr, $CompType:ident) => {
+        $self.iter_entities(TypeId::of::<$CompType>())
+    };
+}
+macro_rules! iter_entities_with {
+    ($self:expr, $($CompType:ident),*) => {
+        $self.iter_entities_with(
+            &[
+                $(TypeId::of::<$CompType>()),*
+            ]
+        )
+    };
 }
 
 pub trait Component: Any + CloneComponent {
-    fn get_type(&self) -> ComponentType;
+    fn get_type(&self) -> ComponentType {
+        TypeId::of::<Self>()
+    }
 }
 
 impl dyn Component {
@@ -166,40 +173,32 @@ impl ArchetypeManager {
         false
     }
 
-    pub fn get_component<C>(
-        &self,
-        arch_index: usize,
-        entity_index: usize,
-        ctype: &ComponentType,
-    ) -> Option<&C>
+    pub fn get_component<C>(&self, arch_index: usize, entity_index: usize) -> Option<&C>
     where
         C: Component,
     {
+        let ctype = TypeId::of::<C>() as ComponentType;
         if arch_index >= self.archetypes.len()
             || entity_index >= self.archetypes[arch_index].entities.len()
         {
             None
-        } else if let Some(components) = self.archetypes[arch_index].data.get(ctype) {
+        } else if let Some(components) = self.archetypes[arch_index].data.get(&ctype) {
             components[entity_index].as_any().downcast_ref::<C>()
         } else {
             None
         }
     }
 
-    pub fn get_component_mut<C>(
-        &mut self,
-        arch_index: usize,
-        entity_index: usize,
-        ctype: &ComponentType,
-    ) -> Option<&mut C>
+    pub fn get_component_mut<C>(&mut self, arch_index: usize, entity_index: usize) -> Option<&mut C>
     where
         C: Component,
     {
+        let ctype = TypeId::of::<C>() as ComponentType;
         if arch_index >= self.archetypes.len()
             || entity_index >= self.archetypes[arch_index].entities.len()
         {
             None
-        } else if let Some(components) = self.archetypes[arch_index].data.get_mut(ctype) {
+        } else if let Some(components) = self.archetypes[arch_index].data.get_mut(&ctype) {
             components[entity_index].as_any_mut().downcast_mut::<C>()
         } else {
             None
@@ -354,7 +353,7 @@ impl ArchetypeManager {
         }
     }
 
-    pub fn remove_component(&mut self, entity: EntityId, comp_type: &ComponentType) {
+    pub fn remove_component(&mut self, entity: EntityId, comp_type: ComponentType) {
         // Find in which archetype is the entity
         let mut entity_found = false;
         let mut archetype_id = 0;
@@ -384,8 +383,8 @@ impl ArchetypeManager {
         let archetype = &mut self.archetypes[archetype_id];
         let cur_ctypes = archetype.component_types.clone();
         let mut required_ctypes = archetype.component_types.clone();
-        required_ctypes.remove(comp_type);
-        if !cur_ctypes.contains(comp_type) {
+        required_ctypes.remove(&comp_type);
+        if !cur_ctypes.contains(&comp_type) {
             error!(
                 "Cannot remove component {comp_type:?} from entity {entity}: Entity does not have this component"
             );

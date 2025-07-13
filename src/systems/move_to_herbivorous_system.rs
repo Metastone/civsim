@@ -1,7 +1,8 @@
 use crate::components::*;
 use crate::constants::*;
-use crate::ecs::{ArchetypeManager, ComponentType, EntityId, System};
+use crate::ecs::{ArchetypeManager, EntityId, System};
 use crate::systems::utils;
+use std::any::TypeId;
 use std::collections::HashMap;
 
 pub struct MoveToHerbivorousSystem;
@@ -9,24 +10,21 @@ impl System for MoveToHerbivorousSystem {
     fn run(&self, manager: &mut ArchetypeManager) {
         // Move all carnivorous in the direction of their herbivorous target (if they have one)
         let mut creature_to_herbivorous: HashMap<EntityId, EntityId> = HashMap::new();
-        for (arch_index, entity_index, entity) in manager.iter_entities_with(&[
-            ComponentType::Carnivorous,
-            ComponentType::Position,
-            ComponentType::MoveToHerbivorous,
-        ]) {
+        for (arch_index, entity_index, entity) in iter_entities_with!(
+            manager,
+            CarnivorousComponent,
+            PositionComponent,
+            MoveToHerbivorousComponent
+        ) {
             // Get the target herbivorous info
             let herb_entity;
             if let Some(MoveToHerbivorousComponent { herbivorous_entity }) =
-                manager.get_component::<MoveToHerbivorousComponent>(
-                    arch_index,
-                    entity_index,
-                    &ComponentType::MoveToHerbivorous,
-                )
+                manager.get_component::<MoveToHerbivorousComponent>(arch_index, entity_index)
             {
                 herb_entity = *herbivorous_entity;
             } else {
                 // Go to inactive state if the herbivorous can't be found
-                manager.remove_component(entity, &ComponentType::MoveToHerbivorous);
+                manager.remove_component(entity, to_ctype!(MoveToHerbivorousComponent));
                 manager.add_component(entity, &InactiveComponent::new());
                 continue;
             }
@@ -35,11 +33,9 @@ impl System for MoveToHerbivorousSystem {
             let mut position_exists = false;
             let mut herbivorous_position = PositionComponent::new();
             if let Some((h_arch_index, h_entity_index)) = manager.get_entity_indexes(herb_entity) {
-                if let Some(pos) = manager.get_component::<PositionComponent>(
-                    h_arch_index,
-                    h_entity_index,
-                    &ComponentType::Position,
-                ) {
+                if let Some(pos) =
+                    manager.get_component::<PositionComponent>(h_arch_index, h_entity_index)
+                {
                     herbivorous_position = *pos;
                     position_exists = true;
                 }
@@ -47,7 +43,7 @@ impl System for MoveToHerbivorousSystem {
 
             // Go to inactive state if the target position can't be found
             if !position_exists {
-                manager.remove_component(entity, &ComponentType::MoveToHerbivorous);
+                manager.remove_component(entity, to_ctype!(MoveToHerbivorousComponent));
                 manager.add_component(entity, &InactiveComponent::new());
                 continue;
             }
@@ -68,7 +64,7 @@ impl System for MoveToHerbivorousSystem {
 
         // If herbivorous reached, go to eating state
         for (entity, herbivorous_entity) in creature_to_herbivorous {
-            manager.remove_component(entity, &ComponentType::MoveToHerbivorous);
+            manager.remove_component(entity, to_ctype!(MoveToHerbivorousComponent));
             manager.add_component(
                 entity,
                 &AttackingHerbivorousComponent::new(herbivorous_entity),

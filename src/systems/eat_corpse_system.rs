@@ -1,6 +1,7 @@
 use crate::components::*;
 use crate::constants::*;
-use crate::ecs::{ArchetypeManager, ComponentType, EntityId, System};
+use crate::ecs::{ArchetypeManager, EntityId, System};
+use std::any::TypeId;
 use std::collections::HashMap;
 
 pub struct EatCorpseSystem;
@@ -9,13 +10,10 @@ impl System for EatCorpseSystem {
         // Make sure that a corpse is not eaten by more than one creature
         let mut corpse_to_creature: HashMap<EntityId, (usize, usize, EntityId)> = HashMap::new();
         let mut creatures_trying_to_eat: Vec<EntityId> = Vec::new();
-        for (arch_index, entity_index, entity) in manager.iter_entities(ComponentType::EatingCorpse)
-        {
-            if let Some(eating_corpse) = manager.get_component::<EatingCorpseComponent>(
-                arch_index,
-                entity_index,
-                &ComponentType::EatingCorpse,
-            ) {
+        for (arch_index, entity_index, entity) in iter_entities!(manager, EatingCorpseComponent) {
+            if let Some(eating_corpse) =
+                manager.get_component::<EatingCorpseComponent>(arch_index, entity_index)
+            {
                 corpse_to_creature.insert(
                     eating_corpse.corpse_entity,
                     (entity, arch_index, entity_index),
@@ -26,11 +24,9 @@ impl System for EatCorpseSystem {
 
         // Increase energy of creatures that ate a corpse
         for (_, arch_index, entity_index) in corpse_to_creature.values() {
-            if let Some(creature) = manager.get_component_mut::<CreatureComponent>(
-                *arch_index,
-                *entity_index,
-                &ComponentType::Creature,
-            ) {
+            if let Some(creature) =
+                manager.get_component_mut::<CreatureComponent>(*arch_index, *entity_index)
+            {
                 creature.energy += CORPSE_ENERGY;
                 if creature.energy > MAX_ENERGY {
                     creature.energy = MAX_ENERGY;
@@ -45,7 +41,7 @@ impl System for EatCorpseSystem {
 
         // Go into inactive state
         for entity in creatures_trying_to_eat.iter() {
-            manager.remove_component(*entity, &ComponentType::EatingCorpse);
+            manager.remove_component(*entity, to_ctype!(EatingCorpseComponent));
             manager.add_component(*entity, &InactiveComponent::new());
         }
     }

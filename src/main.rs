@@ -1,7 +1,8 @@
 mod components;
 mod constants;
-mod display;
+#[macro_use]
 mod ecs;
+mod display;
 mod systems;
 
 use ecs::{ArchetypeManager, Component, EntityId, System};

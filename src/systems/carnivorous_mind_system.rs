@@ -1,6 +1,7 @@
 use crate::components::*;
-use crate::ecs::{ArchetypeManager, ComponentType, EntityId, System};
+use crate::ecs::{ArchetypeManager, EntityId, System};
 use crate::systems::utils;
+use std::any::TypeId;
 use std::collections::HashMap;
 
 pub struct CarnivorousMindSystem;
@@ -8,16 +9,15 @@ impl System for CarnivorousMindSystem {
     fn run(&self, manager: &mut ArchetypeManager) {
         // Get the positions of all inactive carnivorous entities
         let mut carnivorous_positions = HashMap::new();
-        for (arch_index, entity_index, entity) in manager.iter_entities_with(&[
-            ComponentType::Carnivorous,
-            ComponentType::Position,
-            ComponentType::Inactive,
-        ]) {
-            if let Some(position) = manager.get_component::<PositionComponent>(
-                arch_index,
-                entity_index,
-                &ComponentType::Position,
-            ) {
+        for (arch_index, entity_index, entity) in iter_entities_with!(
+            manager,
+            CarnivorousComponent,
+            PositionComponent,
+            InactiveComponent
+        ) {
+            if let Some(position) =
+                manager.get_component::<PositionComponent>(arch_index, entity_index)
+            {
                 carnivorous_positions.insert(entity, *position);
             }
         }
@@ -32,7 +32,7 @@ impl System for CarnivorousMindSystem {
 
             // Check corpses
             if let Some((distance_squared, closest_entity)) =
-                utils::find_closest(manager, position, ComponentType::Corpse)
+                utils::find_closest(manager, position, to_ctype!(CorpseComponent))
             {
                 closest_distance_squared = distance_squared;
                 found.insert(*entity, true);
@@ -42,7 +42,7 @@ impl System for CarnivorousMindSystem {
 
             // Check herbivorous
             if let Some((distance_squared, closest_entity)) =
-                utils::find_closest(manager, position, ComponentType::Herbivorous)
+                utils::find_closest(manager, position, to_ctype!(HerbivorousComponent))
             {
                 if distance_squared < closest_distance_squared {
                     found.insert(*entity, true);
@@ -67,7 +67,7 @@ impl System for CarnivorousMindSystem {
                         &MoveToHerbivorousComponent::new(*found_entity),
                     );
                 }
-                manager.remove_component(carnivorous_entity, &ComponentType::Inactive);
+                manager.remove_component(carnivorous_entity, to_ctype!(InactiveComponent));
             }
         }
     }
