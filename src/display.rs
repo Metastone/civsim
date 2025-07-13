@@ -1,14 +1,9 @@
 use crate::components::*;
 use crate::constants::*;
-use crate::ecs::{ArchetypeManager, EntityId};
+use crate::ecs::{Ecs, EntityId};
 use std::any::TypeId;
 
-pub fn draw(
-    archetype_manager: &ArchetypeManager,
-    pixels: &mut [u8],
-    window_width: u32,
-    window_height: u32,
-) {
+pub fn draw(ecs: &Ecs, pixels: &mut [u8], window_width: u32, window_height: u32) {
     // Background
     for pixel in pixels.chunks_exact_mut(4) {
         pixel.copy_from_slice(&[0xcc, 0xcc, 0xcc, 0xff]);
@@ -16,11 +11,9 @@ pub fn draw(
 
     // Draw corpses
     for (arch_index, entity_index, _) in
-        iter_entities_with!(archetype_manager, CorpseComponent, PositionComponent)
+        iter_entities_with!(ecs, CorpseComponent, PositionComponent)
     {
-        if let Some(position) =
-            archetype_manager.get_component::<PositionComponent>(arch_index, entity_index)
-        {
+        if let Some(position) = ecs.get_component::<PositionComponent>(arch_index, entity_index) {
             draw_square(
                 position,
                 CORPSE_COLOR,
@@ -36,22 +29,19 @@ pub fn draw(
     // The point is to always draw them in the same order, to avoid an ugly "flickering" effect
     // (they change archetype from one iteration to the next)
     let mut creature_indexes: Vec<(usize, usize, EntityId)> =
-        iter_entities_with!(archetype_manager, CreatureComponent, PositionComponent).collect();
+        iter_entities_with!(ecs, CreatureComponent, PositionComponent).collect();
     creature_indexes.sort_by(|a, b| a.2.cmp(&b.2));
 
     // Draw creatures
     for (arch_index, entity_index, _) in creature_indexes {
         // Check what kind of creature this is
-        let color = if archetype_manager.has_component(arch_index, &to_ctype!(HerbivorousComponent))
-        {
+        let color = if ecs.has_component(arch_index, &to_ctype!(HerbivorousComponent)) {
             HERBIVOROUS_COLOR
         } else {
             CARNIVOROUS_COLOR
         };
         let pos;
-        if let Some(position) =
-            archetype_manager.get_component::<PositionComponent>(arch_index, entity_index)
-        {
+        if let Some(position) = ecs.get_component::<PositionComponent>(arch_index, entity_index) {
             pos = *position;
             draw_square(
                 position,
@@ -65,9 +55,7 @@ pub fn draw(
             continue;
         }
 
-        if let Some(creature) =
-            archetype_manager.get_component::<CreatureComponent>(arch_index, entity_index)
-        {
+        if let Some(creature) = ecs.get_component::<CreatureComponent>(arch_index, entity_index) {
             // Draw health bar
             draw_rec(
                 (
@@ -103,12 +91,9 @@ pub fn draw(
     }
 
     // Draw food
-    for (arch_index, entity_index, _) in
-        iter_entities_with!(archetype_manager, FoodComponent, PositionComponent)
+    for (arch_index, entity_index, _) in iter_entities_with!(ecs, FoodComponent, PositionComponent)
     {
-        if let Some(position) =
-            archetype_manager.get_component::<PositionComponent>(arch_index, entity_index)
-        {
+        if let Some(position) = ecs.get_component::<PositionComponent>(arch_index, entity_index) {
             draw_square(
                 position,
                 FOOD_COLOR,

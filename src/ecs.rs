@@ -99,15 +99,12 @@ pub struct EntityIterator {
 }
 
 impl EntityIterator {
-    pub fn new(
-        archetype_manager: &ArchetypeManager,
-        required_ctypes: HashSet<ComponentType>,
-    ) -> Self {
+    pub fn new(ecs: &Ecs, required_ctypes: HashSet<ComponentType>) -> Self {
         EntityIterator {
             entity_index: 0,
             i_arch: 0,
-            archetype_indexes: archetype_manager.with_comps(required_ctypes),
-            archetype_entities: archetype_manager.get_archetype_entity_info(),
+            archetype_indexes: ecs.with_comps(required_ctypes),
+            archetype_entities: ecs.get_archetype_entity_info(),
         }
     }
 }
@@ -144,21 +141,21 @@ impl Iterator for EntityIterator {
 }
 
 pub trait System {
-    fn run(&self, manager: &mut ArchetypeManager);
+    fn run(&self, ecs: &mut Ecs);
 }
 
-pub struct ArchetypeManager {
+pub struct Ecs {
     archetypes: Vec<Archetype>,
     ids: EntityIdAllocator,
 }
 
-impl Default for ArchetypeManager {
+impl Default for Ecs {
     fn default() -> Self {
-        ArchetypeManager::new()
+        Ecs::new()
     }
 }
 
-impl ArchetypeManager {
+impl Ecs {
     pub fn new() -> Self {
         Self {
             archetypes: Vec::new(),

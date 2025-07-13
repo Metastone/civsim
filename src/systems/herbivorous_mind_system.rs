@@ -1,22 +1,21 @@
 use crate::components::*;
-use crate::ecs::{ArchetypeManager, EntityId, System};
+use crate::ecs::{Ecs, EntityId, System};
 use crate::systems::utils;
 use std::any::TypeId;
 use std::collections::HashMap;
 
 pub struct HerbivorousMindSystem;
 impl System for HerbivorousMindSystem {
-    fn run(&self, manager: &mut ArchetypeManager) {
+    fn run(&self, ecs: &mut Ecs) {
         // Get the positions of all inactive herbivorous entities
         let mut herbivorous_positions = HashMap::new();
         for (arch_index, entity_index, entity) in iter_entities_with!(
-            manager,
+            ecs,
             HerbivorousComponent,
             PositionComponent,
             InactiveComponent
         ) {
-            if let Some(position) =
-                manager.get_component::<PositionComponent>(arch_index, entity_index)
+            if let Some(position) = ecs.get_component::<PositionComponent>(arch_index, entity_index)
             {
                 herbivorous_positions.insert(entity, *position);
             }
@@ -30,7 +29,7 @@ impl System for HerbivorousMindSystem {
 
             // Check all foods
             if let Some((_, closest_entity)) =
-                utils::find_closest(manager, position, to_ctype!(FoodComponent))
+                utils::find_closest(ecs, position, to_ctype!(FoodComponent))
             {
                 found.insert(*entity, true);
                 closest_entity_of.insert(*entity, closest_entity);
@@ -41,8 +40,8 @@ impl System for HerbivorousMindSystem {
         for (herbivorous_entity, found) in found {
             if found {
                 let found_entity = closest_entity_of.get(&herbivorous_entity).unwrap();
-                manager.add_component(herbivorous_entity, &MoveToFoodComponent::new(*found_entity));
-                manager.remove_component(herbivorous_entity, to_ctype!(InactiveComponent));
+                ecs.add_component(herbivorous_entity, &MoveToFoodComponent::new(*found_entity));
+                ecs.remove_component(herbivorous_entity, to_ctype!(InactiveComponent));
             }
         }
     }

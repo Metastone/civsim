@@ -1,17 +1,17 @@
 use crate::components::*;
 use crate::constants::*;
-use crate::ecs::{ArchetypeManager, EntityId, System};
+use crate::ecs::{Ecs, EntityId, System};
 use crate::systems::utils;
 use std::any::TypeId;
 use std::collections::HashMap;
 
 pub struct MoveToFoodSystem;
 impl System for MoveToFoodSystem {
-    fn run(&self, manager: &mut ArchetypeManager) {
+    fn run(&self, ecs: &mut Ecs) {
         // Move all herbivorous in the direction of their food target (if they have one)
         let mut creature_to_food: HashMap<EntityId, EntityId> = HashMap::new();
         for (arch_index, entity_index, entity) in iter_entities_with!(
-            manager,
+            ecs,
             HerbivorousComponent,
             PositionComponent,
             MoveToFoodComponent
@@ -19,22 +19,22 @@ impl System for MoveToFoodSystem {
             // Get the target food info
             let c_entity;
             if let Some(MoveToFoodComponent { food_entity }) =
-                manager.get_component::<MoveToFoodComponent>(arch_index, entity_index)
+                ecs.get_component::<MoveToFoodComponent>(arch_index, entity_index)
             {
                 c_entity = *food_entity;
             } else {
                 // Go to inactive state if the food can't be found
-                manager.remove_component(entity, to_ctype!(MoveToFoodComponent));
-                manager.add_component(entity, &InactiveComponent::new());
+                ecs.remove_component(entity, to_ctype!(MoveToFoodComponent));
+                ecs.add_component(entity, &InactiveComponent::new());
                 continue;
             }
 
             // Get the food position
             let mut position_exists = false;
             let mut food_position = PositionComponent::new();
-            if let Some((c_arch_index, c_entity_index)) = manager.get_entity_indexes(c_entity) {
+            if let Some((c_arch_index, c_entity_index)) = ecs.get_entity_indexes(c_entity) {
                 if let Some(pos) =
-                    manager.get_component::<PositionComponent>(c_arch_index, c_entity_index)
+                    ecs.get_component::<PositionComponent>(c_arch_index, c_entity_index)
                 {
                     food_position = *pos;
                     position_exists = true;
@@ -43,14 +43,14 @@ impl System for MoveToFoodSystem {
 
             // Go to inactive state if the target position can't be found for some reason
             if !position_exists {
-                manager.remove_component(entity, to_ctype!(MoveToFoodComponent));
-                manager.add_component(entity, &InactiveComponent::new());
+                ecs.remove_component(entity, to_ctype!(MoveToFoodComponent));
+                ecs.add_component(entity, &InactiveComponent::new());
                 continue;
             }
 
             // Move the herbivorous towards the food target
             if utils::move_towards_position(
-                manager,
+                ecs,
                 arch_index,
                 entity_index,
                 &food_position,
@@ -64,8 +64,8 @@ impl System for MoveToFoodSystem {
 
         // If food reached, go to eating state
         for (entity, food_entity) in creature_to_food {
-            manager.remove_component(entity, to_ctype!(MoveToFoodComponent));
-            manager.add_component(entity, &EatingFoodComponent::new(food_entity));
+            ecs.remove_component(entity, to_ctype!(MoveToFoodComponent));
+            ecs.add_component(entity, &EatingFoodComponent::new(food_entity));
         }
     }
 }

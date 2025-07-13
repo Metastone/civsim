@@ -5,7 +5,7 @@ mod ecs;
 mod display;
 mod systems;
 
-use ecs::{ArchetypeManager, Component, EntityId, System};
+use ecs::{Component, Ecs, EntityId, System};
 use pixels::{Pixels, SurfaceTexture};
 use std::{sync::Arc, thread, time};
 
@@ -34,7 +34,7 @@ use winit::{
 };
 
 pub struct World {
-    archetype_manager: ArchetypeManager,
+    ecs: Ecs,
     systems: Vec<Box<dyn System>>,
 }
 
@@ -47,7 +47,7 @@ impl Default for World {
 impl World {
     pub fn new() -> Self {
         Self {
-            archetype_manager: ArchetypeManager::new(),
+            ecs: Ecs::new(),
             systems: Vec::new(),
         }
     }
@@ -57,21 +57,21 @@ impl World {
     }
 
     pub fn add_component(&mut self, entity_id: EntityId, new_comp: &dyn Component) {
-        self.archetype_manager.add_component(entity_id, new_comp);
+        self.ecs.add_component(entity_id, new_comp);
     }
 
     pub fn create_entity_with(&mut self, components: &[&dyn Component]) {
-        self.archetype_manager.create_entity_with(components);
+        self.ecs.create_entity_with(components);
     }
 
     pub fn iterate(&mut self) {
         for s in &self.systems {
-            s.run(&mut self.archetype_manager);
+            s.run(&mut self.ecs);
         }
     }
 
     fn draw(&mut self, pixels: &mut [u8], window_width: u32, window_height: u32) {
-        display::draw(&self.archetype_manager, pixels, window_width, window_height);
+        display::draw(&self.ecs, pixels, window_width, window_height);
     }
 }
 

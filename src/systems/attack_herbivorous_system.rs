@@ -1,20 +1,19 @@
 use crate::components::*;
 use crate::constants::*;
-use crate::ecs::{ArchetypeManager, EntityId, System};
+use crate::ecs::{Ecs, EntityId, System};
 use std::any::TypeId;
 use std::collections::HashMap;
 
 pub struct AttackHerbivorousSystem;
 impl System for AttackHerbivorousSystem {
-    fn run(&self, manager: &mut ArchetypeManager) {
+    fn run(&self, ecs: &mut Ecs) {
         // Make sure that a herbivorous is not attacked by more than one creature
         let mut herbivorous_to_creature: HashMap<EntityId, EntityId> = HashMap::new();
         let mut creatures_trying_to_attack: Vec<EntityId> = Vec::new();
-        for (arch_index, entity_index, entity) in
-            iter_entities!(manager, AttackingHerbivorousComponent)
+        for (arch_index, entity_index, entity) in iter_entities!(ecs, AttackingHerbivorousComponent)
         {
             if let Some(attacking_herbivorous) =
-                manager.get_component::<AttackingHerbivorousComponent>(arch_index, entity_index)
+                ecs.get_component::<AttackingHerbivorousComponent>(arch_index, entity_index)
             {
                 herbivorous_to_creature.insert(attacking_herbivorous.herbivorous_entity, entity);
             }
@@ -25,7 +24,7 @@ impl System for AttackHerbivorousSystem {
         for herbivorous_entity in herbivorous_to_creature.keys() {
             // Make sure that the herbivorous entity exists
             let (arch_index, entity_index): (usize, usize);
-            if let Some(idx) = manager.get_entity_indexes(*herbivorous_entity) {
+            if let Some(idx) = ecs.get_entity_indexes(*herbivorous_entity) {
                 arch_index = idx.0;
                 entity_index = idx.1;
             } else {
@@ -34,7 +33,7 @@ impl System for AttackHerbivorousSystem {
 
             // Decrease the herbivorous entity life
             if let Some(creature) =
-                manager.get_component_mut::<CreatureComponent>(arch_index, entity_index)
+                ecs.get_component_mut::<CreatureComponent>(arch_index, entity_index)
             {
                 creature.health -= CARNIVOROUS_ATTACK;
                 if creature.health < 0.0 {
@@ -45,8 +44,8 @@ impl System for AttackHerbivorousSystem {
 
         // Go into inactive state
         for entity in creatures_trying_to_attack.iter() {
-            manager.remove_component(*entity, to_ctype!(AttackingHerbivorousComponent));
-            manager.add_component(*entity, &InactiveComponent::new());
+            ecs.remove_component(*entity, to_ctype!(AttackingHerbivorousComponent));
+            ecs.add_component(*entity, &InactiveComponent::new());
         }
     }
 }

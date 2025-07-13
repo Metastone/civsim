@@ -1,22 +1,21 @@
 use crate::components::*;
-use crate::ecs::{ArchetypeManager, EntityId, System};
+use crate::ecs::{Ecs, EntityId, System};
 use crate::systems::utils;
 use std::any::TypeId;
 use std::collections::HashMap;
 
 pub struct CarnivorousMindSystem;
 impl System for CarnivorousMindSystem {
-    fn run(&self, manager: &mut ArchetypeManager) {
+    fn run(&self, ecs: &mut Ecs) {
         // Get the positions of all inactive carnivorous entities
         let mut carnivorous_positions = HashMap::new();
         for (arch_index, entity_index, entity) in iter_entities_with!(
-            manager,
+            ecs,
             CarnivorousComponent,
             PositionComponent,
             InactiveComponent
         ) {
-            if let Some(position) =
-                manager.get_component::<PositionComponent>(arch_index, entity_index)
+            if let Some(position) = ecs.get_component::<PositionComponent>(arch_index, entity_index)
             {
                 carnivorous_positions.insert(entity, *position);
             }
@@ -32,7 +31,7 @@ impl System for CarnivorousMindSystem {
 
             // Check corpses
             if let Some((distance_squared, closest_entity)) =
-                utils::find_closest(manager, position, to_ctype!(CorpseComponent))
+                utils::find_closest(ecs, position, to_ctype!(CorpseComponent))
             {
                 closest_distance_squared = distance_squared;
                 found.insert(*entity, true);
@@ -42,7 +41,7 @@ impl System for CarnivorousMindSystem {
 
             // Check herbivorous
             if let Some((distance_squared, closest_entity)) =
-                utils::find_closest(manager, position, to_ctype!(HerbivorousComponent))
+                utils::find_closest(ecs, position, to_ctype!(HerbivorousComponent))
             {
                 if distance_squared < closest_distance_squared {
                     found.insert(*entity, true);
@@ -57,17 +56,17 @@ impl System for CarnivorousMindSystem {
             if found {
                 let found_entity = closest_entity_of.get(&carnivorous_entity).unwrap();
                 if *is_corpse.get(&carnivorous_entity).unwrap() {
-                    manager.add_component(
+                    ecs.add_component(
                         carnivorous_entity,
                         &MoveToCorpseComponent::new(*found_entity),
                     );
                 } else {
-                    manager.add_component(
+                    ecs.add_component(
                         carnivorous_entity,
                         &MoveToHerbivorousComponent::new(*found_entity),
                     );
                 }
-                manager.remove_component(carnivorous_entity, to_ctype!(InactiveComponent));
+                ecs.remove_component(carnivorous_entity, to_ctype!(InactiveComponent));
             }
         }
     }
