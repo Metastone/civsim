@@ -6,16 +6,12 @@ use std::any::TypeId;
 pub struct ExhaustionSystem;
 impl System for ExhaustionSystem {
     fn run(&self, ecs: &mut Ecs) {
-        for (arch_index, entity_index, _) in iter_entities!(ecs, CreatureComponent) {
-            if let Some(creature) =
-                ecs.get_component_mut::<CreatureComponent>(arch_index, entity_index)
-            {
-                if creature.energy <= 0.0 {
-                    creature.health -= EXHAUSTION_RATE;
-                }
-                if creature.health <= 0.0 {
-                    creature.health = 0.0;
-                }
+        for (creature, _) in iter_components!(ecs, CreatureComponent) {
+            if creature.energy <= 0.0 {
+                creature.health -= EXHAUSTION_RATE;
+            }
+            if creature.health <= 0.0 {
+                creature.health = 0.0;
             }
         }
     }

@@ -1,5 +1,5 @@
 use crate::components::*;
-use crate::ecs::{Ecs, EntityId, System};
+use crate::ecs::{Ecs, EntityId, EntityInfo, System};
 use crate::systems::utils;
 use std::any::TypeId;
 use std::collections::HashMap;
@@ -9,16 +9,12 @@ impl System for CarnivorousMindSystem {
     fn run(&self, ecs: &mut Ecs) {
         // Get the positions of all inactive carnivorous entities
         let mut carnivorous_positions = HashMap::new();
-        for (arch_index, entity_index, entity) in iter_entities_with!(
+        for (position, EntityInfo { entity, .. }) in iter_components_with!(
             ecs,
-            CarnivorousComponent,
-            PositionComponent,
-            InactiveComponent
+            (CarnivorousComponent, PositionComponent, InactiveComponent),
+            PositionComponent
         ) {
-            if let Some(position) = ecs.get_component::<PositionComponent>(arch_index, entity_index)
-            {
-                carnivorous_positions.insert(entity, *position);
-            }
+            carnivorous_positions.insert(entity, *position);
         }
 
         // For each position, find the closest corpse or herbivorous

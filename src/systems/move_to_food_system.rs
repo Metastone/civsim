@@ -10,7 +10,7 @@ impl System for MoveToFoodSystem {
     fn run(&self, ecs: &mut Ecs) {
         // Move all herbivorous in the direction of their food target (if they have one)
         let mut creature_to_food: HashMap<EntityId, EntityId> = HashMap::new();
-        for (arch_index, entity_index, entity) in iter_entities_with!(
+        for info in iter_entities_with!(
             ecs,
             HerbivorousComponent,
             PositionComponent,
@@ -19,46 +19,41 @@ impl System for MoveToFoodSystem {
             // Get the target food info
             let c_entity;
             if let Some(MoveToFoodComponent { food_entity }) =
-                ecs.get_component::<MoveToFoodComponent>(arch_index, entity_index)
+                ecs.get_component::<MoveToFoodComponent>(&info)
             {
                 c_entity = *food_entity;
             } else {
                 // Go to inactive state if the food can't be found
-                ecs.remove_component(entity, to_ctype!(MoveToFoodComponent));
-                ecs.add_component(entity, &InactiveComponent::new());
+                ecs.remove_component(info.entity, to_ctype!(MoveToFoodComponent));
+                ecs.add_component(info.entity, &InactiveComponent::new());
                 continue;
             }
 
             // Get the food position
             let mut position_exists = false;
             let mut food_position = PositionComponent::new();
-            if let Some((c_arch_index, c_entity_index)) = ecs.get_entity_indexes(c_entity) {
-                if let Some(pos) =
-                    ecs.get_component::<PositionComponent>(c_arch_index, c_entity_index)
-                {
-                    food_position = *pos;
-                    position_exists = true;
-                }
+            if let Some(pos) = ecs.get_component_from_entity::<PositionComponent>(c_entity) {
+                food_position = *pos;
+                position_exists = true;
             }
 
             // Go to inactive state if the target position can't be found for some reason
             if !position_exists {
-                ecs.remove_component(entity, to_ctype!(MoveToFoodComponent));
-                ecs.add_component(entity, &InactiveComponent::new());
+                ecs.remove_component(info.entity, to_ctype!(MoveToFoodComponent));
+                ecs.add_component(info.entity, &InactiveComponent::new());
                 continue;
             }
 
             // Move the herbivorous towards the food target
             if utils::move_towards_position(
                 ecs,
-                arch_index,
-                entity_index,
+                &info,
                 &food_position,
                 FOOD_PIXEL_SIZE as f64,
                 CREATURE_PIXEL_SIZE as f64,
                 HERBIVOROUS_SPEED,
             ) {
-                creature_to_food.insert(entity, c_entity);
+                creature_to_food.insert(info.entity, c_entity);
             }
         }
 

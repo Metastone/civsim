@@ -1,6 +1,6 @@
 use crate::components::*;
 use crate::constants::*;
-use crate::ecs::{Ecs, EntityId, System};
+use crate::ecs::{Ecs, EntityId, EntityInfo, System};
 use std::any::TypeId;
 use std::collections::HashMap;
 
@@ -8,23 +8,18 @@ pub struct EatFoodSystem;
 impl System for EatFoodSystem {
     fn run(&self, ecs: &mut Ecs) {
         // Make sure that a food is not eaten by more than one creature
-        let mut food_to_creature: HashMap<EntityId, (EntityId, usize, usize)> = HashMap::new();
+        let mut food_to_creature: HashMap<EntityId, EntityInfo> = HashMap::new();
         let mut creatures_trying_to_eat: Vec<EntityId> = Vec::new();
-        for (arch_index, entity_index, entity) in iter_entities!(ecs, EatingFoodComponent) {
-            if let Some(eating_food) =
-                ecs.get_component::<EatingFoodComponent>(arch_index, entity_index)
-            {
-                food_to_creature
-                    .insert(eating_food.food_entity, (entity, arch_index, entity_index));
+        for info in iter_entities!(ecs, EatingFoodComponent) {
+            if let Some(eating_food) = ecs.get_component::<EatingFoodComponent>(&info) {
+                food_to_creature.insert(eating_food.food_entity, info);
             }
-            creatures_trying_to_eat.push(entity);
+            creatures_trying_to_eat.push(info.entity);
         }
 
         // Increase energy of creatures that ate a food
-        for (_, arch_index, entity_index) in food_to_creature.values() {
-            if let Some(creature) =
-                ecs.get_component_mut::<CreatureComponent>(*arch_index, *entity_index)
-            {
+        for info in food_to_creature.values() {
+            if let Some(creature) = ecs.get_component_mut::<CreatureComponent>(info) {
                 creature.energy += FOOD_ENERGY;
                 if creature.energy > MAX_ENERGY {
                     creature.energy = MAX_ENERGY;

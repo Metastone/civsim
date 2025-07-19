@@ -1,47 +1,46 @@
 use crate::components::*;
 use crate::constants::*;
-use crate::ecs::{Ecs, EntityId};
+use crate::ecs::Ecs;
+use crate::ecs::EntityInfo;
 use std::any::TypeId;
 
-pub fn draw(ecs: &Ecs, pixels: &mut [u8], window_width: u32, window_height: u32) {
+pub fn draw(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: u32) {
     // Background
     for pixel in pixels.chunks_exact_mut(4) {
         pixel.copy_from_slice(&[0xcc, 0xcc, 0xcc, 0xff]);
     }
 
     // Draw corpses
-    for (arch_index, entity_index, _) in
-        iter_entities_with!(ecs, CorpseComponent, PositionComponent)
+    for (position, _) in
+        iter_components_with!(ecs, (CorpseComponent, PositionComponent), PositionComponent)
     {
-        if let Some(position) = ecs.get_component::<PositionComponent>(arch_index, entity_index) {
-            draw_square(
-                position,
-                CORPSE_COLOR,
-                CREATURE_PIXEL_SIZE,
-                pixels,
-                window_width,
-                window_height,
-            );
-        }
+        draw_square(
+            position,
+            CORPSE_COLOR,
+            CREATURE_PIXEL_SIZE,
+            pixels,
+            window_width,
+            window_height,
+        );
     }
 
     // Get all creatures in the order of their entity ID.
     // The point is to always draw them in the same order, to avoid an ugly "flickering" effect
     // (they change archetype from one iteration to the next)
-    let mut creature_indexes: Vec<(usize, usize, EntityId)> =
+    let mut creature_infos: Vec<EntityInfo> =
         iter_entities_with!(ecs, CreatureComponent, PositionComponent).collect();
-    creature_indexes.sort_by(|a, b| a.2.cmp(&b.2));
+    creature_infos.sort_by(|a, b| a.entity.cmp(&b.entity));
 
     // Draw creatures
-    for (arch_index, entity_index, _) in creature_indexes {
+    for info in creature_infos {
         // Check what kind of creature this is
-        let color = if ecs.has_component(arch_index, &to_ctype!(HerbivorousComponent)) {
+        let color = if ecs.has_component(info.arch_index, &to_ctype!(HerbivorousComponent)) {
             HERBIVOROUS_COLOR
         } else {
             CARNIVOROUS_COLOR
         };
         let pos;
-        if let Some(position) = ecs.get_component::<PositionComponent>(arch_index, entity_index) {
+        if let Some(position) = ecs.get_component::<PositionComponent>(&info) {
             pos = *position;
             draw_square(
                 position,
@@ -55,7 +54,7 @@ pub fn draw(ecs: &Ecs, pixels: &mut [u8], window_width: u32, window_height: u32)
             continue;
         }
 
-        if let Some(creature) = ecs.get_component::<CreatureComponent>(arch_index, entity_index) {
+        if let Some(creature) = ecs.get_component::<CreatureComponent>(&info) {
             // Draw health bar
             draw_rec(
                 (
@@ -91,9 +90,8 @@ pub fn draw(ecs: &Ecs, pixels: &mut [u8], window_width: u32, window_height: u32)
     }
 
     // Draw food
-    for (arch_index, entity_index, _) in iter_entities_with!(ecs, FoodComponent, PositionComponent)
-    {
-        if let Some(position) = ecs.get_component::<PositionComponent>(arch_index, entity_index) {
+    for info in iter_entities_with!(ecs, FoodComponent, PositionComponent) {
+        if let Some(position) = ecs.get_component::<PositionComponent>(&info) {
             draw_square(
                 position,
                 FOOD_COLOR,

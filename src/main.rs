@@ -71,7 +71,7 @@ impl World {
     }
 
     fn draw(&mut self, pixels: &mut [u8], window_width: u32, window_height: u32) {
-        display::draw(&self.ecs, pixels, window_width, window_height);
+        display::draw(&mut self.ecs, pixels, window_width, window_height);
     }
 }
 

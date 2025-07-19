@@ -8,22 +8,18 @@ impl System for DeathSystem {
         let mut to_remove = Vec::new();
         let mut positions = Vec::new();
 
-        for (arch_index, entity_index, entity) in
-            iter_entities_with!(ecs, CreatureComponent, PositionComponent)
-        {
+        for info in iter_entities_with!(ecs, CreatureComponent, PositionComponent) {
             // Check if the creature should die
-            if let Some(creature) = ecs.get_component::<CreatureComponent>(arch_index, entity_index)
-            {
+            if let Some(creature) = ecs.get_component::<CreatureComponent>(&info) {
                 if creature.health <= 0.0 {
-                    to_remove.push(entity);
+                    to_remove.push(info.entity);
                 } else {
                     continue;
                 }
             }
 
             // Store the creature's position
-            if let Some(position) = ecs.get_component::<PositionComponent>(arch_index, entity_index)
-            {
+            if let Some(position) = ecs.get_component::<PositionComponent>(&info) {
                 positions.push(*position);
             }
         }

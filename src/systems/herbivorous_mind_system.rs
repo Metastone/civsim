@@ -9,16 +9,12 @@ impl System for HerbivorousMindSystem {
     fn run(&self, ecs: &mut Ecs) {
         // Get the positions of all inactive herbivorous entities
         let mut herbivorous_positions = HashMap::new();
-        for (arch_index, entity_index, entity) in iter_entities_with!(
+        for (position, info) in iter_components_with!(
             ecs,
-            HerbivorousComponent,
-            PositionComponent,
-            InactiveComponent
+            (HerbivorousComponent, PositionComponent, InactiveComponent),
+            PositionComponent
         ) {
-            if let Some(position) = ecs.get_component::<PositionComponent>(arch_index, entity_index)
-            {
-                herbivorous_positions.insert(entity, *position);
-            }
+            herbivorous_positions.insert(info.entity, *position);
         }
 
         // For each position, find the closest food
