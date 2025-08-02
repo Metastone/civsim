@@ -11,20 +11,16 @@ impl System for ReproductionSystem {
         let mut is_herbivorous = Vec::new();
         for info in iter_entities_with!(ecs, CreatureComponent, PositionComponent) {
             // If the creature can reproduce, reset its energy to start value
-            if let Some(creature) = ecs.get_component_mut::<CreatureComponent>(&info) {
-                if creature.energy >= REPROD_ENERGY_THRESHOLD {
-                    creature.energy -= REPROD_ENERGY_COST;
-                } else {
-                    continue;
-                }
-            }
-
-            // Store the creature's position
-            if let Some(position) = ecs.get_component::<PositionComponent>(&info) {
-                positions.push(*position);
+            let creature = ecs.get_component_mut::<CreatureComponent>(&info).unwrap();
+            if creature.energy >= REPROD_ENERGY_THRESHOLD {
+                creature.energy -= REPROD_ENERGY_COST;
             } else {
                 continue;
             }
+
+            // Store the creature's position
+            let position = ecs.get_component::<PositionComponent>(&info).unwrap();
+            positions.push(*position);
 
             // Check if herbivorous or carnivorous
             is_herbivorous

@@ -4,7 +4,7 @@ pub const SCREEN_HEIGHT: u32 = 1440;
 pub const HUNGER_RATE: f32 = 0.2;
 pub const EXHAUSTION_RATE: f32 = 1.0;
 
-pub const FOOD_ENERGY: f32 = 20.0;
+pub const FOOD_ENERGY: f32 = 5.0;
 pub const CORPSE_ENERGY: f32 = 20.0;
 pub const CARNIVOROUS_ATTACK: f32 = 20.0;
 pub const REPROD_ENERGY_THRESHOLD: f32 = 90.0;
@@ -34,5 +34,5 @@ pub const MS_PER_ITERATION: u64 = 16;
 pub const HERBIVOROUS_NB: usize = 10;
 pub const CARNIVOROUS_NB: usize = 1;
 pub const FOOD_NB: usize = 100;
-pub const CORPSE_NB: usize = 0;
+pub const CORPSE_NB: usize = 100;
 pub const NEW_FOOD_PER_TICK: usize = 1;

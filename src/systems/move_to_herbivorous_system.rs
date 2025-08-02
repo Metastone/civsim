@@ -4,12 +4,14 @@ use crate::ecs::{Ecs, EntityId, System};
 use crate::systems::utils;
 use std::any::TypeId;
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 pub struct MoveToHerbivorousSystem;
 impl System for MoveToHerbivorousSystem {
     fn run(&self, ecs: &mut Ecs) {
         // Move all carnivorous in the direction of their herbivorous target (if they have one)
         let mut creature_to_herbivorous: HashMap<EntityId, EntityId> = HashMap::new();
+        let mut creature_to_inactive: HashSet<EntityId> = HashSet::new();
         for info in iter_entities_with!(
             ecs,
             CarnivorousComponent,
@@ -17,30 +19,18 @@ impl System for MoveToHerbivorousSystem {
             MoveToHerbivorousComponent
         ) {
             // Get the target herbivorous info
-            let herb_entity;
-            if let Some(MoveToHerbivorousComponent { herbivorous_entity }) =
-                ecs.get_component::<MoveToHerbivorousComponent>(&info)
-            {
-                herb_entity = *herbivorous_entity;
-            } else {
-                // Go to inactive state if the herbivorous can't be found
-                ecs.remove_component(info.entity, to_ctype!(MoveToHerbivorousComponent));
-                ecs.add_component(info.entity, &InactiveComponent::new());
-                continue;
-            }
+            let MoveToHerbivorousComponent { herbivorous_entity } = ecs
+                .get_component::<MoveToHerbivorousComponent>(&info)
+                .unwrap();
+            let herb_entity = *herbivorous_entity;
 
             // Get the herbivorous position
-            let mut position_exists = false;
-            let mut herbivorous_position = PositionComponent::new();
+            let herbivorous_position;
             if let Some(pos) = ecs.get_component_from_entity::<PositionComponent>(herb_entity) {
                 herbivorous_position = *pos;
-                position_exists = true;
-            }
-
-            // Go to inactive state if the target position can't be found
-            if !position_exists {
-                ecs.remove_component(info.entity, to_ctype!(MoveToHerbivorousComponent));
-                ecs.add_component(info.entity, &InactiveComponent::new());
+            } else {
+                // Go to inactive state if the target position can't be found
+                creature_to_inactive.insert(info.entity);
                 continue;
             }
 
@@ -55,6 +45,11 @@ impl System for MoveToHerbivorousSystem {
             ) {
                 creature_to_herbivorous.insert(info.entity, herb_entity);
             }
+        }
+
+        for entity in creature_to_inactive {
+            ecs.remove_component(entity, to_ctype!(MoveToHerbivorousComponent));
+            ecs.add_component(entity, &InactiveComponent::new());
         }
 
         // If herbivorous reached, go to eating state
