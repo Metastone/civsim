@@ -75,6 +75,53 @@ impl World {
     }
 }
 
+fn create_world() -> World {
+    let mut world = World::new();
+
+    for _ in 0..FOOD_NB {
+        world.create_entity_with(&[&FoodComponent::new(), &PositionComponent::new()]);
+    }
+
+    for _ in 0..HERBIVOROUS_NB {
+        world.create_entity_with(&[
+            &CreatureComponent::new(),
+            &PositionComponent::new(),
+            &HerbivorousComponent::new(),
+            &InactiveComponent::new(),
+        ]);
+    }
+
+    for _ in 0..CARNIVOROUS_NB {
+        world.create_entity_with(&[
+            &CreatureComponent::new(),
+            &PositionComponent::new(),
+            &CarnivorousComponent::new(),
+            &InactiveComponent::new(),
+        ]);
+    }
+
+    #[allow(clippy::reversed_empty_ranges)]
+    for _ in 0..CORPSE_NB {
+        world.create_entity_with(&[&CorpseComponent::new(), &PositionComponent::new()]);
+    }
+
+    world.add_system(Box::new(FoodGrowthSystem));
+    world.add_system(Box::new(ReproductionSystem));
+    world.add_system(Box::new(HerbivorousMindSystem));
+    world.add_system(Box::new(MoveToFoodSystem));
+    world.add_system(Box::new(EatFoodSystem));
+    world.add_system(Box::new(CarnivorousMindSystem));
+    world.add_system(Box::new(MoveToCorpseSystem));
+    world.add_system(Box::new(MoveToHerbivorousSystem));
+    world.add_system(Box::new(EatCorpseSystem));
+    world.add_system(Box::new(AttackHerbivorousSystem));
+    world.add_system(Box::new(HungerSystem));
+    world.add_system(Box::new(ExhaustionSystem));
+    world.add_system(Box::new(DeathSystem));
+
+    world
+}
+
 struct App<'window> {
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'window>>,
@@ -82,53 +129,10 @@ struct App<'window> {
 }
 impl<'window> Default for App<'window> {
     fn default() -> Self {
-        let mut world = World::new();
-
-        for _ in 0..FOOD_NB {
-            world.create_entity_with(&[&FoodComponent::new(), &PositionComponent::new()]);
-        }
-
-        for _ in 0..HERBIVOROUS_NB {
-            world.create_entity_with(&[
-                &CreatureComponent::new(),
-                &PositionComponent::new(),
-                &HerbivorousComponent::new(),
-                &InactiveComponent::new(),
-            ]);
-        }
-
-        for _ in 0..CARNIVOROUS_NB {
-            world.create_entity_with(&[
-                &CreatureComponent::new(),
-                &PositionComponent::new(),
-                &CarnivorousComponent::new(),
-                &InactiveComponent::new(),
-            ]);
-        }
-
-        #[allow(clippy::reversed_empty_ranges)]
-        for _ in 0..CORPSE_NB {
-            world.create_entity_with(&[&CorpseComponent::new(), &PositionComponent::new()]);
-        }
-
-        world.add_system(Box::new(FoodGrowthSystem));
-        world.add_system(Box::new(ReproductionSystem));
-        world.add_system(Box::new(HerbivorousMindSystem));
-        world.add_system(Box::new(MoveToFoodSystem));
-        world.add_system(Box::new(EatFoodSystem));
-        world.add_system(Box::new(CarnivorousMindSystem));
-        world.add_system(Box::new(MoveToCorpseSystem));
-        world.add_system(Box::new(MoveToHerbivorousSystem));
-        world.add_system(Box::new(EatCorpseSystem));
-        world.add_system(Box::new(AttackHerbivorousSystem));
-        world.add_system(Box::new(HungerSystem));
-        world.add_system(Box::new(ExhaustionSystem));
-        world.add_system(Box::new(DeathSystem));
-
         Self {
             window: Default::default(),
             pixels: Default::default(),
-            world,
+            world: create_world(),
         }
     }
 }
