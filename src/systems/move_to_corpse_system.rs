@@ -49,7 +49,6 @@ impl System for MoveToCorpseSystem {
         for entity in creature_to_inactive {
             ecs.remove_component(entity, to_ctype!(MoveToCorpseComponent));
             ecs.add_component(entity, &InactiveComponent::new());
-            continue;
         }
 
         // If corpse reached, go to eating state
