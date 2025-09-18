@@ -1,17 +1,15 @@
 use crate::components::*;
 use crate::constants::*;
-use crate::ecs::{Ecs, EntityId, System};
+use crate::ecs::{Ecs, System, Update};
 use crate::systems::utils;
 use std::any::TypeId;
-use std::collections::HashMap;
-use std::collections::HashSet;
 
 pub struct MoveToFoodSystem;
 impl System for MoveToFoodSystem {
     fn run(&self, ecs: &mut Ecs) {
+        let mut updates: Vec<Update> = Vec::new();
+
         // Move all herbivorous in the direction of their food target (if they have one)
-        let mut creature_to_food: HashMap<EntityId, EntityId> = HashMap::new();
-        let mut creature_to_inactive: HashSet<EntityId> = HashSet::new();
         for info in iter_entities_with!(
             ecs,
             HerbivorousComponent,
@@ -21,15 +19,22 @@ impl System for MoveToFoodSystem {
             // Get the target food info
             let MoveToFoodComponent { food_entity } =
                 ecs.get_component::<MoveToFoodComponent>(&info).unwrap();
-            let c_entity = *food_entity;
+            let f_entity = *food_entity;
 
             // Get the food position
             let food_position;
-            if let Some(pos) = ecs.get_component_from_entity::<PositionComponent>(c_entity) {
+            if let Some(pos) = ecs.get_component_from_entity::<PositionComponent>(f_entity) {
                 food_position = *pos;
             } else {
                 // Go to inactive state if the target position can't be found for some reason
-                creature_to_inactive.insert(info.entity);
+                updates.push(Update::Delete {
+                    info,
+                    c_type: to_ctype!(MoveToFoodComponent),
+                });
+                updates.push(Update::Add {
+                    info,
+                    comp: Box::new(InactiveComponent::new()),
+                });
                 continue;
             }
 
@@ -42,19 +47,17 @@ impl System for MoveToFoodSystem {
                 CREATURE_PIXEL_SIZE as f64,
                 HERBIVOROUS_SPEED,
             ) {
-                creature_to_food.insert(info.entity, c_entity);
+                updates.push(Update::Delete {
+                    info,
+                    c_type: to_ctype!(MoveToFoodComponent),
+                });
+                updates.push(Update::Add {
+                    info,
+                    comp: Box::new(EatingFoodComponent::new(f_entity)),
+                });
             }
         }
 
-        for entity in creature_to_inactive {
-            ecs.remove_component(entity, to_ctype!(MoveToFoodComponent));
-            ecs.add_component(entity, &InactiveComponent::new());
-        }
-
-        // If food reached, go to eating state
-        for (entity, food_entity) in creature_to_food {
-            ecs.remove_component(entity, to_ctype!(MoveToFoodComponent));
-            ecs.add_component(entity, &EatingFoodComponent::new(food_entity));
-        }
+        ecs.apply(updates);
     }
 }

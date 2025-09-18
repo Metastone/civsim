@@ -1,20 +1,28 @@
 use crate::components::*;
 use crate::constants::*;
-use crate::ecs::{Ecs, EntityId, EntityInfo, System};
+use crate::ecs::{Ecs, EntityId, EntityInfo, System, Update};
 use std::any::TypeId;
 use std::collections::HashMap;
 
 pub struct EatCorpseSystem;
 impl System for EatCorpseSystem {
     fn run(&self, ecs: &mut Ecs) {
+        let mut updates: Vec<Update> = Vec::new();
+
         // Make sure that a corpse is not eaten by more than one creature
         let mut corpse_to_creature: HashMap<EntityId, EntityInfo> = HashMap::new();
-        let mut creatures_trying_to_eat: Vec<EntityId> = Vec::new();
         for info in iter_entities!(ecs, EatingCorpseComponent) {
             if let Some(eating_corpse) = ecs.get_component::<EatingCorpseComponent>(&info) {
                 corpse_to_creature.insert(eating_corpse.corpse_entity, info);
             }
-            creatures_trying_to_eat.push(info.entity);
+            updates.push(Update::Delete {
+                info,
+                c_type: to_ctype!(EatingCorpseComponent),
+            });
+            updates.push(Update::Add {
+                info,
+                comp: Box::new(InactiveComponent::new()),
+            });
         }
 
         // Increase energy of creatures that ate a corpse
@@ -32,10 +40,6 @@ impl System for EatCorpseSystem {
             ecs.remove_entity(*corpse_entity);
         }
 
-        // Go into inactive state
-        for entity in creatures_trying_to_eat.iter() {
-            ecs.remove_component(*entity, to_ctype!(EatingCorpseComponent));
-            ecs.add_component(*entity, &InactiveComponent::new());
-        }
+        ecs.apply(updates);
     }
 }

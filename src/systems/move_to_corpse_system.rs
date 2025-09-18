@@ -1,17 +1,15 @@
 use crate::components::*;
 use crate::constants::*;
-use crate::ecs::{Ecs, EntityId, System};
+use crate::ecs::{Ecs, System, Update};
 use crate::systems::utils;
 use std::any::TypeId;
-use std::collections::HashMap;
-use std::collections::HashSet;
 
 pub struct MoveToCorpseSystem;
 impl System for MoveToCorpseSystem {
     fn run(&self, ecs: &mut Ecs) {
+        let mut updates: Vec<Update> = Vec::new();
+
         // Move all carnivorous in the direction of their corpse target (if they have one)
-        let mut creature_to_eat_corpse: HashMap<EntityId, EntityId> = HashMap::new();
-        let mut creature_to_inactive: HashSet<EntityId> = HashSet::new();
         for info in iter_entities_with!(
             ecs,
             CarnivorousComponent,
@@ -29,7 +27,14 @@ impl System for MoveToCorpseSystem {
                 corpse_position = *pos;
             } else {
                 // Go to inactive state if the target position can't be found for some reason
-                creature_to_inactive.insert(info.entity);
+                updates.push(Update::Delete {
+                    info,
+                    c_type: to_ctype!(MoveToCorpseComponent),
+                });
+                updates.push(Update::Add {
+                    info,
+                    comp: Box::new(InactiveComponent::new()),
+                });
                 continue;
             }
 
@@ -42,19 +47,17 @@ impl System for MoveToCorpseSystem {
                 CREATURE_PIXEL_SIZE as f64,
                 CARNIVOROUS_SPEED,
             ) {
-                creature_to_eat_corpse.insert(info.entity, c_entity);
+                updates.push(Update::Delete {
+                    info,
+                    c_type: to_ctype!(MoveToCorpseComponent),
+                });
+                updates.push(Update::Add {
+                    info,
+                    comp: Box::new(EatingCorpseComponent::new(c_entity)),
+                });
             }
         }
 
-        for entity in creature_to_inactive {
-            ecs.remove_component(entity, to_ctype!(MoveToCorpseComponent));
-            ecs.add_component(entity, &InactiveComponent::new());
-        }
-
-        // If corpse reached, go to eating state
-        for (entity, corpse_entity) in creature_to_eat_corpse {
-            ecs.remove_component(entity, to_ctype!(MoveToCorpseComponent));
-            ecs.add_component(entity, &EatingCorpseComponent::new(corpse_entity));
-        }
+        ecs.apply(updates);
     }
 }

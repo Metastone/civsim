@@ -5,7 +5,7 @@ mod ecs;
 mod display;
 mod systems;
 
-use ecs::{Component, Ecs, EntityId, System};
+use ecs::{Component, Ecs, System};
 use pixels::{Pixels, SurfaceTexture};
 use std::{sync::Arc, thread, time};
 
@@ -54,10 +54,6 @@ impl World {
 
     pub fn add_system(&mut self, system: Box<dyn System>) {
         self.systems.push(system);
-    }
-
-    pub fn add_component(&mut self, entity_id: EntityId, new_comp: &dyn Component) {
-        self.ecs.add_component(entity_id, new_comp);
     }
 
     pub fn create_entity_with(&mut self, components: &[&dyn Component]) {

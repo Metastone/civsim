@@ -1,9 +1,11 @@
+use log::error;
+use log::info;
 use std::{
     any::{Any, TypeId},
     collections::{HashMap, HashSet},
 };
 
-use log::error;
+pub const MAX_OBSOLETE_ENTRIES: usize = 10000;
 
 pub type ComponentType = TypeId;
 
@@ -86,7 +88,7 @@ pub struct EntityIdAllocator {
 }
 impl EntityIdAllocator {
     pub fn new() -> Self {
-        EntityIdAllocator { next_id: 0 }
+        EntityIdAllocator { next_id: 1 } // 0 is reserved for entities "to delete"
     }
 
     pub fn get_next_id(&mut self) -> usize {
@@ -137,38 +139,47 @@ impl Iterator for EntityIterator {
     type Item = EntityInfo;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.i_arch >= self.archetype_indexes.len() {
-            return None;
-        }
-        let mut arch_index = self.archetype_indexes[self.i_arch];
-
-        let mut entities = &self.archetype_entities[arch_index];
-
-        // If we finished iterating over the current archertype, continue in next one (assume it's not empty)
-        if self.entity_index >= entities.len() {
-            self.entity_index = 0;
-            self.i_arch += 1;
-            if self.i_arch >= self.archetype_indexes.len() {
-                return None;
-            }
+        // Find the next entity whose ID is not zero (0 are obsolete entries)
+        let mut entity = 0;
+        let mut arch_index = 0;
+        let mut entity_index = self.entity_index;
+        while entity == 0 && self.i_arch < self.archetype_indexes.len() {
             arch_index = self.archetype_indexes[self.i_arch];
-            entities = &self.archetype_entities[arch_index];
+            let mut entities = &self.archetype_entities[arch_index];
+
+            // If we finished iterating over the current archertype, continue in next one (assume it's not empty)
+            if entity_index >= entities.len() {
+                entity_index = 0;
+                self.i_arch += 1;
+                if self.i_arch >= self.archetype_indexes.len() {
+                    return None;
+                }
+                arch_index = self.archetype_indexes[self.i_arch];
+                entities = &self.archetype_entities[arch_index];
+            }
+            entity = entities[entity_index];
+            if entity == 0 {
+                entity_index += 1;
+            }
+        }
+
+        if entity == 0 {
+            return None;
         }
 
         // Get entity reference info to return
-        let entity = entities[self.entity_index];
         let info = EntityInfo {
             entity,
             arch_index,
-            entity_index: self.entity_index,
+            entity_index,
         };
-        self.entity_index += 1;
+        self.entity_index = entity_index + 1;
 
         Some(info)
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct EntityInfo {
     pub entity: EntityId,
     pub arch_index: usize,
@@ -186,55 +197,62 @@ pub struct ComponentIterator<'a> {
 impl<'a> Iterator for ComponentIterator<'a> {
     type Item = (&'a mut Box<dyn Component>, EntityInfo);
     fn next(&mut self) -> Option<Self::Item> {
-        if self.arch_index >= self.ecs.archetypes.len() {
+        // Find the next entity whose ID is not zero (0 are obsolete entries)
+        let mut entity = 0;
+        let mut comp_index = self.component_index;
+        while entity == 0 && self.arch_index < self.ecs.archetypes.len() {
+            // If we finished iterating over current archetype OR current archetype does not have the required component
+            let end_reached = comp_index >= self.ecs.archetypes[self.arch_index].entities.len();
+            let has_comp = self
+                .ecs
+                .has_components(self.arch_index, &self.required_ctypes);
+            if end_reached || !has_comp {
+                // Find the next non-empty archetype that has the required component
+                let mut found = false;
+                for i in self.arch_index + 1..self.ecs.archetypes.len() {
+                    if !self.ecs.archetypes[i].entities.is_empty()
+                        && self.ecs.has_components(i, &self.required_ctypes)
+                    {
+                        self.arch_index = i;
+                        comp_index = 0;
+                        found = true;
+                        break;
+                    }
+                }
+                if !found {
+                    return None;
+                }
+            }
+
+            entity = self.ecs.archetypes[self.arch_index].entities[comp_index];
+
+            if entity == 0 {
+                comp_index += 1;
+            }
+        }
+
+        if entity == 0 {
             return None;
         }
 
-        // If we finished iterating over current archetype OR current archetype does not have the
-        // required component
-        let end_reached =
-            self.component_index >= self.ecs.archetypes[self.arch_index].entities.len();
-        let has_comp = self
-            .ecs
-            .has_components(self.arch_index, &self.required_ctypes);
-        if end_reached || !has_comp {
-            // Find the next non-empty archetype that has the required component
-            let mut found = false;
-            for i in self.arch_index + 1..self.ecs.archetypes.len() {
-                if !self.ecs.archetypes[i].entities.is_empty()
-                    && self.ecs.has_components(i, &self.required_ctypes)
-                {
-                    self.arch_index = i;
-                    self.component_index = 0;
-                    found = true;
-                }
-            }
-            if !found {
-                return None;
-            }
-        }
-
-        let res = unsafe {
+        let res_comp = unsafe {
             &mut *(self.ecs.archetypes[self.arch_index]
                 .data
                 .get_mut(&self.as_ctype)
                 .unwrap()
                 .as_mut_ptr()
-                .add(self.component_index))
+                .add(comp_index))
         };
-        let entity = self.ecs.archetypes[self.arch_index].entities[self.component_index];
-        let res = (
-            res,
+        let res = Some((
+            res_comp,
             EntityInfo {
                 entity,
                 arch_index: self.arch_index,
-                entity_index: self.component_index,
+                entity_index: comp_index,
             },
-        );
-
-        self.component_index += 1;
-
-        Some(res)
+        ));
+        self.component_index = comp_index + 1;
+        res
     }
 }
 
@@ -242,9 +260,25 @@ pub trait System {
     fn run(&self, ecs: &mut Ecs);
 }
 
+pub enum Update {
+    Edit {
+        info: EntityInfo,
+        comp: Box<dyn Component>,
+    },
+    Add {
+        info: EntityInfo,
+        comp: Box<dyn Component>,
+    },
+    Delete {
+        info: EntityInfo,
+        c_type: ComponentType,
+    },
+}
+
 pub struct Ecs {
     archetypes: Vec<Archetype>,
     ids: EntityIdAllocator,
+    nb_obsolete_entries: usize,
 }
 
 impl Default for Ecs {
@@ -258,6 +292,7 @@ impl Ecs {
         Self {
             archetypes: Vec::new(),
             ids: EntityIdAllocator::new(),
+            nb_obsolete_entries: 0,
         }
     }
 
@@ -509,71 +544,6 @@ impl Ecs {
         }
     }
 
-    pub fn remove_component(&mut self, entity: EntityId, comp_type: ComponentType) {
-        // Find in which archetype is the entity
-        let mut entity_found = false;
-        let mut archetype_id = 0;
-        let mut entity_index = 0;
-        for (a_index, archetype) in self.archetypes.iter().enumerate() {
-            if let Some((e_index, _)) = archetype
-                .entities
-                .iter()
-                .enumerate()
-                .find(|(_, e_id)| entity == **e_id)
-            {
-                entity_found = true;
-                archetype_id = a_index;
-                entity_index = e_index;
-                break;
-            }
-        }
-
-        // Check if the entity exists
-        if !entity_found {
-            error!(
-                "Cannot remove component {comp_type:?} from entity {entity}: Entity does not exist"
-            );
-        }
-
-        // Check if the entity has the component
-        let archetype = &mut self.archetypes[archetype_id];
-        let cur_ctypes = archetype.component_types.clone();
-        let mut required_ctypes = archetype.component_types.clone();
-        required_ctypes.remove(&comp_type);
-        if !cur_ctypes.contains(&comp_type) {
-            error!(
-                "Cannot remove component {comp_type:?} from entity {entity}: Entity does not have this component"
-            );
-        }
-
-        // Get other existing components associated to this entity
-        let other_comps: Vec<Box<dyn Component>> = required_ctypes
-            .iter()
-            .map(|ctype| archetype.data.get(ctype).unwrap()[entity_index].clone_box())
-            .collect();
-
-        // Remove entity from old archetype
-        cur_ctypes.iter().for_each(|ctype| {
-            archetype.data.get_mut(ctype).unwrap().remove(entity_index);
-        });
-        archetype.entities.remove(entity_index);
-
-        // If we find an archetype that has exactly the required components, move the entity to it
-        if let Some(new_archetype) = self
-            .archetypes
-            .iter_mut()
-            .find(|a| a.component_types == required_ctypes)
-        {
-            Self::copy_entity_to_new_arch(new_archetype, other_comps, None, entity);
-        }
-        // Otherwise, create a new archetype and move the entity to it
-        else {
-            let mut new_archetype = Archetype::new(required_ctypes.clone());
-            Self::copy_entity_to_new_arch(&mut new_archetype, other_comps, None, entity);
-            self.archetypes.push(new_archetype);
-        }
-    }
-
     fn copy_entity_to_new_arch(
         new_archetype: &mut Archetype,
         cur_comps: Vec<Box<dyn Component>>,
@@ -595,5 +565,230 @@ impl Ecs {
                 .push(new_comp.clone_box());
         }
         new_archetype.entities.push(entity);
+    }
+
+    pub fn apply(&mut self, updates: Vec<Update>) {
+        let mut pending_info: HashMap<EntityId, EntityInfo> = HashMap::new();
+        for update in updates.iter() {
+            match update {
+                Update::Edit { info, comp } => {
+                    self.edit(*info, comp.as_ref(), &mut pending_info);
+                }
+                Update::Add { info, comp } => {
+                    self.add(*info, comp.as_ref(), &mut pending_info);
+                }
+                Update::Delete { info, c_type } => {
+                    self.remove(*info, *c_type, &mut pending_info);
+                }
+            }
+        }
+        self.clear_obsolete_entries();
+    }
+
+    fn edit(
+        &mut self,
+        info: EntityInfo,
+        comp: &dyn Component,
+        pending_info: &mut HashMap<EntityId, EntityInfo>,
+    ) {
+        let actualized_info = pending_info.get(&info.entity).unwrap_or(&info);
+        let EntityInfo {
+            entity: _,
+            arch_index,
+            entity_index,
+        } = *actualized_info;
+        if arch_index >= self.archetypes.len()
+            || entity_index >= self.archetypes[arch_index].entities.len()
+        {
+            error!(
+                "Cannot apply a component edit for entity {:?}: Entity not found",
+                actualized_info
+            );
+        } else if let Some(components) = self.archetypes[arch_index].data.get_mut(&comp.get_type())
+        {
+            components[entity_index] = comp.clone_box();
+        } else {
+            error!("Cannot apply a component edit for entity {:?}: Entity does not have this component", actualized_info);
+        }
+    }
+
+    fn add(
+        &mut self,
+        info: EntityInfo,
+        comp: &dyn Component,
+        pending_info: &mut HashMap<EntityId, EntityInfo>,
+    ) {
+        let actualized_info = pending_info.get(&info.entity).unwrap_or(&info);
+        let EntityInfo {
+            entity,
+            arch_index,
+            entity_index,
+        } = *actualized_info;
+        if arch_index >= self.archetypes.len()
+            || entity_index >= self.archetypes[arch_index].entities.len()
+        {
+            error!(
+                "Cannot apply a component addition for entity {:?}: Entity not found",
+                actualized_info
+            );
+        } else if self.archetypes[arch_index]
+            .data
+            .get_mut(&comp.get_type())
+            .is_some()
+        {
+            error!(
+                            "Cannot apply a component addition for entity {:?}: Entity already has a component of this type",
+                            actualized_info
+                        );
+        } else {
+            let mut cur_ctypes = HashSet::new();
+            let mut required_ctypes = HashSet::from([comp.get_type()]);
+
+            // Get already existing components associated to this entity
+            let archetype = &mut self.archetypes[arch_index];
+            cur_ctypes = cur_ctypes
+                .union(&archetype.component_types)
+                .cloned()
+                .collect();
+            required_ctypes = required_ctypes
+                .union(&archetype.component_types)
+                .cloned()
+                .collect();
+            let cur_comps: Vec<Box<dyn Component>> = cur_ctypes
+                .iter()
+                .map(|ctype| archetype.data.get(ctype).unwrap()[entity_index].clone_box())
+                .collect();
+
+            // Mark entity as Remove entity from old archetype
+            archetype.entities[entity_index] = 0;
+            self.nb_obsolete_entries += 0;
+
+            // If we find an archetype that has exactly the required components, move the entity to it
+            if let Some((new_arch_index, new_archetype)) = self
+                .archetypes
+                .iter_mut()
+                .enumerate()
+                .find(|(_, a)| a.component_types == required_ctypes)
+            {
+                pending_info.insert(
+                    entity,
+                    EntityInfo {
+                        entity,
+                        arch_index: new_arch_index,
+                        entity_index: new_archetype.entities.len(),
+                    },
+                );
+                Self::copy_entity_to_new_arch(new_archetype, cur_comps, Some(comp), entity);
+            }
+            // Otherwise, create a new archetype and move the entity to it
+            else {
+                pending_info.insert(
+                    entity,
+                    EntityInfo {
+                        entity,
+                        arch_index: self.archetypes.len(),
+                        entity_index: 0,
+                    },
+                );
+                let mut new_archetype = Archetype::new(required_ctypes.clone());
+                Self::copy_entity_to_new_arch(&mut new_archetype, cur_comps, Some(comp), entity);
+                self.archetypes.push(new_archetype);
+            }
+        }
+    }
+
+    fn remove(
+        &mut self,
+        info: EntityInfo,
+        c_type: ComponentType,
+        pending_info: &mut HashMap<EntityId, EntityInfo>,
+    ) {
+        let actualized_info = pending_info.get(&info.entity).unwrap_or(&info);
+        let EntityInfo {
+            entity,
+            arch_index,
+            entity_index,
+        } = *actualized_info;
+        if arch_index >= self.archetypes.len()
+            || entity_index >= self.archetypes[arch_index].entities.len()
+        {
+            error!(
+                "Cannot apply a component deletion for entity {:?}: Entity not found",
+                actualized_info
+            );
+        } else if !self.archetypes[arch_index]
+            .component_types
+            .contains(&c_type)
+        {
+            error!("Cannot apply a component deletion for entity {:?}: Entity does not have this component", actualized_info);
+        } else {
+            let archetype = &mut self.archetypes[arch_index];
+            let mut required_ctypes = archetype.component_types.clone();
+            required_ctypes.remove(&c_type);
+
+            // Get other existing components associated to this entity
+            let other_comps: Vec<Box<dyn Component>> = required_ctypes
+                .iter()
+                .map(|ctype| archetype.data.get(ctype).unwrap()[entity_index].clone_box())
+                .collect();
+
+            // Mark entity as Remove entity from old archetype
+            archetype.entities[entity_index] = 0;
+            self.nb_obsolete_entries += 1;
+
+            // If we find an archetype that has exactly the required components, move the entity to it
+            if let Some((new_arch_index, new_archetype)) = self
+                .archetypes
+                .iter_mut()
+                .enumerate()
+                .find(|(_, a)| a.component_types == required_ctypes)
+            {
+                pending_info.insert(
+                    entity,
+                    EntityInfo {
+                        entity,
+                        arch_index: new_arch_index,
+                        entity_index: new_archetype.entities.len(),
+                    },
+                );
+                Self::copy_entity_to_new_arch(new_archetype, other_comps, None, entity);
+            }
+            // Otherwise, create a new archetype and move the entity to it
+            else {
+                pending_info.insert(
+                    entity,
+                    EntityInfo {
+                        entity,
+                        arch_index: self.archetypes.len(),
+                        entity_index: 0,
+                    },
+                );
+                let mut new_archetype = Archetype::new(required_ctypes.clone());
+                Self::copy_entity_to_new_arch(&mut new_archetype, other_comps, None, entity);
+                self.archetypes.push(new_archetype);
+            }
+        }
+    }
+
+    fn clear_obsolete_entries(&mut self) {
+        info!("DEBUG : Obsolete entries {}", self.nb_obsolete_entries);
+        if self.nb_obsolete_entries > MAX_OBSOLETE_ENTRIES {
+            for arch in self.archetypes.iter_mut() {
+                let mut to_remove_idx: Vec<usize> = arch
+                    .entities
+                    .iter()
+                    .enumerate()
+                    .filter(|&(_, entity)| *entity == 0)
+                    .map(|(id, _)| id)
+                    .collect();
+                to_remove_idx.reverse(); // Sort big index first, for safe vec remove
+                for comps in arch.data.values_mut() {
+                    for idx in to_remove_idx.iter() {
+                        comps.remove(*idx);
+                    }
+                }
+            }
+        }
+        self.nb_obsolete_entries = 0;
     }
 }
