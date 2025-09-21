@@ -5,7 +5,7 @@ mod ecs;
 mod display;
 mod systems;
 
-use ecs::{Component, Ecs, System};
+use ecs::{Component, Ecs, System, Update};
 use pixels::{Pixels, SurfaceTexture};
 use std::{sync::Arc, thread, time};
 
@@ -57,7 +57,10 @@ impl World {
     }
 
     pub fn create_entity_with(&mut self, components: &[&dyn Component]) {
-        self.ecs.create_entity_with(components);
+        // Probably slow to apply updates one by one, but okay for world initialization ?
+        self.ecs.apply(vec![Update::Create(
+            components.iter().map(|c| c.clone_box()).collect(),
+        )]);
     }
 
     pub fn iterate(&mut self) {

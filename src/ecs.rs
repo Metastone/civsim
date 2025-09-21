@@ -1,5 +1,4 @@
 use log::error;
-use log::info;
 use std::{
     any::{Any, TypeId},
     collections::{HashMap, HashSet},
@@ -273,6 +272,7 @@ pub enum Update {
         info: EntityInfo,
         c_type: ComponentType,
     },
+    Create(Vec<Box<dyn Component>>),
 }
 
 pub struct Ecs {
@@ -467,83 +467,6 @@ impl Ecs {
         None
     }
 
-    pub fn create_entity_with(&mut self, components: &[&dyn Component]) {
-        let entity = self.ids.get_next_id();
-        for comp in components {
-            self.add_component(entity, *comp);
-        }
-    }
-
-    pub fn add_component(&mut self, entity: EntityId, new_comp: &dyn Component) {
-        // Find in which archetype is the entity
-        let mut entity_found = false;
-        let mut archetype_id = 0;
-        let mut entity_index = 0;
-        for (a_index, archetype) in self.archetypes.iter().enumerate() {
-            if let Some((e_index, _)) = archetype
-                .entities
-                .iter()
-                .enumerate()
-                .find(|(_, e_id)| entity == **e_id)
-            {
-                entity_found = true;
-                archetype_id = a_index;
-                entity_index = e_index;
-                break;
-            }
-        }
-
-        let mut cur_ctypes = HashSet::new();
-        let mut required_ctypes = HashSet::from([new_comp.get_type()]);
-        let mut cur_comps = Vec::new();
-
-        if entity_found {
-            // If the archetype has the component, replace it
-            let archetype = &mut self.archetypes[archetype_id];
-            if archetype.component_types.contains(&new_comp.get_type()) {
-                archetype.data.get_mut(&new_comp.get_type()).unwrap()[entity_index] =
-                    new_comp.clone_box();
-                return;
-            }
-
-            // Get already existing components associated to this entity
-            cur_ctypes = cur_ctypes
-                .union(&archetype.component_types)
-                .cloned()
-                .collect();
-            required_ctypes = required_ctypes
-                .union(&archetype.component_types)
-                .cloned()
-                .collect();
-            let mut cur_comps_temp: Vec<Box<dyn Component>> = cur_ctypes
-                .iter()
-                .map(|ctype| archetype.data.get(ctype).unwrap()[entity_index].clone_box())
-                .collect();
-            cur_comps.append(&mut cur_comps_temp);
-
-            // Remove entity from old archetype
-            cur_ctypes.iter().for_each(|ctype| {
-                archetype.data.get_mut(ctype).unwrap().remove(entity_index);
-            });
-            archetype.entities.remove(entity_index);
-        }
-
-        // If we find an archetype that has exactly the required components, move the entity to it
-        if let Some(new_archetype) = self
-            .archetypes
-            .iter_mut()
-            .find(|a| a.component_types == required_ctypes)
-        {
-            Self::copy_entity_to_new_arch(new_archetype, cur_comps, Some(new_comp), entity);
-        }
-        // Otherwise, create a new archetype and move the entity to it
-        else {
-            let mut new_archetype = Archetype::new(required_ctypes.clone());
-            Self::copy_entity_to_new_arch(&mut new_archetype, cur_comps, Some(new_comp), entity);
-            self.archetypes.push(new_archetype);
-        }
-    }
-
     fn copy_entity_to_new_arch(
         new_archetype: &mut Archetype,
         cur_comps: Vec<Box<dyn Component>>,
@@ -579,6 +502,9 @@ impl Ecs {
                 }
                 Update::Delete { info, c_type } => {
                     self.remove(*info, *c_type, &mut pending_info);
+                }
+                Update::Create(comps) => {
+                    self.create(comps, &mut pending_info);
                 }
             }
         }
@@ -768,6 +694,50 @@ impl Ecs {
                 self.archetypes.push(new_archetype);
             }
         }
+    }
+
+    fn create(
+        &mut self,
+        comps: &Vec<Box<dyn Component>>,
+        pending_info: &mut HashMap<EntityId, EntityInfo>,
+    ) {
+        let required_ctypes: HashSet<ComponentType> = comps.iter().map(|c| c.get_type()).collect();
+
+        // Get archetype with the right components or create one
+        let (arch_index, archetype) = if let Some(a) = self
+            .archetypes
+            .iter_mut()
+            .enumerate()
+            .find(|(_, a)| a.component_types == required_ctypes)
+        {
+            a
+        } else {
+            self.archetypes.push(Archetype::new(required_ctypes));
+            (
+                self.archetypes.len() - 1,
+                self.archetypes.last_mut().unwrap(),
+            )
+        };
+
+        // Create the entity to the archetype
+        let entity = self.ids.get_next_id();
+        archetype.entities.push(entity);
+        for comp in comps {
+            archetype
+                .data
+                .get_mut(&comp.get_type())
+                .unwrap()
+                .push(comp.clone_box());
+        }
+
+        pending_info.insert(
+            entity,
+            EntityInfo {
+                entity,
+                arch_index,
+                entity_index: archetype.entities.len() - 1,
+            },
+        );
     }
 
     fn clear_obsolete_entries(&mut self) {

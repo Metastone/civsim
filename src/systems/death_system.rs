@@ -1,12 +1,12 @@
 use crate::components::*;
-use crate::ecs::{Ecs, System};
+use crate::ecs::{Ecs, System, Update};
 use std::any::TypeId;
 
 pub struct DeathSystem;
 impl System for DeathSystem {
     fn run(&self, ecs: &mut Ecs) {
+        let mut updates: Vec<Update> = Vec::new();
         let mut to_remove = Vec::new();
-        let mut positions = Vec::new();
 
         for info in iter_entities_with!(ecs, CreatureComponent, PositionComponent) {
             // Check if the creature should die
@@ -18,9 +18,12 @@ impl System for DeathSystem {
                 }
             }
 
-            // Store the creature's position
+            // Create a corpse
             if let Some(position) = ecs.get_component::<PositionComponent>(&info) {
-                positions.push(*position);
+                updates.push(Update::Create(vec![
+                    Box::new(CorpseComponent),
+                    Box::new(*position),
+                ]));
             }
         }
 
@@ -29,9 +32,6 @@ impl System for DeathSystem {
             .iter()
             .for_each(|entity| ecs.remove_entity(*entity));
 
-        // Create a corpse
-        for position in positions {
-            ecs.create_entity_with(&[&CorpseComponent::new(), &position]);
-        }
+        ecs.apply(updates);
     }
 }
