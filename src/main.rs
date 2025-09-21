@@ -126,7 +126,7 @@ struct App<'window> {
     pixels: Option<Pixels<'window>>,
     world: World,
 }
-impl<'window> Default for App<'window> {
+impl Default for App<'_> {
     fn default() -> Self {
         Self {
             window: Default::default(),
@@ -135,7 +135,7 @@ impl<'window> Default for App<'window> {
         }
     }
 }
-impl<'window> ApplicationHandler for App<'window> {
+impl ApplicationHandler for App<'_> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(
             event_loop

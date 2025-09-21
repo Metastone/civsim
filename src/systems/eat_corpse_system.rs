@@ -37,7 +37,9 @@ impl System for EatCorpseSystem {
 
         // Remove eaten corpse entities
         for corpse_entity in corpse_to_creature.keys() {
-            ecs.remove_entity(*corpse_entity);
+            if let Some(info) = ecs.get_entity_info(*corpse_entity) {
+                updates.push(Update::DeleteEntity(info));
+            }
         }
 
         ecs.apply(updates);

@@ -273,6 +273,7 @@ pub enum Update {
         c_type: ComponentType,
     },
     Create(Vec<Box<dyn Component>>),
+    DeleteEntity(EntityInfo),
 }
 
 pub struct Ecs {
@@ -419,34 +420,7 @@ impl Ecs {
         }
     }
 
-    pub fn remove_entity(&mut self, entity: usize) {
-        let mut entity_found = false;
-
-        // Look in all archetypes to find the entity
-        for archetype in self.archetypes.iter_mut() {
-            if let Some((entity_index, _)) = archetype
-                .entities
-                .iter()
-                .enumerate()
-                .find(|(_, e_id)| entity == **e_id)
-            {
-                // If found, remove entity from archetype
-                entity_found = true;
-                //let cur_ctypes = &archetype.component_types.clone();
-                archetype.component_types.iter().for_each(|ctype| {
-                    archetype.data.get_mut(ctype).unwrap().remove(entity_index);
-                });
-                archetype.entities.remove(entity_index);
-                break;
-            }
-        }
-
-        if !entity_found {
-            error!("Cannot remove entity {entity}: Entity does not exist");
-        }
-    }
-
-    fn get_entity_info(&self, entity: usize) -> Option<EntityInfo> {
+    pub fn get_entity_info(&self, entity: usize) -> Option<EntityInfo> {
         // Look in all archetypes to find the entity
         for (arch_index, archetype) in self.archetypes.iter().enumerate() {
             if let Some((entity_index, entity)) = archetype
@@ -505,6 +479,9 @@ impl Ecs {
                 }
                 Update::Create(comps) => {
                     self.create(comps, &mut pending_info);
+                }
+                Update::DeleteEntity(info) => {
+                    self.delete_entity(*info, &mut pending_info);
                 }
             }
         }
@@ -738,6 +715,33 @@ impl Ecs {
                 entity_index: archetype.entities.len() - 1,
             },
         );
+    }
+
+    fn delete_entity(
+        &mut self,
+        info: EntityInfo,
+        pending_info: &mut HashMap<EntityId, EntityInfo>,
+    ) {
+        let actualized_info = pending_info.get(&info.entity).unwrap_or(&info);
+        let EntityInfo {
+            entity,
+            arch_index,
+            entity_index,
+        } = *actualized_info;
+        if arch_index >= self.archetypes.len()
+            || entity_index >= self.archetypes[arch_index].entities.len()
+        {
+            error!(
+                "Cannot delete entity {:?}: Entity not found",
+                actualized_info
+            );
+        } else {
+            // Mark entity as a 'to remove entity'
+            let archetype = &mut self.archetypes[arch_index];
+            archetype.entities[entity_index] = 0;
+            self.nb_obsolete_entries += 1;
+            pending_info.remove(&entity);
+        }
     }
 
     fn clear_obsolete_entries(&mut self) {

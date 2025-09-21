@@ -37,7 +37,9 @@ impl System for EatFoodSystem {
 
         // Remove eaten food entities
         for food_entity in food_to_creature.keys() {
-            ecs.remove_entity(*food_entity);
+            if let Some(info) = ecs.get_entity_info(*food_entity) {
+                updates.push(Update::DeleteEntity(info));
+            }
         }
 
         ecs.apply(updates);
