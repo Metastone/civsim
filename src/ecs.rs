@@ -661,7 +661,7 @@ impl Ecs {
 
             // Mark entity as Remove entity from old archetype
             archetype.entities[entity_index] = 0;
-            self.nb_obsolete_entries += 0;
+            self.nb_obsolete_entries += 1;
 
             // If we find an archetype that has exactly the required components, move the entity to it
             if let Some((new_arch_index, new_archetype)) = self
@@ -771,7 +771,6 @@ impl Ecs {
     }
 
     fn clear_obsolete_entries(&mut self) {
-        info!("DEBUG : Obsolete entries {}", self.nb_obsolete_entries);
         if self.nb_obsolete_entries > MAX_OBSOLETE_ENTRIES {
             for arch in self.archetypes.iter_mut() {
                 let mut to_remove_idx: Vec<usize> = arch
@@ -787,8 +786,11 @@ impl Ecs {
                         comps.remove(*idx);
                     }
                 }
+                for idx in to_remove_idx.iter() {
+                    arch.entities.remove(*idx);
+                }
             }
+            self.nb_obsolete_entries = 0;
         }
-        self.nb_obsolete_entries = 0;
     }
 }
