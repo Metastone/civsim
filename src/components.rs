@@ -1,5 +1,10 @@
+use rand::rngs::SmallRng;
+use rand::Rng;
+use rand::SeedableRng;
+
 use crate::constants::*;
 use crate::ecs::{Component, EntityId};
+use std::cell::RefCell;
 
 #[derive(Clone, Copy)]
 pub struct CreatureComponent {
@@ -24,8 +29,20 @@ pub struct PositionComponent {
 impl Component for PositionComponent {}
 impl PositionComponent {
     pub fn new() -> Self {
-        let x = rand::random_range((SCREEN_WIDTH as f64 / -2.0)..(SCREEN_WIDTH as f64 / 2.0));
-        let y = rand::random_range((SCREEN_HEIGHT as f64 / -2.0)..(SCREEN_HEIGHT as f64 / 2.0));
+        thread_local! {
+            static RNG: RefCell<SmallRng> = if RNG_SEED != 0 {
+                RefCell::new(SmallRng::seed_from_u64(RNG_SEED))
+            } else {
+                RefCell::new(SmallRng::from_rng(&mut rand::rng()))
+            }
+        };
+
+        let x = RNG.with_borrow_mut(|rng| {
+            rng.random_range((SCREEN_WIDTH as f64 / -2.0)..(SCREEN_WIDTH as f64 / 2.0))
+        });
+        let y = RNG.with_borrow_mut(|rng| {
+            rng.random_range((SCREEN_HEIGHT as f64 / -2.0)..(SCREEN_HEIGHT as f64 / 2.0))
+        });
         Self { x, y }
     }
 

@@ -1,3 +1,5 @@
+pub const RNG_SEED: u64 = 1; // 0 means not seeded
+
 pub const SCREEN_WIDTH: u32 = 2560;
 pub const SCREEN_HEIGHT: u32 = 1440;
 
