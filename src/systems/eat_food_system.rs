@@ -1,4 +1,4 @@
-use crate::components::*;
+use crate::components::all::*;
 use crate::constants::*;
 use crate::ecs::{Ecs, EntityId, EntityInfo, System, Update};
 use std::any::TypeId;

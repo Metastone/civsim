@@ -1,16 +1,16 @@
-use crate::components::*;
+use crate::components::body_component::BodyComponent;
 use crate::ecs::{ComponentType, Ecs, EntityId, EntityInfo};
 use std::any::TypeId;
 
 pub fn move_towards_position(
     ecs: &mut Ecs,
     info: &EntityInfo,
-    target_position: &PositionComponent,
+    target_position: &BodyComponent,
     target_size: f64,
     entity_size: f64,
     speed: f64,
 ) -> bool {
-    if let Some(position) = ecs.get_component_mut::<PositionComponent>(info) {
+    if let Some(position) = ecs.get_component_mut::<BodyComponent>(info) {
         let vec_to_target = (
             target_position.x - position.x,
             target_position.y - position.y,
@@ -30,13 +30,13 @@ pub fn move_towards_position(
 
 pub fn find_closest(
     ecs: &Ecs,
-    position: &PositionComponent,
+    position: &BodyComponent,
     c_type: ComponentType,
 ) -> Option<(f64, EntityId)> {
     let mut closest_distance_squared = f64::MAX;
     let mut opt_entity = None;
-    for info in ecs.iter_entities_with(&[c_type, to_ctype!(PositionComponent)]) {
-        if let Some(o_position) = ecs.get_component::<PositionComponent>(&info) {
+    for info in ecs.iter_entities_with(&[c_type, to_ctype!(BodyComponent)]) {
+        if let Some(o_position) = ecs.get_component::<BodyComponent>(&info) {
             let distance_squared =
                 (o_position.x - position.x).powi(2) + (o_position.y - position.y).powi(2);
             if distance_squared < closest_distance_squared {

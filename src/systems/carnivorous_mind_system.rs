@@ -1,4 +1,5 @@
-use crate::components::*;
+use crate::components::all::*;
+use crate::components::body_component::BodyComponent;
 use crate::ecs::{Ecs, System, Update};
 use crate::systems::utils;
 use std::any::TypeId;
@@ -13,8 +14,8 @@ impl System for CarnivorousMindSystem {
         let mut carnivorous_positions = HashMap::new();
         for (position, info) in iter_components_with!(
             ecs,
-            (CarnivorousComponent, PositionComponent, InactiveComponent),
-            PositionComponent
+            (CarnivorousComponent, BodyComponent, InactiveComponent),
+            BodyComponent
         ) {
             carnivorous_positions.insert(info, *position);
         }

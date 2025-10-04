@@ -1,4 +1,5 @@
-use crate::components::*;
+use crate::components::all::*;
+use crate::components::body_component::BodyComponent;
 use crate::constants::*;
 use crate::ecs::{Ecs, System, Update};
 
@@ -9,7 +10,10 @@ impl System for FoodGrowthSystem {
         for _ in 0..NEW_FOOD_PER_TICK {
             updates.push(Update::Create(vec![
                 Box::new(FoodComponent::new()),
-                Box::new(PositionComponent::new()),
+                Box::new(BodyComponent::new_rand_pos(
+                    FOOD_PIXEL_SIZE.into(),
+                    FOOD_PIXEL_SIZE.into(),
+                )),
             ]));
         }
         ecs.apply(updates);

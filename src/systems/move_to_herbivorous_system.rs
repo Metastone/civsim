@@ -1,4 +1,5 @@
-use crate::components::*;
+use crate::components::all::*;
+use crate::components::body_component::BodyComponent;
 use crate::constants::*;
 use crate::ecs::{Ecs, System, Update};
 use crate::systems::utils;
@@ -13,7 +14,7 @@ impl System for MoveToHerbivorousSystem {
         for info in iter_entities_with!(
             ecs,
             CarnivorousComponent,
-            PositionComponent,
+            BodyComponent,
             MoveToHerbivorousComponent
         ) {
             // Get the target herbivorous info
@@ -24,7 +25,7 @@ impl System for MoveToHerbivorousSystem {
 
             // Get the herbivorous position
             let herbivorous_position;
-            if let Some(pos) = ecs.get_component_from_entity::<PositionComponent>(herb_entity) {
+            if let Some(pos) = ecs.get_component_from_entity::<BodyComponent>(herb_entity) {
                 herbivorous_position = *pos;
             } else {
                 // Go to inactive state if the target position can't be found

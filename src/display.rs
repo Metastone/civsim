@@ -1,4 +1,5 @@
-use crate::components::*;
+use crate::components::all::*;
+use crate::components::body_component::BodyComponent;
 use crate::constants::*;
 use crate::ecs::Ecs;
 use crate::ecs::EntityInfo;
@@ -11,8 +12,7 @@ pub fn draw(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: 
     }
 
     // Draw corpses
-    for (position, _) in
-        iter_components_with!(ecs, (CorpseComponent, PositionComponent), PositionComponent)
+    for (position, _) in iter_components_with!(ecs, (CorpseComponent, BodyComponent), BodyComponent)
     {
         draw_square(
             position,
@@ -28,7 +28,7 @@ pub fn draw(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: 
     // The point is to always draw them in the same order, to avoid an ugly "flickering" effect
     // (they change archetype from one iteration to the next)
     let mut creature_infos: Vec<EntityInfo> =
-        iter_entities_with!(ecs, CreatureComponent, PositionComponent).collect();
+        iter_entities_with!(ecs, CreatureComponent, BodyComponent).collect();
     creature_infos.sort_by(|a, b| a.entity.cmp(&b.entity));
 
     // Draw creatures
@@ -40,7 +40,7 @@ pub fn draw(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: 
             CARNIVOROUS_COLOR
         };
         let pos;
-        if let Some(position) = ecs.get_component::<PositionComponent>(&info) {
+        if let Some(position) = ecs.get_component::<BodyComponent>(&info) {
             pos = *position;
             draw_square(
                 position,
@@ -90,8 +90,8 @@ pub fn draw(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: 
     }
 
     // Draw food
-    for info in iter_entities_with!(ecs, FoodComponent, PositionComponent) {
-        if let Some(position) = ecs.get_component::<PositionComponent>(&info) {
+    for info in iter_entities_with!(ecs, FoodComponent, BodyComponent) {
+        if let Some(position) = ecs.get_component::<BodyComponent>(&info) {
             draw_square(
                 position,
                 FOOD_COLOR,
@@ -105,7 +105,7 @@ pub fn draw(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: 
 }
 
 fn draw_square(
-    position: &PositionComponent,
+    position: &BodyComponent,
     color: &[u8],
     size: u32,
     pixels: &mut [u8],

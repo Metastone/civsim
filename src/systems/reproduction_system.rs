@@ -1,4 +1,5 @@
-use crate::components::*;
+use crate::components::all::*;
+use crate::components::body_component::BodyComponent;
 use crate::constants::*;
 use crate::ecs::{Component, Ecs, System, Update};
 use std::any::TypeId;
@@ -9,7 +10,7 @@ impl System for ReproductionSystem {
         let mut updates: Vec<Update> = Vec::new();
 
         // Find creatures that can reproduce
-        for info in iter_entities_with!(ecs, CreatureComponent, PositionComponent) {
+        for info in iter_entities_with!(ecs, CreatureComponent, BodyComponent) {
             // If the creature can reproduce, reset its energy to start value
             let creature = ecs.get_component_mut::<CreatureComponent>(&info).unwrap();
             if creature.energy >= REPROD_ENERGY_THRESHOLD {
@@ -18,12 +19,14 @@ impl System for ReproductionSystem {
                 continue;
             }
 
-            let position = ecs.get_component::<PositionComponent>(&info).unwrap();
+            let position = ecs.get_component::<BodyComponent>(&info).unwrap();
             let mut comps: Vec<Box<dyn Component>> = vec![
                 Box::new(CreatureComponent::new()),
-                Box::new(PositionComponent::from(
+                Box::new(BodyComponent::from(
                     position.x + CREATURE_PIXEL_SIZE as f64,
                     position.y,
+                    CREATURE_PIXEL_SIZE.into(),
+                    CREATURE_PIXEL_SIZE.into(),
                 )),
                 Box::new(InactiveComponent::new()),
             ];

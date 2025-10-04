@@ -9,10 +9,12 @@ use ecs::{Component, Ecs, System, Update};
 use pixels::{Pixels, SurfaceTexture};
 use std::{sync::Arc, thread, time};
 
-use components::*;
+use components::all::*;
+use components::body_component::BodyComponent;
 use constants::*;
 use systems::attack_herbivorous_system::AttackHerbivorousSystem;
 use systems::carnivorous_mind_system::CarnivorousMindSystem;
+use systems::collision_system::CollisionSystem;
 use systems::death_system::DeathSystem;
 use systems::eat_corpse_system::EatCorpseSystem;
 use systems::eat_food_system::EatFoodSystem;
@@ -78,13 +80,16 @@ fn create_world() -> World {
     let mut world = World::new();
 
     for _ in 0..FOOD_NB {
-        world.create_entity_with(&[&FoodComponent::new(), &PositionComponent::new()]);
+        world.create_entity_with(&[
+            &FoodComponent::new(),
+            &BodyComponent::new_rand_pos(FOOD_PIXEL_SIZE.into(), FOOD_PIXEL_SIZE.into()),
+        ]);
     }
 
     for _ in 0..HERBIVOROUS_NB {
         world.create_entity_with(&[
             &CreatureComponent::new(),
-            &PositionComponent::new(),
+            &BodyComponent::new_rand_pos(CREATURE_PIXEL_SIZE.into(), CREATURE_PIXEL_SIZE.into()),
             &HerbivorousComponent::new(),
             &InactiveComponent::new(),
         ]);
@@ -93,7 +98,7 @@ fn create_world() -> World {
     for _ in 0..CARNIVOROUS_NB {
         world.create_entity_with(&[
             &CreatureComponent::new(),
-            &PositionComponent::new(),
+            &BodyComponent::new_rand_pos(CREATURE_PIXEL_SIZE.into(), CREATURE_PIXEL_SIZE.into()),
             &CarnivorousComponent::new(),
             &InactiveComponent::new(),
         ]);
@@ -101,7 +106,10 @@ fn create_world() -> World {
 
     #[allow(clippy::reversed_empty_ranges)]
     for _ in 0..CORPSE_NB {
-        world.create_entity_with(&[&CorpseComponent::new(), &PositionComponent::new()]);
+        world.create_entity_with(&[
+            &CorpseComponent::new(),
+            &BodyComponent::new_rand_pos(CREATURE_PIXEL_SIZE.into(), CREATURE_PIXEL_SIZE.into()),
+        ]);
     }
 
     world.add_system(Box::new(FoodGrowthSystem));
@@ -117,6 +125,7 @@ fn create_world() -> World {
     world.add_system(Box::new(HungerSystem));
     world.add_system(Box::new(ExhaustionSystem));
     world.add_system(Box::new(DeathSystem));
+    world.add_system(Box::new(CollisionSystem));
 
     world
 }

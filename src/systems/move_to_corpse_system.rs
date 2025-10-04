@@ -1,4 +1,5 @@
-use crate::components::*;
+use crate::components::all::*;
+use crate::components::body_component::BodyComponent;
 use crate::constants::*;
 use crate::ecs::{Ecs, System, Update};
 use crate::systems::utils;
@@ -13,7 +14,7 @@ impl System for MoveToCorpseSystem {
         for info in iter_entities_with!(
             ecs,
             CarnivorousComponent,
-            PositionComponent,
+            BodyComponent,
             MoveToCorpseComponent
         ) {
             // Get the target corpse info
@@ -23,7 +24,7 @@ impl System for MoveToCorpseSystem {
 
             // Get the corpse position
             let corpse_position;
-            if let Some(pos) = ecs.get_component_from_entity::<PositionComponent>(c_entity) {
+            if let Some(pos) = ecs.get_component_from_entity::<BodyComponent>(c_entity) {
                 corpse_position = *pos;
             } else {
                 // Go to inactive state if the target position can't be found for some reason
