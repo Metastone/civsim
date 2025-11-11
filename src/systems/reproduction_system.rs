@@ -22,9 +22,9 @@ impl System for ReproductionSystem {
             let position = ecs.get_component::<BodyComponent>(&info).unwrap();
             let mut comps: Vec<Box<dyn Component>> = vec![
                 Box::new(CreatureComponent::new()),
-                Box::new(BodyComponent::from(
-                    position.x + CREATURE_PIXEL_SIZE as f64,
-                    position.y,
+                Box::new(BodyComponent::new_with_collision(
+                    position.get_x() + CREATURE_PIXEL_SIZE as f64,
+                    position.get_y(),
                     CREATURE_PIXEL_SIZE.into(),
                     CREATURE_PIXEL_SIZE.into(),
                 )),

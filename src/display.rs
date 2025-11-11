@@ -58,8 +58,8 @@ pub fn draw(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: 
             // Draw health bar
             draw_rec(
                 (
-                    pos.x,
-                    pos.y + CREATURE_PIXEL_SIZE as f64 / 2.0 + BAR_HEIGHT as f64 / 2.0 + 5.0,
+                    pos.get_x(),
+                    pos.get_y() + CREATURE_PIXEL_SIZE as f64 / 2.0 + BAR_HEIGHT as f64 / 2.0 + 5.0,
                 ),
                 HEALTH_COLOR,
                 (
@@ -74,8 +74,11 @@ pub fn draw(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: 
             // Draw energy bar
             draw_rec(
                 (
-                    pos.x,
-                    pos.y + CREATURE_PIXEL_SIZE as f64 / 2.0 + BAR_HEIGHT as f64 * 1.5 + 5.0 * 2.0,
+                    pos.get_x(),
+                    pos.get_y()
+                        + CREATURE_PIXEL_SIZE as f64 / 2.0
+                        + BAR_HEIGHT as f64 * 1.5
+                        + 5.0 * 2.0,
                 ),
                 ENERGY_COLOR,
                 (
@@ -113,7 +116,7 @@ fn draw_square(
     window_height: u32,
 ) {
     draw_rec(
-        (position.x, position.y),
+        (position.get_x(), position.get_y()),
         color,
         (size, size),
         pixels,

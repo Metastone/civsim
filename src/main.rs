@@ -3,6 +3,7 @@ mod constants;
 #[macro_use]
 mod ecs;
 mod display;
+mod shared_data;
 mod systems;
 
 use ecs::{Component, Ecs, System, Update};
@@ -12,9 +13,9 @@ use std::{sync::Arc, thread, time};
 use components::all::*;
 use components::body_component::BodyComponent;
 use constants::*;
+use shared_data::body_grid;
 use systems::attack_herbivorous_system::AttackHerbivorousSystem;
 use systems::carnivorous_mind_system::CarnivorousMindSystem;
-use systems::collision_system::CollisionSystem;
 use systems::death_system::DeathSystem;
 use systems::eat_corpse_system::EatCorpseSystem;
 use systems::eat_food_system::EatFoodSystem;
@@ -69,6 +70,7 @@ impl World {
         for s in &self.systems {
             s.run(&mut self.ecs);
         }
+        body_grid::purge_deleted_bodies();
     }
 
     fn draw(&mut self, pixels: &mut [u8], window_width: u32, window_height: u32) {
@@ -82,14 +84,20 @@ fn create_world() -> World {
     for _ in 0..FOOD_NB {
         world.create_entity_with(&[
             &FoodComponent::new(),
-            &BodyComponent::new_rand_pos(FOOD_PIXEL_SIZE.into(), FOOD_PIXEL_SIZE.into()),
+            &BodyComponent::new_rand_pos_with_collision(
+                FOOD_PIXEL_SIZE.into(),
+                FOOD_PIXEL_SIZE.into(),
+            ),
         ]);
     }
 
     for _ in 0..HERBIVOROUS_NB {
         world.create_entity_with(&[
             &CreatureComponent::new(),
-            &BodyComponent::new_rand_pos(CREATURE_PIXEL_SIZE.into(), CREATURE_PIXEL_SIZE.into()),
+            &BodyComponent::new_rand_pos_with_collision(
+                CREATURE_PIXEL_SIZE.into(),
+                CREATURE_PIXEL_SIZE.into(),
+            ),
             &HerbivorousComponent::new(),
             &InactiveComponent::new(),
         ]);
@@ -98,7 +106,10 @@ fn create_world() -> World {
     for _ in 0..CARNIVOROUS_NB {
         world.create_entity_with(&[
             &CreatureComponent::new(),
-            &BodyComponent::new_rand_pos(CREATURE_PIXEL_SIZE.into(), CREATURE_PIXEL_SIZE.into()),
+            &BodyComponent::new_rand_pos_with_collision(
+                CREATURE_PIXEL_SIZE.into(),
+                CREATURE_PIXEL_SIZE.into(),
+            ),
             &CarnivorousComponent::new(),
             &InactiveComponent::new(),
         ]);
@@ -108,7 +119,10 @@ fn create_world() -> World {
     for _ in 0..CORPSE_NB {
         world.create_entity_with(&[
             &CorpseComponent::new(),
-            &BodyComponent::new_rand_pos(CREATURE_PIXEL_SIZE.into(), CREATURE_PIXEL_SIZE.into()),
+            &BodyComponent::new_rand_pos_with_collision(
+                CREATURE_PIXEL_SIZE.into(),
+                CREATURE_PIXEL_SIZE.into(),
+            ),
         ]);
     }
 
@@ -125,7 +139,6 @@ fn create_world() -> World {
     world.add_system(Box::new(HungerSystem));
     world.add_system(Box::new(ExhaustionSystem));
     world.add_system(Box::new(DeathSystem));
-    world.add_system(Box::new(CollisionSystem));
 
     world
 }

@@ -17,6 +17,8 @@ pub const MAX_HEALTH: f32 = 100.0;
 
 pub const CREATURE_PIXEL_SIZE: u32 = 30;
 pub const FOOD_PIXEL_SIZE: u32 = 10;
+pub const CELL_SIZE_FACTOR: f64 = 3.0;
+pub const CONTACT_CENTER_2_CENTER_FACTOR: f64 = 1.3;
 
 pub const BAR_WIDTH: u32 = 30;
 pub const BAR_HEIGHT: u32 = 5;

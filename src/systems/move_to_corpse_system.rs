@@ -40,14 +40,7 @@ impl System for MoveToCorpseSystem {
             }
 
             // Move the carnivorous towards the corpse target
-            if utils::move_towards_position(
-                ecs,
-                &info,
-                &corpse_position,
-                CREATURE_PIXEL_SIZE as f64,
-                CREATURE_PIXEL_SIZE as f64,
-                CARNIVOROUS_SPEED,
-            ) {
+            if utils::move_towards_position(ecs, &info, &corpse_position, CARNIVOROUS_SPEED) {
                 updates.push(Update::Delete {
                     info,
                     c_type: to_ctype!(MoveToCorpseComponent),

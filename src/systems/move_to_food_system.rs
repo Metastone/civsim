@@ -40,14 +40,7 @@ impl System for MoveToFoodSystem {
             }
 
             // Move the herbivorous towards the food target
-            if utils::move_towards_position(
-                ecs,
-                &info,
-                &food_position,
-                FOOD_PIXEL_SIZE as f64,
-                CREATURE_PIXEL_SIZE as f64,
-                HERBIVOROUS_SPEED,
-            ) {
+            if utils::move_towards_position(ecs, &info, &food_position, HERBIVOROUS_SPEED) {
                 updates.push(Update::Delete {
                     info,
                     c_type: to_ctype!(MoveToFoodComponent),

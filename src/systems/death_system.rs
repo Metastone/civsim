@@ -13,10 +13,10 @@ impl System for DeathSystem {
             if let Some(creature) = ecs.get_component::<CreatureComponent>(&info) {
                 if creature.health <= 0.0 {
                     // Create a corpse
-                    if let Some(position) = ecs.get_component::<BodyComponent>(&info) {
+                    if let Some(body) = ecs.get_component::<BodyComponent>(&info) {
                         updates.push(Update::Create(vec![
                             Box::new(CorpseComponent),
-                            Box::new(*position),
+                            Box::new(*body),
                         ]));
                     }
 

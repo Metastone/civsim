@@ -13,11 +13,13 @@ macro_rules! to_ctype {
         TypeId::of::<$CompType>()
     };
 }
+
 macro_rules! iter_entities {
     ($self:expr, $CompType:ident) => {
         $self.iter_entities(TypeId::of::<$CompType>())
     };
 }
+
 macro_rules! iter_entities_with {
     ($self:expr, $($CompType:ident),+) => {
         $self.iter_entities_with(
@@ -27,6 +29,7 @@ macro_rules! iter_entities_with {
         )
     };
 }
+
 macro_rules! iter_components {
     ($self:expr, $CompType:ident) => {
         $self
@@ -39,6 +42,7 @@ macro_rules! iter_components {
             })
     };
 }
+
 macro_rules! iter_components_with {
     ($self:expr, ($($RequiredCompType:ident),+), $CompType:ident) => {
         $self
@@ -55,6 +59,10 @@ macro_rules! iter_components_with {
 pub trait Component: Any + CloneComponent {
     fn get_type(&self) -> ComponentType {
         TypeId::of::<Self>()
+    }
+
+    fn on_delete(&self, _entity: EntityId) {
+        // Default implementation NOOP
     }
 }
 
@@ -736,6 +744,11 @@ impl Ecs {
                 actualized_info
             );
         } else {
+            // Notify components with the entity deletion
+            for comps in self.archetypes[arch_index].data.values_mut() {
+                comps[entity_index].as_mut().on_delete(entity);
+            }
+
             // Mark entity as a 'to remove entity'
             let archetype = &mut self.archetypes[arch_index];
             archetype.entities[entity_index] = 0;
@@ -752,7 +765,7 @@ impl Ecs {
                     .iter()
                     .enumerate()
                     .filter(|&(_, entity)| *entity == 0)
-                    .map(|(id, _)| id)
+                    .map(|(idx, _)| idx)
                     .collect();
                 to_remove_idx.reverse(); // Sort big index first, for safe vec remove
                 for comps in arch.data.values_mut() {

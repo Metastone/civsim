@@ -41,14 +41,7 @@ impl System for MoveToHerbivorousSystem {
             }
 
             // Move the carnivorous towards the herbivorous target
-            if utils::move_towards_position(
-                ecs,
-                &info,
-                &herbivorous_position,
-                CREATURE_PIXEL_SIZE as f64,
-                CREATURE_PIXEL_SIZE as f64,
-                CARNIVOROUS_SPEED,
-            ) {
+            if utils::move_towards_position(ecs, &info, &herbivorous_position, CARNIVOROUS_SPEED) {
                 updates.push(Update::Delete {
                     info,
                     c_type: to_ctype!(MoveToHerbivorousComponent),

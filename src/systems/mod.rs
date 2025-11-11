@@ -1,6 +1,5 @@
 pub mod attack_herbivorous_system;
 pub mod carnivorous_mind_system;
-pub mod collision_system;
 pub mod death_system;
 pub mod eat_corpse_system;
 pub mod eat_food_system;
