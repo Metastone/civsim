@@ -13,6 +13,9 @@ use std::cell::RefCell;
  *
  * For quick access I use vecs for storage. Deleted bodies are recognized with w = 0 && h == 0,
  * and they are deleted later during the next periodic grid cleanup.
+ *
+ * The grid starts with a certain size and is automatically resized when required
+ * (when a body position is out of the grid)
  */
 
 // TODO make it private
@@ -28,11 +31,18 @@ thread_local! {
     )
 }
 
+enum GetCoordsResult {
+    Ok(usize, usize),
+    GridResized(usize, usize),
+}
+
 pub struct BodyGrid {
     // Coordinates of the space occupied by all entities,
     // relative to simulation coordinates
     x: f64,
     y: f64,
+    w: f64,
+    h: f64,
 
     cell_size: f64,
 
@@ -43,8 +53,6 @@ pub struct BodyGrid {
 }
 
 impl BodyGrid {
-    // TODO update grid size on body translation
-
     pub fn new(
         mut min_x: f64,
         mut max_x: f64,
@@ -65,6 +73,8 @@ impl BodyGrid {
         BodyGrid {
             x: min_x,
             y: min_y,
+            w,
+            h,
             cell_size,
             nb_cells_x,
             nb_cells_y,
@@ -72,10 +82,70 @@ impl BodyGrid {
         }
     }
 
-    fn to_cell_coords(&self, body: &BodyComponent) -> (usize, usize) {
-        (
-            ((body.get_x() - self.x) / self.cell_size) as usize,
-            ((body.get_y() - self.y) / self.cell_size) as usize,
+    fn get_cell_coords_with_resize(&mut self, body: &BodyComponent) -> GetCoordsResult {
+        // Get body coordinates relative to the grid
+        let x_in_grid = body.get_x() - self.x;
+        let y_in_grid = body.get_y() - self.y;
+
+        // Check if a grid resize is required on x axis
+        let (offset_cell_x, resize_x): (usize, bool) = if x_in_grid < 0.0 {
+            (self.nb_cells_x, true)
+        } else if x_in_grid >= self.w {
+            (0, true)
+        } else {
+            (0, false)
+        };
+
+        // Check if a grid resize is required on y axis
+        let (offset_cell_y, resize_y): (usize, bool) = if y_in_grid < 0.0 {
+            (self.nb_cells_y, true)
+        } else if y_in_grid >= self.h {
+            (0, true)
+        } else {
+            (0, false)
+        };
+
+        // Resize the grid (double its size on the appropriate side on x or y or both)
+        if resize_x || resize_y {
+            let nb_cells_x = if resize_x {
+                self.nb_cells_x * 2
+            } else {
+                self.nb_cells_x
+            };
+            let nb_cells_y = if resize_y {
+                self.nb_cells_y * 2
+            } else {
+                self.nb_cells_y
+            };
+
+            // Allocate a new grid, copy content into it in the right location
+            let mut grid = vec![Vec::new(); nb_cells_x * nb_cells_y];
+            for x in 0..self.nb_cells_x {
+                for y in 0..self.nb_cells_y {
+                    let old_index = y * self.nb_cells_x + x;
+                    let new_index = (y + offset_cell_y) * nb_cells_x + (x + offset_cell_x);
+                    grid[new_index] = self.grid[old_index].clone();
+                }
+            }
+            self.grid = grid;
+
+            self.x -= offset_cell_x as f64 * self.cell_size;
+            self.y -= offset_cell_y as f64 * self.cell_size;
+            self.nb_cells_x = nb_cells_x;
+            self.nb_cells_y = nb_cells_y;
+            self.w = self.cell_size * nb_cells_x as f64;
+            self.h = self.cell_size * nb_cells_y as f64;
+
+            return GetCoordsResult::GridResized(
+                (body.get_x() - self.x / self.cell_size) as usize,
+                (body.get_y() - self.y / self.cell_size) as usize,
+            );
+        }
+
+        // No grid resize required
+        GetCoordsResult::Ok(
+            (x_in_grid / self.cell_size) as usize,
+            (y_in_grid / self.cell_size) as usize,
         )
     }
 
@@ -83,7 +153,7 @@ impl BodyGrid {
      * otherwise, return false and do nothing
      */
     pub fn try_translate(&mut self, body: &BodyComponent, offset_x: f64, offset_y: f64) -> bool {
-        let translated_body = BodyComponent::from(
+        let translated_body = BodyComponent::new_without_collision(
             body.get_x() + offset_x,
             body.get_y() + offset_y,
             body.get_w(),
@@ -98,11 +168,16 @@ impl BodyGrid {
     }
 
     pub fn collides_in_surronding_cells(
-        &self,
+        &mut self,
         body: &BodyComponent,
         translated_body: &BodyComponent,
     ) -> bool {
-        let (t_body_cell_x, t_body_cell_y) = self.to_cell_coords(translated_body);
+        let (t_body_cell_x, t_body_cell_y) = match self.get_cell_coords_with_resize(translated_body)
+        {
+            GetCoordsResult::Ok(x, y) => (x, y),
+            GetCoordsResult::GridResized(x, y) => (x, y),
+        };
+
         for i in -1..2 {
             let cell_x = t_body_cell_x as i64 + i;
             if cell_x < 0 || cell_x >= self.nb_cells_x as i64 {
@@ -129,8 +204,28 @@ impl BodyGrid {
     }
 
     pub fn translate(&mut self, body: &BodyComponent, translated_body: BodyComponent) {
-        let (cell_x, cell_y) = self.to_cell_coords(body);
-        let (t_cell_x, t_cell_y) = self.to_cell_coords(&translated_body);
+        /* Get the grid cell coordinates for both bodies,
+         * making sure that they are both valid if a grid resize occurs
+         */
+        let (cell_x, cell_y, t_cell_x, t_cell_y) = match (
+            self.get_cell_coords_with_resize(body),
+            self.get_cell_coords_with_resize(&translated_body),
+        ) {
+            (GetCoordsResult::Ok(x, y), GetCoordsResult::Ok(tx, ty)) => (x, y, tx, ty),
+            _ => {
+                // The grid was resized, re-compute the coords to be sure they are both valid
+                let (x, y) = match self.get_cell_coords_with_resize(body) {
+                    GetCoordsResult::Ok(x, y) => (x, y),
+                    GetCoordsResult::GridResized(x, y) => (x, y),
+                };
+                let (tx, ty) = match self.get_cell_coords_with_resize(&translated_body) {
+                    GetCoordsResult::Ok(x, y) => (x, y),
+                    GetCoordsResult::GridResized(x, y) => (x, y),
+                };
+                (x, y, tx, ty)
+            }
+        };
+
         if cell_x == t_cell_x && cell_y == t_cell_y {
             self.update(body, translated_body, cell_x, cell_y);
         } else {
@@ -155,7 +250,11 @@ impl BodyGrid {
     }
 
     pub fn delete(&mut self, body: &BodyComponent) {
-        let (cell_x, cell_y) = self.to_cell_coords(body);
+        let (cell_x, cell_y) = match self.get_cell_coords_with_resize(body) {
+            GetCoordsResult::Ok(x, y) => (x, y),
+            GetCoordsResult::GridResized(x, y) => (x, y),
+        };
+
         self.grid[cell_y * self.nb_cells_x + cell_x]
             .retain(|b| b.get_x() != body.get_x() || b.get_y() != body.get_y());
     }
@@ -163,13 +262,17 @@ impl BodyGrid {
     fn delete_from_cell(&mut self, body: &BodyComponent, cell_x: usize, cell_y: usize) {
         for b in self.grid[cell_y * self.nb_cells_x + cell_x].iter_mut() {
             if b.get_x() == body.get_x() && b.get_y() == body.get_y() {
-                *b = BodyComponent::from(0.0, 0.0, 0.0, 0.0);
+                *b = BodyComponent::new_without_collision(0.0, 0.0, 0.0, 0.0);
             }
         }
     }
 
     pub fn add(&mut self, body: &BodyComponent) {
-        let (cell_x, cell_y) = self.to_cell_coords(body);
+        let (cell_x, cell_y) = match self.get_cell_coords_with_resize(body) {
+            GetCoordsResult::Ok(x, y) => (x, y),
+            GetCoordsResult::GridResized(x, y) => (x, y),
+        };
+
         self.add_to_cell(*body, cell_x, cell_y);
     }
 

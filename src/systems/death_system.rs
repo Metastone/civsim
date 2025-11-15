@@ -14,9 +14,16 @@ impl System for DeathSystem {
                 if creature.health <= 0.0 {
                     // Create a corpse
                     if let Some(body) = ecs.get_component::<BodyComponent>(&info) {
+                        // TODO bug fix new corpses not taken into account for collision ? same for
+                        // food logically
                         updates.push(Update::Create(vec![
                             Box::new(CorpseComponent),
-                            Box::new(*body),
+                            Box::new(BodyComponent::new_with_collision(
+                                body.get_x(),
+                                body.get_y(),
+                                body.get_w(),
+                                body.get_h(),
+                            )),
                         ]));
                     }
 

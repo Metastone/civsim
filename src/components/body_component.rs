@@ -41,7 +41,7 @@ impl BodyComponent {
                 rng.random_range((SCREEN_HEIGHT as f64 / -2.0)..(SCREEN_HEIGHT as f64 / 2.0))
             });
 
-            let b = Self::from(x, y, w, h);
+            let b = Self::new_without_collision(x, y, w, h);
             if !BODY_GRID.with_borrow_mut(|grid| grid.collides_in_surronding_cells(&b, &b)) {
                 break b;
             }
@@ -51,12 +51,12 @@ impl BodyComponent {
     }
 
     pub fn new_with_collision(x: f64, y: f64, w: f64, h: f64) -> Self {
-        let body = Self::from(x, y, w, h);
+        let body = Self::new_without_collision(x, y, w, h);
         body.add_to_grid();
         body
     }
 
-    pub fn from(x: f64, y: f64, w: f64, h: f64) -> Self {
+    pub fn new_without_collision(x: f64, y: f64, w: f64, h: f64) -> Self {
         Self { x, y, w, h }
     }
 
