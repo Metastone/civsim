@@ -12,10 +12,9 @@ pub fn draw(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: 
     }
 
     // Draw corpses
-    for (position, _) in iter_components_with!(ecs, (CorpseComponent, BodyComponent), BodyComponent)
-    {
+    for (body, _) in iter_components_with!(ecs, (CorpseComponent, BodyComponent), BodyComponent) {
         draw_square(
-            position,
+            body,
             CORPSE_COLOR,
             CREATURE_PIXEL_SIZE,
             pixels,
@@ -40,10 +39,10 @@ pub fn draw(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: 
             CARNIVOROUS_COLOR
         };
         let pos;
-        if let Some(position) = ecs.get_component::<BodyComponent>(&info) {
-            pos = *position;
+        if let Some(body) = ecs.get_component::<BodyComponent>(&info) {
+            pos = *body;
             draw_square(
-                position,
+                body,
                 color,
                 CREATURE_PIXEL_SIZE,
                 pixels,
@@ -94,9 +93,9 @@ pub fn draw(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: 
 
     // Draw food
     for info in iter_entities_with!(ecs, FoodComponent, BodyComponent) {
-        if let Some(position) = ecs.get_component::<BodyComponent>(&info) {
+        if let Some(body) = ecs.get_component::<BodyComponent>(&info) {
             draw_square(
-                position,
+                body,
                 FOOD_COLOR,
                 FOOD_PIXEL_SIZE,
                 pixels,
@@ -108,7 +107,7 @@ pub fn draw(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: 
 }
 
 fn draw_square(
-    position: &BodyComponent,
+    body: &BodyComponent,
     color: &[u8],
     size: u32,
     pixels: &mut [u8],
@@ -116,7 +115,7 @@ fn draw_square(
     window_height: u32,
 ) {
     draw_rec(
-        (position.get_x(), position.get_y()),
+        (body.get_x(), body.get_y()),
         color,
         (size, size),
         pixels,

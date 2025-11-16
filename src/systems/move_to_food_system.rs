@@ -22,12 +22,12 @@ impl System for MoveToFoodSystem {
                 ecs.get_component::<MoveToFoodComponent>(&info).unwrap();
             let f_entity = *food_entity;
 
-            // Get the food position
-            let food_position;
+            // Get the food body
+            let food_body;
             if let Some(pos) = ecs.get_component_from_entity::<BodyComponent>(f_entity) {
-                food_position = *pos;
+                food_body = *pos;
             } else {
-                // Go to inactive state if the target position can't be found for some reason
+                // Go to inactive state if the target body can't be found for some reason
                 updates.push(Update::Delete {
                     info,
                     c_type: to_ctype!(MoveToFoodComponent),
@@ -40,7 +40,7 @@ impl System for MoveToFoodSystem {
             }
 
             // Move the herbivorous towards the food target
-            if utils::move_towards_position(ecs, &info, &food_position, HERBIVOROUS_SPEED) {
+            if utils::move_towards_position(ecs, &info, &food_body, HERBIVOROUS_SPEED) {
                 updates.push(Update::Delete {
                     info,
                     c_type: to_ctype!(MoveToFoodComponent),

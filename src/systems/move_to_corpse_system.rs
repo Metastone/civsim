@@ -22,12 +22,12 @@ impl System for MoveToCorpseSystem {
                 ecs.get_component::<MoveToCorpseComponent>(&info).unwrap();
             let c_entity = *corpse_entity;
 
-            // Get the corpse position
-            let corpse_position;
+            // Get the corpse body
+            let corpse_body;
             if let Some(pos) = ecs.get_component_from_entity::<BodyComponent>(c_entity) {
-                corpse_position = *pos;
+                corpse_body = *pos;
             } else {
-                // Go to inactive state if the target position can't be found for some reason
+                // Go to inactive state if the target body can't be found for some reason
                 updates.push(Update::Delete {
                     info,
                     c_type: to_ctype!(MoveToCorpseComponent),
@@ -40,7 +40,7 @@ impl System for MoveToCorpseSystem {
             }
 
             // Move the carnivorous towards the corpse target
-            if utils::move_towards_position(ecs, &info, &corpse_position, CARNIVOROUS_SPEED) {
+            if utils::move_towards_position(ecs, &info, &corpse_body, CARNIVOROUS_SPEED) {
                 updates.push(Update::Delete {
                     info,
                     c_type: to_ctype!(MoveToCorpseComponent),

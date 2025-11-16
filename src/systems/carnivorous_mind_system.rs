@@ -10,18 +10,18 @@ impl System for CarnivorousMindSystem {
     fn run(&self, ecs: &mut Ecs) {
         let mut updates: Vec<Update> = Vec::new();
 
-        // Get the positions of all inactive carnivorous entities
-        let mut carnivorous_positions = HashMap::new();
-        for (position, info) in iter_components_with!(
+        // Get the bodies of all inactive carnivorous entities
+        let mut carnivorous_body = HashMap::new();
+        for (body, info) in iter_components_with!(
             ecs,
             (CarnivorousComponent, BodyComponent, InactiveComponent),
             BodyComponent
         ) {
-            carnivorous_positions.insert(info, *position);
+            carnivorous_body.insert(info, *body);
         }
 
-        // For each position, find the closest corpse or herbivorous
-        for (info, position) in &carnivorous_positions {
+        // For each body, find the closest corpse or herbivorous
+        for (info, body) in &carnivorous_body {
             let mut target_entity = 0;
             let mut closest_distance_squared = f64::MAX;
             let mut found_target = false;
@@ -29,7 +29,7 @@ impl System for CarnivorousMindSystem {
 
             // Check corpses
             if let Some((distance_squared, closest_entity)) =
-                utils::find_closest(ecs, position, to_ctype!(CorpseComponent))
+                utils::find_closest(ecs, body, to_ctype!(CorpseComponent))
             {
                 closest_distance_squared = distance_squared;
                 found_target = true;
@@ -39,7 +39,7 @@ impl System for CarnivorousMindSystem {
 
             // Check herbivorous
             if let Some((distance_squared, closest_entity)) =
-                utils::find_closest(ecs, position, to_ctype!(HerbivorousComponent))
+                utils::find_closest(ecs, body, to_ctype!(HerbivorousComponent))
             {
                 if distance_squared < closest_distance_squared {
                     found_target = true;

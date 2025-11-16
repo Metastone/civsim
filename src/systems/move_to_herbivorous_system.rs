@@ -23,12 +23,12 @@ impl System for MoveToHerbivorousSystem {
                 .unwrap();
             let herb_entity = *herbivorous_entity;
 
-            // Get the herbivorous position
-            let herbivorous_position;
+            // Get the herbivorous body
+            let herbivorous_body;
             if let Some(pos) = ecs.get_component_from_entity::<BodyComponent>(herb_entity) {
-                herbivorous_position = *pos;
+                herbivorous_body = *pos;
             } else {
-                // Go to inactive state if the target position can't be found
+                // Go to inactive state if the target body can't be found
                 updates.push(Update::Delete {
                     info,
                     c_type: to_ctype!(MoveToHerbivorousComponent),
@@ -41,7 +41,7 @@ impl System for MoveToHerbivorousSystem {
             }
 
             // Move the carnivorous towards the herbivorous target
-            if utils::move_towards_position(ecs, &info, &herbivorous_position, CARNIVOROUS_SPEED) {
+            if utils::move_towards_position(ecs, &info, &herbivorous_body, CARNIVOROUS_SPEED) {
                 updates.push(Update::Delete {
                     info,
                     c_type: to_ctype!(MoveToHerbivorousComponent),

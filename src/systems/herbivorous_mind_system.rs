@@ -10,25 +10,25 @@ impl System for HerbivorousMindSystem {
     fn run(&self, ecs: &mut Ecs) {
         let mut updates: Vec<Update> = Vec::new();
 
-        // Get the positions of all inactive herbivorous entities
-        let mut herbivorous_positions = HashMap::new();
-        for (position, info) in iter_components_with!(
+        // Get the bodies of all inactive herbivorous entities
+        let mut herbivorous_bodies = HashMap::new();
+        for (body, info) in iter_components_with!(
             ecs,
             (HerbivorousComponent, BodyComponent, InactiveComponent),
             BodyComponent
         ) {
-            herbivorous_positions.insert(info, *position);
+            herbivorous_bodies.insert(info, *body);
         }
 
-        // For each position, find the closest food
+        // For each body, find the closest food
         let mut found: HashMap<EntityInfo, bool> = HashMap::new();
         let mut closest_entity_of: HashMap<EntityInfo, EntityId> = HashMap::new();
-        for (info, position) in &herbivorous_positions {
+        for (info, body) in &herbivorous_bodies {
             found.insert(*info, false);
 
             // Check all foods
             if let Some((_, closest_entity)) =
-                utils::find_closest(ecs, position, to_ctype!(FoodComponent))
+                utils::find_closest(ecs, body, to_ctype!(FoodComponent))
             {
                 found.insert(*info, true);
                 closest_entity_of.insert(*info, closest_entity);
