@@ -1,5 +1,6 @@
 use crate::components::body_component::BodyComponent;
 use crate::constants::*;
+use crate::ecs::EntityId;
 use std::cell::RefCell;
 
 /* Collision computation grid.
@@ -11,7 +12,7 @@ use std::cell::RefCell;
  * By construction bodies never collide, so when checking collision for a body within a cell,
  * we can identify the body by its position which is necessarily unique.
  *
- * For quick access I use vecs for storage. Deleted bodies are recognized with w = 0 && h == 0,
+ * For quick reads I use vecs for storage. Deleted bodies are recognized with w = 0 && h == 0,
  * and they are deleted later during the next periodic grid cleanup.
  *
  * The grid starts with a certain size and is automatically resized when required
@@ -49,7 +50,7 @@ pub struct BodyGrid {
     nb_cells_x: usize,
     nb_cells_y: usize,
 
-    grid: Vec<Vec<BodyComponent>>,
+    grid: Vec<Vec<(EntityId, BodyComponent)>>,
 }
 
 impl BodyGrid {
@@ -152,16 +153,22 @@ impl BodyGrid {
     /* Return true if the body was translated successfully (no collision)
      * otherwise, return false and do nothing
      */
-    pub fn try_translate(&mut self, body: &BodyComponent, offset_x: f64, offset_y: f64) -> bool {
-        let translated_body = BodyComponent::new_without_collision(
+    pub fn try_translate(
+        &mut self,
+        entity: EntityId,
+        body: &BodyComponent,
+        offset_x: f64,
+        offset_y: f64,
+    ) -> bool {
+        let translated_body = BodyComponent::new_traversable(
             body.get_x() + offset_x,
             body.get_y() + offset_y,
             body.get_w(),
             body.get_h(),
         );
 
-        if !self.collides_in_surronding_cells(body, &translated_body) {
-            self.translate(body, translated_body);
+        if !self.collides_in_surronding_cells(entity, &translated_body) {
+            self.translate(entity, body, translated_body);
             return true;
         }
         false
@@ -169,7 +176,7 @@ impl BodyGrid {
 
     pub fn collides_in_surronding_cells(
         &mut self,
-        body: &BodyComponent,
+        entity: EntityId,
         translated_body: &BodyComponent,
     ) -> bool {
         let (t_body_cell_x, t_body_cell_y) = match self.get_cell_coords_with_resize(translated_body)
@@ -188,9 +195,10 @@ impl BodyGrid {
                 if cell_y < 0 || cell_y >= self.nb_cells_y as i64 {
                     continue;
                 }
-                for b in self.grid[cell_y as usize * self.nb_cells_x + cell_x as usize].iter() {
+                for (e, b) in self.grid[cell_y as usize * self.nb_cells_x + cell_x as usize].iter()
+                {
                     let is_deleted_body = b.get_w() == 0.0 && b.get_h() == 0.0;
-                    let is_itself = b.get_x() == body.get_x() && b.get_y() == body.get_y();
+                    let is_itself = *e == entity;
                     if is_deleted_body || is_itself {
                         continue;
                     }
@@ -203,7 +211,12 @@ impl BodyGrid {
         false
     }
 
-    pub fn translate(&mut self, body: &BodyComponent, translated_body: BodyComponent) {
+    pub fn translate(
+        &mut self,
+        entity: EntityId,
+        body: &BodyComponent,
+        translated_body: BodyComponent,
+    ) {
         /* Get the grid cell coordinates for both bodies,
          * making sure that they are both valid if a grid resize occurs
          */
@@ -227,67 +240,61 @@ impl BodyGrid {
         };
 
         if cell_x == t_cell_x && cell_y == t_cell_y {
-            self.update(body, translated_body, cell_x, cell_y);
+            self.update(entity, translated_body, cell_x, cell_y);
         } else {
-            self.delete_from_cell(body, cell_x, cell_y);
-            self.add_to_cell(translated_body, t_cell_x, t_cell_y);
+            self.delete_from_cell(entity, cell_x, cell_y);
+            self.add_to_cell(entity, translated_body, t_cell_x, t_cell_y);
         }
     }
 
     fn update(
         &mut self,
-        body: &BodyComponent,
+        entity: EntityId,
         translated_body: BodyComponent,
         cell_x: usize,
         cell_y: usize,
     ) {
-        for b in self.grid[cell_y * self.nb_cells_x + cell_x].iter_mut() {
-            if b.get_x() == body.get_x() && b.get_y() == body.get_y() {
+        for (e, b) in self.grid[cell_y * self.nb_cells_x + cell_x].iter_mut() {
+            if *e == entity {
                 *b = translated_body;
                 break;
             }
         }
     }
 
-    pub fn delete(&mut self, body: &BodyComponent) {
+    pub fn delete(&mut self, entity: EntityId, body: &BodyComponent) {
         let (cell_x, cell_y) = match self.get_cell_coords_with_resize(body) {
             GetCoordsResult::Ok(x, y) => (x, y),
             GetCoordsResult::GridResized(x, y) => (x, y),
         };
 
-        self.grid[cell_y * self.nb_cells_x + cell_x]
-            .retain(|b| b.get_x() != body.get_x() || b.get_y() != body.get_y());
+        self.grid[cell_y * self.nb_cells_x + cell_x].retain(|(e, _)| *e != entity);
     }
 
-    fn delete_from_cell(&mut self, body: &BodyComponent, cell_x: usize, cell_y: usize) {
-        for b in self.grid[cell_y * self.nb_cells_x + cell_x].iter_mut() {
-            if b.get_x() == body.get_x() && b.get_y() == body.get_y() {
-                *b = BodyComponent::new_without_collision(0.0, 0.0, 0.0, 0.0);
+    fn delete_from_cell(&mut self, entity: EntityId, cell_x: usize, cell_y: usize) {
+        for (e, b) in self.grid[cell_y * self.nb_cells_x + cell_x].iter_mut() {
+            if *e == entity {
+                *b = BodyComponent::new_traversable(0.0, 0.0, 0.0, 0.0);
             }
         }
     }
 
-    pub fn add(&mut self, body: &BodyComponent) {
+    pub fn add(&mut self, entity: EntityId, body: &BodyComponent) {
         let (cell_x, cell_y) = match self.get_cell_coords_with_resize(body) {
             GetCoordsResult::Ok(x, y) => (x, y),
             GetCoordsResult::GridResized(x, y) => (x, y),
         };
 
-        self.add_to_cell(*body, cell_x, cell_y);
+        self.add_to_cell(entity, *body, cell_x, cell_y);
     }
 
-    fn add_to_cell(&mut self, body: BodyComponent, cell_x: usize, cell_y: usize) {
-        /* I don't check yet if there is already a body exactly at the same position.
-         * It is improbable but possible and could lead to bugs.
-         *
-         * TODO fix this loophole
-         */
-        self.grid[cell_y * self.nb_cells_x + cell_x].push(body);
+    fn add_to_cell(&mut self, entity: EntityId, body: BodyComponent, cell_x: usize, cell_y: usize) {
+        self.grid[cell_y * self.nb_cells_x + cell_x].push((entity, body));
     }
 
     fn purge_deleted_bodies(&mut self) {
         for bodies in self.grid.iter_mut() {
-            bodies.retain(|b| b.get_w() != 0.0 || b.get_h() != 0.0);
+            bodies.retain(|(_, b)| b.get_w() != 0.0 || b.get_h() != 0.0);
         }
     }
 }

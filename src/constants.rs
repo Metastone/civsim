@@ -36,7 +36,7 @@ pub const CARNIVOROUS_SPEED: f64 = 2.0; // Pixels per iteration
 pub const MS_PER_ITERATION: u64 = 16;
 
 pub const HERBIVOROUS_NB: usize = 40;
-pub const CARNIVOROUS_NB: usize = 1;
-pub const FOOD_NB: usize = 100;
-pub const CORPSE_NB: usize = 20;
+pub const CARNIVOROUS_NB: usize = 20;
+pub const FOOD_NB: usize = 1000;
+pub const CORPSE_NB: usize = 0;
 pub const NEW_FOOD_PER_TICK: usize = 1;

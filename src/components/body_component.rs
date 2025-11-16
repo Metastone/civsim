@@ -14,16 +14,13 @@ pub struct BodyComponent {
     y: f64,
     w: f64,
     h: f64,
+    is_traversable: bool,
+    init_with_random_pos: bool,
 }
 
 impl Component for BodyComponent {
-    fn on_delete(&self, _entity: EntityId) {
-        BODY_GRID.with_borrow_mut(|grid| grid.delete(self));
-    }
-}
-
-impl BodyComponent {
-    pub fn new_rand_pos_with_collision(w: f64, h: f64) -> Self {
+    fn on_create(&mut self, entity: EntityId) {
+        // Initialize RNG
         thread_local! {
             static RNG: RefCell<SmallRng> = if RNG_SEED != 0 {
                 RefCell::new(SmallRng::seed_from_u64(RNG_SEED))
@@ -33,31 +30,79 @@ impl BodyComponent {
         };
 
         // Generate a random position that does not collides with any already existing body
-        let body = loop {
-            let x = RNG.with_borrow_mut(|rng| {
-                rng.random_range((SCREEN_WIDTH as f64 / -2.0)..(SCREEN_WIDTH as f64 / 2.0))
-            });
-            let y = RNG.with_borrow_mut(|rng| {
-                rng.random_range((SCREEN_HEIGHT as f64 / -2.0)..(SCREEN_HEIGHT as f64 / 2.0))
-            });
+        if self.init_with_random_pos {
+            loop {
+                let x = RNG.with_borrow_mut(|rng| {
+                    rng.random_range((SCREEN_WIDTH as f64 / -2.0)..(SCREEN_WIDTH as f64 / 2.0))
+                });
+                let y = RNG.with_borrow_mut(|rng| {
+                    rng.random_range((SCREEN_HEIGHT as f64 / -2.0)..(SCREEN_HEIGHT as f64 / 2.0))
+                });
 
-            let b = Self::new_without_collision(x, y, w, h);
-            if !BODY_GRID.with_borrow_mut(|grid| grid.collides_in_surronding_cells(&b, &b)) {
-                break b;
+                self.x = x;
+                self.y = y;
+                if self.is_traversable
+                    || !BODY_GRID
+                        .with_borrow_mut(|grid| grid.collides_in_surronding_cells(entity, self))
+                {
+                    break;
+                }
             }
-        };
-        body.add_to_grid();
-        body
+        }
+
+        if !self.is_traversable {
+            BODY_GRID.with_borrow_mut(|grid| grid.add(entity, self));
+        }
     }
 
-    pub fn new_with_collision(x: f64, y: f64, w: f64, h: f64) -> Self {
-        let body = Self::new_without_collision(x, y, w, h);
-        body.add_to_grid();
-        body
+    fn on_delete(&mut self, entity: EntityId) {
+        BODY_GRID.with_borrow_mut(|grid| grid.delete(entity, self));
+    }
+}
+
+impl BodyComponent {
+    pub fn new_rand_pos_not_traversable(w: f64, h: f64) -> Self {
+        Self {
+            x: 0.0, // Temp x,y -> will be updated in on_create
+            y: 0.0,
+            w,
+            h,
+            is_traversable: false,
+            init_with_random_pos: true,
+        }
     }
 
-    pub fn new_without_collision(x: f64, y: f64, w: f64, h: f64) -> Self {
-        Self { x, y, w, h }
+    pub fn new_rand_pos_traversable(w: f64, h: f64) -> Self {
+        Self {
+            x: 0.0, // Temp x,y -> will be updated in on_create
+            y: 0.0,
+            w,
+            h,
+            is_traversable: true,
+            init_with_random_pos: true,
+        }
+    }
+
+    pub fn new_not_traversable(x: f64, y: f64, w: f64, h: f64) -> Self {
+        Self {
+            x,
+            y,
+            w,
+            h,
+            is_traversable: false,
+            init_with_random_pos: false,
+        }
+    }
+
+    pub fn new_traversable(x: f64, y: f64, w: f64, h: f64) -> Self {
+        Self {
+            x,
+            y,
+            w,
+            h,
+            is_traversable: true,
+            init_with_random_pos: false,
+        }
     }
 
     pub fn get_x(&self) -> f64 {
@@ -76,12 +121,8 @@ impl BodyComponent {
         self.h
     }
 
-    fn add_to_grid(&self) {
-        BODY_GRID.with_borrow_mut(|grid| grid.add(self));
-    }
-
-    pub fn try_translate(&mut self, offset_x: f64, offset_y: f64) {
-        if BODY_GRID.with_borrow_mut(|grid| grid.try_translate(self, offset_x, offset_y)) {
+    pub fn try_translate(&mut self, entity: EntityId, offset_x: f64, offset_y: f64) {
+        if BODY_GRID.with_borrow_mut(|grid| grid.try_translate(entity, self, offset_x, offset_y)) {
             self.x += offset_x;
             self.y += offset_y;
         }

@@ -84,7 +84,7 @@ fn create_world() -> World {
     for _ in 0..FOOD_NB {
         world.create_entity_with(&[
             &FoodComponent::new(),
-            &BodyComponent::new_rand_pos_with_collision(
+            &BodyComponent::new_rand_pos_traversable(
                 FOOD_PIXEL_SIZE.into(),
                 FOOD_PIXEL_SIZE.into(),
             ),
@@ -94,7 +94,7 @@ fn create_world() -> World {
     for _ in 0..HERBIVOROUS_NB {
         world.create_entity_with(&[
             &CreatureComponent::new(),
-            &BodyComponent::new_rand_pos_with_collision(
+            &BodyComponent::new_rand_pos_not_traversable(
                 CREATURE_PIXEL_SIZE.into(),
                 CREATURE_PIXEL_SIZE.into(),
             ),
@@ -106,7 +106,7 @@ fn create_world() -> World {
     for _ in 0..CARNIVOROUS_NB {
         world.create_entity_with(&[
             &CreatureComponent::new(),
-            &BodyComponent::new_rand_pos_with_collision(
+            &BodyComponent::new_rand_pos_not_traversable(
                 CREATURE_PIXEL_SIZE.into(),
                 CREATURE_PIXEL_SIZE.into(),
             ),
@@ -119,7 +119,7 @@ fn create_world() -> World {
     for _ in 0..CORPSE_NB {
         world.create_entity_with(&[
             &CorpseComponent::new(),
-            &BodyComponent::new_rand_pos_with_collision(
+            &BodyComponent::new_rand_pos_not_traversable(
                 CREATURE_PIXEL_SIZE.into(),
                 CREATURE_PIXEL_SIZE.into(),
             ),

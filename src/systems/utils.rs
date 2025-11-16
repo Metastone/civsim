@@ -22,7 +22,7 @@ pub fn move_towards_position(
             let norm = (vec_to_target.0.powi(2) + vec_to_target.1.powi(2)).sqrt();
             let offset_x = vec_to_target.0 / norm * speed;
             let offset_y = vec_to_target.1 / norm * speed;
-            body.try_translate(offset_x, offset_y);
+            body.try_translate(info.entity, offset_x, offset_y);
         }
     }
     false

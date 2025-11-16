@@ -61,7 +61,11 @@ pub trait Component: Any + CloneComponent {
         TypeId::of::<Self>()
     }
 
-    fn on_delete(&self, _entity: EntityId) {
+    fn on_create(&mut self, _entity: EntityId) {
+        // Default implementation NOOP
+    }
+
+    fn on_delete(&mut self, _entity: EntityId) {
         // Default implementation NOOP
     }
 }
@@ -708,11 +712,9 @@ impl Ecs {
         let entity = self.ids.get_next_id();
         archetype.entities.push(entity);
         for comp in comps {
-            archetype
-                .data
-                .get_mut(&comp.get_type())
-                .unwrap()
-                .push(comp.clone_box());
+            let mut c = comp.clone_box();
+            c.on_create(entity);
+            archetype.data.get_mut(&comp.get_type()).unwrap().push(c);
         }
 
         pending_info.insert(
