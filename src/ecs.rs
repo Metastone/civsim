@@ -94,6 +94,8 @@ where
 
 pub type EntityId = usize;
 
+pub const RESERVED_ENTITY_ID: EntityId = 0;
+
 pub struct EntityIdAllocator {
     next_id: EntityId,
 }

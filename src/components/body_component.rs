@@ -6,7 +6,7 @@ use std::cell::RefCell;
 use crate::constants::*;
 use crate::ecs::Component;
 use crate::ecs::EntityId;
-use crate::shared_data::body_grid::BODY_GRID;
+use crate::shared_data::body_grid;
 
 #[derive(Clone, Copy)]
 pub struct BodyComponent {
@@ -41,22 +41,19 @@ impl Component for BodyComponent {
 
                 self.x = x;
                 self.y = y;
-                if self.is_traversable
-                    || !BODY_GRID
-                        .with_borrow_mut(|grid| grid.collides_in_surronding_cells(entity, self))
-                {
+                if self.is_traversable || !body_grid::collides_in_surronding_cells(entity, self) {
                     break;
                 }
             }
         }
 
         if !self.is_traversable {
-            BODY_GRID.with_borrow_mut(|grid| grid.add(entity, self));
+            body_grid::add(entity, self);
         }
     }
 
     fn on_delete(&mut self, entity: EntityId) {
-        BODY_GRID.with_borrow_mut(|grid| grid.delete(entity, self));
+        body_grid::delete(entity, self);
     }
 }
 
@@ -122,7 +119,7 @@ impl BodyComponent {
     }
 
     pub fn try_translate(&mut self, entity: EntityId, offset_x: f64, offset_y: f64) {
-        if BODY_GRID.with_borrow_mut(|grid| grid.try_translate(entity, self, offset_x, offset_y)) {
+        if body_grid::try_translate(entity, self, offset_x, offset_y) {
             self.x += offset_x;
             self.y += offset_y;
         }

@@ -9,9 +9,6 @@ use std::cell::RefCell;
  * Hence, to be sure to not miss a collision, the cells must be at least as big
  * as the biggest entity.
  *
- * By construction bodies never collide, so when checking collision for a body within a cell,
- * we can identify the body by its position which is necessarily unique.
- *
  * For quick reads I use vecs for storage. Deleted bodies are recognized with w = 0 && h == 0,
  * and they are deleted later during the next periodic grid cleanup.
  *
@@ -19,9 +16,8 @@ use std::cell::RefCell;
  * (when a body position is out of the grid)
  */
 
-// TODO make it private
 thread_local! {
-    pub static BODY_GRID: RefCell<BodyGrid> = RefCell::new(
+    static BODY_GRID: RefCell<BodyGrid> = RefCell::new(
         BodyGrid::new(
             - (SCREEN_WIDTH as f64) / 2.0,
             SCREEN_WIDTH as f64 / 2.0,
@@ -153,7 +149,7 @@ impl BodyGrid {
     /* Return true if the body was translated successfully (no collision)
      * otherwise, return false and do nothing
      */
-    pub fn try_translate(
+    fn try_translate(
         &mut self,
         entity: EntityId,
         body: &BodyComponent,
@@ -174,7 +170,7 @@ impl BodyGrid {
         false
     }
 
-    pub fn collides_in_surronding_cells(
+    fn collides_in_surronding_cells(
         &mut self,
         entity: EntityId,
         translated_body: &BodyComponent,
@@ -211,7 +207,7 @@ impl BodyGrid {
         false
     }
 
-    pub fn translate(
+    fn translate(
         &mut self,
         entity: EntityId,
         body: &BodyComponent,
@@ -262,7 +258,7 @@ impl BodyGrid {
         }
     }
 
-    pub fn delete(&mut self, entity: EntityId, body: &BodyComponent) {
+    fn delete(&mut self, entity: EntityId, body: &BodyComponent) {
         let (cell_x, cell_y) = match self.get_cell_coords_with_resize(body) {
             GetCoordsResult::Ok(x, y) => (x, y),
             GetCoordsResult::GridResized(x, y) => (x, y),
@@ -279,7 +275,7 @@ impl BodyGrid {
         }
     }
 
-    pub fn add(&mut self, entity: EntityId, body: &BodyComponent) {
+    fn add(&mut self, entity: EntityId, body: &BodyComponent) {
         let (cell_x, cell_y) = match self.get_cell_coords_with_resize(body) {
             GetCoordsResult::Ok(x, y) => (x, y),
             GetCoordsResult::GridResized(x, y) => (x, y),
@@ -297,6 +293,22 @@ impl BodyGrid {
             bodies.retain(|(_, b)| b.get_w() != 0.0 || b.get_h() != 0.0);
         }
     }
+}
+
+pub fn try_translate(entity: EntityId, body: &BodyComponent, offset_x: f64, offset_y: f64) -> bool {
+    BODY_GRID.with_borrow_mut(|grid| grid.try_translate(entity, body, offset_x, offset_y))
+}
+
+pub fn collides_in_surronding_cells(entity: EntityId, translated_body: &BodyComponent) -> bool {
+    BODY_GRID.with_borrow_mut(|grid| grid.collides_in_surronding_cells(entity, translated_body))
+}
+
+pub fn add(entity: EntityId, body: &BodyComponent) {
+    BODY_GRID.with_borrow_mut(|grid| grid.add(entity, body));
+}
+
+pub fn delete(entity: EntityId, body: &BodyComponent) {
+    BODY_GRID.with_borrow_mut(|grid| grid.delete(entity, body));
 }
 
 pub fn purge_deleted_bodies() {
