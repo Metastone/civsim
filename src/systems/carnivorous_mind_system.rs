@@ -1,9 +1,11 @@
 use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
+use crate::components::move_to_target_component::MoveToTargetComponent;
 use crate::ecs::{Ecs, System, Update};
 use crate::systems::utils;
 use std::any::TypeId;
 use std::collections::HashMap;
+use crate::constants::CARNIVOROUS_SPEED;
 
 pub struct CarnivorousMindSystem;
 impl System for CarnivorousMindSystem {
@@ -23,6 +25,7 @@ impl System for CarnivorousMindSystem {
         // For each body, find the closest corpse or herbivorous
         for (info, body) in &carnivorous_body {
             let mut target_entity = 0;
+            let mut target_body: Option<BodyComponent> = None;
             let mut closest_distance_squared = f64::MAX;
             let mut found_target = false;
             let mut is_corpse = false;
@@ -35,6 +38,7 @@ impl System for CarnivorousMindSystem {
                 found_target = true;
                 is_corpse = true;
                 target_entity = closest_entity;
+                target_body = Some(*ecs.get_component::<BodyComponent>(info).unwrap());
             }
 
             // Check herbivorous
@@ -50,14 +54,22 @@ impl System for CarnivorousMindSystem {
                 if is_corpse {
                     updates.push(Update::Add {
                         info: *info,
-                        comp: Box::new(MoveToCorpseComponent::new(target_entity)),
+                        comp: Box::new(TargetCorpseComponent::new(target_entity)),
                     });
                 } else {
                     updates.push(Update::Add {
                         info: *info,
-                        comp: Box::new(MoveToHerbivorousComponent::new(target_entity)),
+                        comp: Box::new(TargetHerbivorousComponent::new(target_entity)),
                     });
                 }
+                updates.push(Update::Add {
+                    info: *info,
+                    comp: Box::new(MoveToTargetComponent::new(
+                        target_entity,
+                        target_body.unwrap(),
+                        CARNIVOROUS_SPEED,
+                    )),
+                });
                 updates.push(Update::Delete {
                     info: *info,
                     c_type: to_ctype!(InactiveComponent),

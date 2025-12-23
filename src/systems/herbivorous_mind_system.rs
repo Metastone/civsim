@@ -1,5 +1,7 @@
 use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
+use crate::components::move_to_target_component::MoveToTargetComponent;
+use crate::constants::HERBIVOROUS_SPEED;
 use crate::ecs::{Ecs, EntityId, EntityInfo, System, Update};
 use crate::systems::utils;
 use std::any::TypeId;
@@ -22,7 +24,7 @@ impl System for HerbivorousMindSystem {
 
         // For each body, find the closest food
         let mut found: HashMap<EntityInfo, bool> = HashMap::new();
-        let mut closest_entity_of: HashMap<EntityInfo, EntityId> = HashMap::new();
+        let mut closest_target_of: HashMap<EntityInfo, (EntityId, BodyComponent)> = HashMap::new();
         for (info, body) in &herbivorous_bodies {
             found.insert(*info, false);
 
@@ -31,17 +33,31 @@ impl System for HerbivorousMindSystem {
                 utils::find_closest(ecs, body, to_ctype!(FoodComponent))
             {
                 found.insert(*info, true);
-                closest_entity_of.insert(*info, closest_entity);
+                closest_target_of.insert(
+                    *info,
+                    (
+                        closest_entity,
+                        *ecs.get_component::<BodyComponent>(info).unwrap(),
+                    ),
+                );
             }
         }
 
         // Assign action component to herbivorous that found a target
         for (herbivorous_info, found) in found {
             if found {
-                let found_entity = closest_entity_of.get(&herbivorous_info).unwrap();
+                let (found_entity, found_body) = closest_target_of.get(&herbivorous_info).unwrap();
                 updates.push(Update::Add {
                     info: herbivorous_info,
-                    comp: Box::new(MoveToFoodComponent::new(*found_entity)),
+                    comp: Box::new(TargetFoodComponent::new(*found_entity)),
+                });
+                updates.push(Update::Add {
+                    info: herbivorous_info,
+                    comp: Box::new(MoveToTargetComponent::new(
+                        *found_entity,
+                        *found_body,
+                        HERBIVOROUS_SPEED,
+                    )),
                 });
                 updates.push(Update::Delete {
                     info: herbivorous_info,

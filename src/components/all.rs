@@ -86,33 +86,33 @@ impl CarnivorousComponent {
 }
 
 #[derive(Clone, Copy)]
-pub struct MoveToCorpseComponent {
+pub struct TargetCorpseComponent {
     pub corpse_entity: EntityId,
 }
-impl Component for MoveToCorpseComponent {}
-impl MoveToCorpseComponent {
+impl Component for TargetCorpseComponent {}
+impl TargetCorpseComponent {
     pub fn new(corpse_entity: EntityId) -> Self {
         Self { corpse_entity }
     }
 }
 
 #[derive(Clone, Copy)]
-pub struct MoveToFoodComponent {
+pub struct TargetFoodComponent {
     pub food_entity: EntityId,
 }
-impl Component for MoveToFoodComponent {}
-impl MoveToFoodComponent {
+impl Component for TargetFoodComponent {}
+impl TargetFoodComponent {
     pub fn new(food_entity: EntityId) -> Self {
         Self { food_entity }
     }
 }
 
 #[derive(Clone, Copy)]
-pub struct MoveToHerbivorousComponent {
+pub struct TargetHerbivorousComponent {
     pub herbivorous_entity: EntityId,
 }
-impl Component for MoveToHerbivorousComponent {}
-impl MoveToHerbivorousComponent {
+impl Component for TargetHerbivorousComponent {}
+impl TargetHerbivorousComponent {
     pub fn new(herbivorous_entity: EntityId) -> Self {
         Self { herbivorous_entity }
     }

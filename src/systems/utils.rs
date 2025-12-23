@@ -3,29 +3,38 @@ use crate::constants::CONTACT_CENTER_2_CENTER_FACTOR;
 use crate::ecs::{ComponentType, Ecs, EntityId, EntityInfo};
 use std::any::TypeId;
 
-pub fn move_towards_position(
-    ecs: &mut Ecs,
+pub enum MoveResult {
+    Moved,
+    Collision,
+    WaypointReached,
+}
+
+pub fn move_towards_waypoint(
     info: &EntityInfo,
-    target_body: &BodyComponent,
+    body: &mut BodyComponent,
+    waypoint_x: f64,
+    waypoint_y: f64,
     speed: f64,
-) -> bool {
-    if let Some(body) = ecs.get_component_mut::<BodyComponent>(info) {
-        if body.almost_collides(target_body, CONTACT_CENTER_2_CENTER_FACTOR) {
-            // Target reached
-            return true;
+) -> MoveResult {
+    let waypoint_temp_body = BodyComponent::new_traversable(waypoint_x, waypoint_y, 0.0, 0.0);
+    if body.almost_collides(&waypoint_temp_body, CONTACT_CENTER_2_CENTER_FACTOR) {
+        MoveResult::WaypointReached
+    } else {
+        // Get closer to the target
+        let vec_to_target = (waypoint_x - body.get_x(), waypoint_y - body.get_y());
+        let norm = (vec_to_target.0.powi(2) + vec_to_target.1.powi(2)).sqrt();
+        let offset_x = vec_to_target.0 / norm * speed;
+        let offset_y = vec_to_target.1 / norm * speed;
+        if body.try_translate(info.entity, offset_x, offset_y) {
+            MoveResult::Moved
         } else {
-            // Get closer to the target
-            let vec_to_target = (
-                target_body.get_x() - body.get_x(),
-                target_body.get_y() - body.get_y(),
-            );
-            let norm = (vec_to_target.0.powi(2) + vec_to_target.1.powi(2)).sqrt();
-            let offset_x = vec_to_target.0 / norm * speed;
-            let offset_y = vec_to_target.1 / norm * speed;
-            body.try_translate(info.entity, offset_x, offset_y);
+            MoveResult::Collision
         }
     }
-    false
+}
+
+pub fn is_target_reached(body: &BodyComponent, target_body: &BodyComponent) -> bool {
+    body.almost_collides(target_body, CONTACT_CENTER_2_CENTER_FACTOR)
 }
 
 pub fn find_closest(

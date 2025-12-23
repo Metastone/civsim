@@ -24,6 +24,8 @@ macro_rules! iter_entities {
     };
 }
 
+// TODO make a mutable and imutable iterator to allow immutable loops with get_component inside
+// body ?
 macro_rules! iter_components {
     ($self:expr, ($($RequiredCompType:ident),*), ($($AsCompType:ident),+)) => {
         $self

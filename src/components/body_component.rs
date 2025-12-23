@@ -118,11 +118,13 @@ impl BodyComponent {
         self.h
     }
 
-    pub fn try_translate(&mut self, entity: EntityId, offset_x: f64, offset_y: f64) {
+    pub fn try_translate(&mut self, entity: EntityId, offset_x: f64, offset_y: f64) -> bool {
         if body_grid::try_translate(entity, self, offset_x, offset_y) {
             self.x += offset_x;
             self.y += offset_y;
+            return true;
         }
+        false
     }
 
     pub fn collides(&self, other: &BodyComponent) -> bool {

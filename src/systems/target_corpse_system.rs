@@ -1,12 +1,11 @@
 use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
-use crate::constants::*;
 use crate::ecs::{Ecs, System, Update};
 use crate::systems::utils;
 use std::any::TypeId;
 
-pub struct MoveToCorpseSystem;
-impl System for MoveToCorpseSystem {
+pub struct TargetCorpseSystem;
+impl System for TargetCorpseSystem {
     fn run(&self, ecs: &mut Ecs) {
         let mut updates: Vec<Update> = Vec::new();
 
@@ -15,11 +14,11 @@ impl System for MoveToCorpseSystem {
             ecs,
             CarnivorousComponent,
             BodyComponent,
-            MoveToCorpseComponent
+            TargetCorpseComponent
         ) {
             // Get the target corpse info
-            let MoveToCorpseComponent { corpse_entity } =
-                ecs.get_component::<MoveToCorpseComponent>(&info).unwrap();
+            let TargetCorpseComponent { corpse_entity } =
+                ecs.get_component::<TargetCorpseComponent>(&info).unwrap();
             let c_entity = *corpse_entity;
 
             // Get the corpse body
@@ -30,7 +29,7 @@ impl System for MoveToCorpseSystem {
                 // Go to inactive state if the target body can't be found for some reason
                 updates.push(Update::Delete {
                     info,
-                    c_type: to_ctype!(MoveToCorpseComponent),
+                    c_type: to_ctype!(TargetCorpseComponent),
                 });
                 updates.push(Update::Add {
                     info,
@@ -39,11 +38,12 @@ impl System for MoveToCorpseSystem {
                 continue;
             }
 
-            // Move the carnivorous towards the corpse target
-            if utils::move_towards_position(ecs, &info, &corpse_body, CARNIVOROUS_SPEED) {
+            let body = ecs.get_component::<BodyComponent>(&info).unwrap();
+
+            if utils::is_target_reached(body, &corpse_body) {
                 updates.push(Update::Delete {
                     info,
-                    c_type: to_ctype!(MoveToCorpseComponent),
+                    c_type: to_ctype!(TargetCorpseComponent),
                 });
                 updates.push(Update::Add {
                     info,

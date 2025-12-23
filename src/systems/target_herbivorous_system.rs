@@ -1,12 +1,11 @@
 use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
-use crate::constants::*;
 use crate::ecs::{Ecs, System, Update};
 use crate::systems::utils;
 use std::any::TypeId;
 
-pub struct MoveToHerbivorousSystem;
-impl System for MoveToHerbivorousSystem {
+pub struct TargetHerbivorousSystem;
+impl System for TargetHerbivorousSystem {
     fn run(&self, ecs: &mut Ecs) {
         let mut updates: Vec<Update> = Vec::new();
 
@@ -15,11 +14,11 @@ impl System for MoveToHerbivorousSystem {
             ecs,
             CarnivorousComponent,
             BodyComponent,
-            MoveToHerbivorousComponent
+            TargetHerbivorousComponent
         ) {
             // Get the target herbivorous info
-            let MoveToHerbivorousComponent { herbivorous_entity } = ecs
-                .get_component::<MoveToHerbivorousComponent>(&info)
+            let TargetHerbivorousComponent { herbivorous_entity } = ecs
+                .get_component::<TargetHerbivorousComponent>(&info)
                 .unwrap();
             let herb_entity = *herbivorous_entity;
 
@@ -31,7 +30,7 @@ impl System for MoveToHerbivorousSystem {
                 // Go to inactive state if the target body can't be found
                 updates.push(Update::Delete {
                     info,
-                    c_type: to_ctype!(MoveToHerbivorousComponent),
+                    c_type: to_ctype!(TargetHerbivorousComponent),
                 });
                 updates.push(Update::Add {
                     info,
@@ -40,11 +39,13 @@ impl System for MoveToHerbivorousSystem {
                 continue;
             }
 
+            let body = ecs.get_component::<BodyComponent>(&info).unwrap();
+
             // Move the carnivorous towards the herbivorous target
-            if utils::move_towards_position(ecs, &info, &herbivorous_body, CARNIVOROUS_SPEED) {
+            if utils::is_target_reached(body, &herbivorous_body) {
                 updates.push(Update::Delete {
                     info,
-                    c_type: to_ctype!(MoveToHerbivorousComponent),
+                    c_type: to_ctype!(TargetHerbivorousComponent),
                 });
                 updates.push(Update::Add {
                     info,
