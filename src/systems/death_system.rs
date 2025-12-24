@@ -8,7 +8,7 @@ impl System for DeathSystem {
     fn run(&self, ecs: &mut Ecs) {
         let mut updates: Vec<Update> = Vec::new();
 
-        for info in iter_entities_with!(ecs, CreatureComponent, BodyComponent) {
+        for info in iter_entities!(ecs, CreatureComponent, BodyComponent) {
             // Check if the creature should die
             if let Some(creature) = ecs.get_component::<CreatureComponent>(&info) {
                 if creature.health <= 0.0 {

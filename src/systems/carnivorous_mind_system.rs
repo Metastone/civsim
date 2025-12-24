@@ -12,7 +12,7 @@ impl System for CarnivorousMindSystem {
 
         // Get the bodies of all inactive carnivorous entities
         let mut carnivorous_body = HashMap::new();
-        for (body, info) in iter_components_with!(
+        for (body, info) in iter_components!(
             ecs,
             (CarnivorousComponent, BodyComponent, InactiveComponent),
             BodyComponent

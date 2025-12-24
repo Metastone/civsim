@@ -6,7 +6,7 @@ use std::any::TypeId;
 pub struct ExhaustionSystem;
 impl System for ExhaustionSystem {
     fn run(&self, ecs: &mut Ecs) {
-        for (creature, _) in iter_components!(ecs, CreatureComponent) {
+        for (creature, _) in iter_components!(ecs, (), CreatureComponent) {
             if creature.energy <= 0.0 {
                 creature.health -= EXHAUSTION_RATE;
             }

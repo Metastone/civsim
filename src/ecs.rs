@@ -15,12 +15,6 @@ macro_rules! to_ctype {
 }
 
 macro_rules! iter_entities {
-    ($self:expr, $CompType:ident) => {
-        $self.iter_entities(TypeId::of::<$CompType>())
-    };
-}
-
-macro_rules! iter_entities_with {
     ($self:expr, $($CompType:ident),+) => {
         $self.iter_entities_with(
             &[
@@ -31,22 +25,9 @@ macro_rules! iter_entities_with {
 }
 
 macro_rules! iter_components {
-    ($self:expr, $CompType:ident) => {
+    ($self:expr, ($($RequiredCompType:ident),*), $CompType:ident) => {
         $self
-            .iter_components(TypeId::of::<$CompType>())
-            .map(|(box_dyn_c, entity_info)| {
-                (
-                    box_dyn_c.as_any_mut().downcast_mut::<$CompType>().unwrap(),
-                    entity_info,
-                )
-            })
-    };
-}
-
-macro_rules! iter_components_with {
-    ($self:expr, ($($RequiredCompType:ident),+), $CompType:ident) => {
-        $self
-            .iter_components_with(&[$(TypeId::of::<$RequiredCompType>()),+], TypeId::of::<$CompType>())
+            .iter_components(&[$(TypeId::of::<$RequiredCompType>()),*], TypeId::of::<$CompType>())
             .map(|(box_dyn_c, e)| {
                 (
                     box_dyn_c.as_any_mut().downcast_mut::<$CompType>().unwrap(),
@@ -396,10 +377,6 @@ impl Ecs {
         self.archetypes.iter().map(|a| a.entities.clone()).collect()
     }
 
-    pub fn iter_entities(&self, required_ctype: ComponentType) -> EntityIterator {
-        self.iter_entities_with_types(HashSet::from([required_ctype]))
-    }
-
     pub fn iter_entities_with(&self, required_ctypes: &[ComponentType]) -> EntityIterator {
         self.iter_entities_with_types(required_ctypes.iter().copied().collect())
     }
@@ -408,16 +385,16 @@ impl Ecs {
         EntityIterator::new(self, required_ctypes)
     }
 
-    pub fn iter_components(&mut self, as_ctype: ComponentType) -> ComponentIterator {
-        self.iter_components_with_types(HashSet::from([as_ctype]), as_ctype)
-    }
-
-    pub fn iter_components_with(
+    pub fn iter_components(
         &mut self,
         required_ctypes: &[ComponentType],
         as_ctype: ComponentType,
     ) -> ComponentIterator {
-        self.iter_components_with_types(required_ctypes.iter().copied().collect(), as_ctype)
+        if required_ctypes.is_empty() {
+            self.iter_components_with_types(HashSet::from([as_ctype]), as_ctype)
+        } else {
+            self.iter_components_with_types(required_ctypes.iter().copied().collect(), as_ctype)
+        }
     }
 
     fn iter_components_with_types(

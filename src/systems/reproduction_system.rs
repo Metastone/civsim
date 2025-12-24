@@ -11,7 +11,7 @@ impl System for ReproductionSystem {
         let mut updates: Vec<Update> = Vec::new();
 
         // Find creatures that can reproduce
-        for info in iter_entities_with!(ecs, CreatureComponent, BodyComponent) {
+        for info in iter_entities!(ecs, CreatureComponent, BodyComponent) {
             // Check if the creature has enough energy to reproduce
             {
                 let creature = ecs.get_component_mut::<CreatureComponent>(&info).unwrap();

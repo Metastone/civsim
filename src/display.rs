@@ -12,7 +12,7 @@ pub fn draw(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: 
     }
 
     // Draw corpses
-    for (body, _) in iter_components_with!(ecs, (CorpseComponent, BodyComponent), BodyComponent) {
+    for (body, _) in iter_components!(ecs, (CorpseComponent, BodyComponent), BodyComponent) {
         draw_square(
             body,
             CORPSE_COLOR,
@@ -27,7 +27,7 @@ pub fn draw(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: 
     // The point is to always draw them in the same order, to avoid an ugly "flickering" effect
     // (they change archetype from one iteration to the next)
     let mut creature_infos: Vec<EntityInfo> =
-        iter_entities_with!(ecs, CreatureComponent, BodyComponent).collect();
+        iter_entities!(ecs, CreatureComponent, BodyComponent).collect();
     creature_infos.sort_by(|a, b| a.entity.cmp(&b.entity));
 
     // Draw creatures
@@ -92,7 +92,7 @@ pub fn draw(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: 
     }
 
     // Draw food
-    for info in iter_entities_with!(ecs, FoodComponent, BodyComponent) {
+    for info in iter_entities!(ecs, FoodComponent, BodyComponent) {
         if let Some(body) = ecs.get_component::<BodyComponent>(&info) {
             draw_square(
                 body,

@@ -12,7 +12,9 @@ impl System for AttackHerbivorousSystem {
         // Make sure that a herbivorous is not attacked by more than one creature
         let mut attacked_herbivorous: HashSet<EntityId> = HashSet::new();
 
-        for (attacking_herbivorous, info) in iter_components!(ecs, AttackingHerbivorousComponent) {
+        for (attacking_herbivorous, info) in
+            iter_components!(ecs, (), AttackingHerbivorousComponent)
+        {
             attacked_herbivorous.insert(attacking_herbivorous.herbivorous_entity);
             updates.push(Update::Delete {
                 info,

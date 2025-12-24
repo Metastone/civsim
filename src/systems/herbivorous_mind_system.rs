@@ -12,7 +12,7 @@ impl System for HerbivorousMindSystem {
 
         // Get the bodies of all inactive herbivorous entities
         let mut herbivorous_bodies = HashMap::new();
-        for (body, info) in iter_components_with!(
+        for (body, info) in iter_components!(
             ecs,
             (HerbivorousComponent, BodyComponent, InactiveComponent),
             BodyComponent

@@ -11,7 +11,7 @@ impl System for MoveToFoodSystem {
         let mut updates: Vec<Update> = Vec::new();
 
         // Move all herbivorous in the direction of their food target (if they have one)
-        for info in iter_entities_with!(
+        for info in iter_entities!(
             ecs,
             HerbivorousComponent,
             BodyComponent,
