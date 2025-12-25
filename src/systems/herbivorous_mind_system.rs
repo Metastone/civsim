@@ -15,7 +15,7 @@ impl System for HerbivorousMindSystem {
         for (body, info) in iter_components!(
             ecs,
             (HerbivorousComponent, BodyComponent, InactiveComponent),
-            BodyComponent
+            (BodyComponent)
         ) {
             herbivorous_bodies.insert(info, *body);
         }

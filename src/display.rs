@@ -12,7 +12,7 @@ pub fn draw(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: 
     }
 
     // Draw corpses
-    for (body, _) in iter_components!(ecs, (CorpseComponent, BodyComponent), BodyComponent) {
+    for (body, _) in iter_components!(ecs, (CorpseComponent, BodyComponent), (BodyComponent)) {
         draw_square(
             body,
             CORPSE_COLOR,

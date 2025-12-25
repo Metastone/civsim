@@ -25,15 +25,45 @@ macro_rules! iter_entities {
 }
 
 macro_rules! iter_components {
-    ($self:expr, ($($RequiredCompType:ident),*), $CompType:ident) => {
+    ($self:expr, ($($RequiredCompType:ident),*), ($($AsCompType:ident),+)) => {
         $self
-            .iter_components(&[$(TypeId::of::<$RequiredCompType>()),*], TypeId::of::<$CompType>())
-            .map(|(box_dyn_c, e)| {
+            .iter_components(&[$(TypeId::of::<$RequiredCompType>()),*], &[$(TypeId::of::<$AsCompType>()),+])
+            .map(|(mut box_dyn_comps, info)| {
                 (
-                    box_dyn_c.as_any_mut().downcast_mut::<$CompType>().unwrap(),
-                    e,
+                    iter_components!(@tuple box_dyn_comps; 0; $($AsCompType),+),
+                    info,
                 )
             })
+            .map(#[allow(non_snake_case)] |(iter_components!(@nested_tuple $($AsCompType),+), info)| ($($AsCompType),+, info))
+    };
+
+    // Format an identifier list as a nested tuple
+    (@nested_tuple $last:ident) => {
+        ($last,)
+    };
+    (@nested_tuple $head:ident, $($tail:ident),+) => {
+        ($head, iter_components!(@nested_tuple $($tail),+))
+    };
+
+    // TT muncher to allow iterating on a repetition with an index
+    (@tuple $box:ident; $idx:expr; $head:ident) => {
+        (
+            unsafe { (**$box[$idx])
+                .as_any_mut()
+                .downcast_mut::<$head>()
+                .unwrap() }
+            ,
+        )
+    };
+    (@tuple $box:ident; $idx:expr; $head:ident, $($tail:ident),+) => {
+        (
+            unsafe { (**$box[$idx])
+                .as_any_mut()
+                .downcast_mut::<$head>()
+                .unwrap() }
+            ,
+            iter_components!(@tuple $box; $idx + 1; $($tail),+)
+        )
     };
 }
 
@@ -180,16 +210,16 @@ pub struct EntityInfo {
     pub entity_index: usize,
 }
 
-pub struct ComponentIterator<'a> {
+pub struct ComponentIteratorN<'a> {
     ecs: &'a mut Ecs,
     required_ctypes: HashSet<ComponentType>,
-    as_ctype: ComponentType,
+    as_ctypes: Vec<ComponentType>, // vec because order is important for iterator usage
     arch_index: usize,
     component_index: usize,
 }
 
-impl<'a> Iterator for ComponentIterator<'a> {
-    type Item = (&'a mut Box<dyn Component>, EntityInfo);
+impl<'a> Iterator for ComponentIteratorN<'a> {
+    type Item = (Vec<*mut Box<dyn Component>>, EntityInfo);
     fn next(&mut self) -> Option<Self::Item> {
         // Find the next entity whose ID is not zero (0 are obsolete entries)
         let mut entity = 0;
@@ -229,16 +259,21 @@ impl<'a> Iterator for ComponentIterator<'a> {
             return None;
         }
 
-        let res_comp = unsafe {
-            &mut *(self.ecs.archetypes[self.arch_index]
-                .data
-                .get_mut(&self.as_ctype)
-                .unwrap()
-                .as_mut_ptr()
-                .add(comp_index))
+        let res_comps: Vec<*mut Box<dyn Component>> = unsafe {
+            self.as_ctypes
+                .iter()
+                .map(|as_ctype| {
+                    self.ecs.archetypes[self.arch_index]
+                        .data
+                        .get_mut(as_ctype)
+                        .unwrap()
+                        .as_mut_ptr()
+                        .add(comp_index)
+                })
+                .collect()
         };
         let res = Some((
-            res_comp,
+            res_comps,
             EntityInfo {
                 entity,
                 arch_index: self.arch_index,
@@ -388,24 +423,14 @@ impl Ecs {
     pub fn iter_components(
         &mut self,
         required_ctypes: &[ComponentType],
-        as_ctype: ComponentType,
-    ) -> ComponentIterator {
-        if required_ctypes.is_empty() {
-            self.iter_components_with_types(HashSet::from([as_ctype]), as_ctype)
-        } else {
-            self.iter_components_with_types(required_ctypes.iter().copied().collect(), as_ctype)
-        }
-    }
-
-    fn iter_components_with_types(
-        &mut self,
-        required_ctypes: HashSet<ComponentType>,
-        as_ctype: ComponentType,
-    ) -> ComponentIterator {
-        ComponentIterator {
+        as_ctypes: &[ComponentType],
+    ) -> ComponentIteratorN<'_> {
+        let mut r_ctypes: HashSet<ComponentType> = required_ctypes.iter().copied().collect();
+        r_ctypes.extend(as_ctypes);
+        ComponentIteratorN {
             ecs: self,
-            required_ctypes,
-            as_ctype,
+            required_ctypes: r_ctypes,
+            as_ctypes: as_ctypes.to_vec(),
             arch_index: 0,
             component_index: 0,
         }
@@ -502,7 +527,10 @@ impl Ecs {
         {
             components[entity_index] = comp.clone_box();
         } else {
-            error!("Cannot apply a component edit for entity {:?}: Entity does not have this component", actualized_info);
+            error!(
+                "Cannot apply a component edit for entity {:?}: Entity does not have this component",
+                actualized_info
+            );
         }
     }
 
@@ -531,9 +559,9 @@ impl Ecs {
             .is_some()
         {
             error!(
-                            "Cannot apply a component addition for entity {:?}: Entity already has a component of this type",
-                            actualized_info
-                        );
+                "Cannot apply a component addition for entity {:?}: Entity already has a component of this type",
+                actualized_info
+            );
         } else {
             let mut cur_ctypes = HashSet::new();
             let mut required_ctypes = HashSet::from([comp.get_type()]);
@@ -614,7 +642,10 @@ impl Ecs {
             .component_types
             .contains(&c_type)
         {
-            error!("Cannot apply a component deletion for entity {:?}: Entity does not have this component", actualized_info);
+            error!(
+                "Cannot apply a component deletion for entity {:?}: Entity does not have this component",
+                actualized_info
+            );
         } else {
             let archetype = &mut self.archetypes[arch_index];
             let mut required_ctypes = archetype.component_types.clone();

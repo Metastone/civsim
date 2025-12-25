@@ -14,8 +14,8 @@ impl System for CarnivorousMindSystem {
         let mut carnivorous_body = HashMap::new();
         for (body, info) in iter_components!(
             ecs,
-            (CarnivorousComponent, BodyComponent, InactiveComponent),
-            BodyComponent
+            (CarnivorousComponent, InactiveComponent),
+            (BodyComponent)
         ) {
             carnivorous_body.insert(info, *body);
         }
@@ -40,11 +40,10 @@ impl System for CarnivorousMindSystem {
             // Check herbivorous
             if let Some((distance_squared, closest_entity)) =
                 utils::find_closest(ecs, body, to_ctype!(HerbivorousComponent))
+                && distance_squared < closest_distance_squared
             {
-                if distance_squared < closest_distance_squared {
-                    found_target = true;
-                    target_entity = closest_entity;
-                }
+                found_target = true;
+                target_entity = closest_entity;
             }
 
             if found_target {

@@ -10,24 +10,24 @@ impl System for DeathSystem {
 
         for info in iter_entities!(ecs, CreatureComponent, BodyComponent) {
             // Check if the creature should die
-            if let Some(creature) = ecs.get_component::<CreatureComponent>(&info) {
-                if creature.health <= 0.0 {
-                    // Create a corpse
-                    if let Some(body) = ecs.get_component::<BodyComponent>(&info) {
-                        updates.push(Update::Create(vec![
-                            Box::new(CorpseComponent),
-                            Box::new(BodyComponent::new_not_traversable(
-                                body.get_x(),
-                                body.get_y(),
-                                body.get_w(),
-                                body.get_h(),
-                            )),
-                        ]));
-                    }
-
-                    // Remove the entity
-                    updates.push(Update::DeleteEntity(info));
+            if let Some(creature) = ecs.get_component::<CreatureComponent>(&info)
+                && creature.health <= 0.0
+            {
+                // Create a corpse
+                if let Some(body) = ecs.get_component::<BodyComponent>(&info) {
+                    updates.push(Update::Create(vec![
+                        Box::new(CorpseComponent),
+                        Box::new(BodyComponent::new_not_traversable(
+                            body.get_x(),
+                            body.get_y(),
+                            body.get_w(),
+                            body.get_h(),
+                        )),
+                    ]));
                 }
+
+                // Remove the entity
+                updates.push(Update::DeleteEntity(info));
             }
         }
 
