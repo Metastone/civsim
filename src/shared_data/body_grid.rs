@@ -2,6 +2,7 @@ use crate::components::body_component::BodyComponent;
 use crate::constants::*;
 use crate::ecs::EntityId;
 use std::cell::RefCell;
+use std::cmp;
 
 /* Collision computation grid.
  *
@@ -63,10 +64,20 @@ impl BodyGrid {
         max_y += max_entity_size / 2.0;
         let max_entity_size = CREATURE_PIXEL_SIZE as f64;
         let cell_size = max_entity_size * CELL_SIZE_FACTOR;
-        let w = (max_x - min_x).abs();
-        let h = (max_y - min_y).abs();
-        let nb_cells_x = (w / cell_size + 1.0) as usize;
-        let nb_cells_y = (h / cell_size + 1.0) as usize;
+
+        // Compute the minimal size for the grid (float)
+        let mut w = (max_x - min_x).abs();
+        let mut h = (max_y - min_y).abs();
+
+        // Deduce the number of cells (integer)
+        let nb_cells_x = (w / cell_size) as usize + 1;
+        let nb_cells_y = (h / cell_size) as usize + 1;
+
+        // Re-compute the grid size (float),
+        // so that it corresponds exactly to the number of cells
+        w = cell_size * nb_cells_x as f64;
+        h = cell_size * nb_cells_y as f64;
+
         BodyGrid {
             x: min_x,
             y: min_y,
@@ -84,33 +95,24 @@ impl BodyGrid {
         let x_in_grid = body.get_x() - self.x;
         let y_in_grid = body.get_y() - self.y;
 
-        // Check if a grid resize is required on x axis
-        let (offset_cell_x, resize_x): (usize, bool) = if x_in_grid < 0.0 {
-            (self.nb_cells_x, true)
-        } else if x_in_grid >= self.w {
-            (0, true)
-        } else {
-            (0, false)
-        };
+        /* Check if a grid resize is required on x and y axis independently.
+         * If a resize is required, the grid will be made at least twice bigger,
+         * or even more if the new body to accomodate is even further away.
+         */
+        let (resize_x, offset_cell_x, new_nb_cells_x): (bool, usize, usize) =
+            self.check_resize(x_in_grid, self.w, self.nb_cells_x);
+        let (resize_y, offset_cell_y, new_nb_cells_y): (bool, usize, usize) =
+            self.check_resize(y_in_grid, self.h, self.nb_cells_y);
 
-        // Check if a grid resize is required on y axis
-        let (offset_cell_y, resize_y): (usize, bool) = if y_in_grid < 0.0 {
-            (self.nb_cells_y, true)
-        } else if y_in_grid >= self.h {
-            (0, true)
-        } else {
-            (0, false)
-        };
-
-        // Resize the grid (double its size on the appropriate side on x or y or both)
+        // Resize the grid on x or y or both
         if resize_x || resize_y {
             let nb_cells_x = if resize_x {
-                self.nb_cells_x * 2
+                new_nb_cells_x
             } else {
                 self.nb_cells_x
             };
             let nb_cells_y = if resize_y {
-                self.nb_cells_y * 2
+                new_nb_cells_y
             } else {
                 self.nb_cells_y
             };
@@ -134,8 +136,8 @@ impl BodyGrid {
             self.h = self.cell_size * nb_cells_y as f64;
 
             return GetCoordsResult::GridResized(
-                (body.get_x() - self.x / self.cell_size) as usize,
-                (body.get_y() - self.y / self.cell_size) as usize,
+                ((body.get_x() - self.x) / self.cell_size) as usize,
+                ((body.get_y() - self.y) / self.cell_size) as usize,
             );
         }
 
@@ -144,6 +146,29 @@ impl BodyGrid {
             (x_in_grid / self.cell_size) as usize,
             (y_in_grid / self.cell_size) as usize,
         )
+    }
+
+    // Check if a grid resize is required on one axis (x or y).
+    // Return tuple (resize_required, offset_cells, nb_new_cells)
+    fn check_resize(&self, coord_in_grid: f64, size: f64, nb_cells: usize) -> (bool, usize, usize) {
+        if coord_in_grid < 0.0 {
+            (
+                true,
+                nb_cells,
+                cmp::max(
+                    nb_cells * 2,
+                    (coord_in_grid.abs() / self.cell_size) as usize + 1 + nb_cells,
+                ),
+            )
+        } else if coord_in_grid >= size {
+            (
+                true,
+                0,
+                cmp::max(nb_cells * 2, (coord_in_grid / self.cell_size) as usize + 1),
+            )
+        } else {
+            (false, 0, 0)
+        }
     }
 
     /* Return true if the body was translated successfully (no collision)
