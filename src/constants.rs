@@ -23,6 +23,7 @@ pub const CONTACT_CENTER_2_CENTER_FACTOR: f64 = 1.3;
 
 pub const BAR_WIDTH: u32 = 30;
 pub const BAR_HEIGHT: u32 = 5;
+pub const GRID_LINE_WIDENESS: u32 = 5;
 
 pub const HERBIVOROUS_COLOR: &[u8] = &[0xff, 0x99, 0x11, 0xff];
 pub const CARNIVOROUS_COLOR: &[u8] = &[0xff, 0x22, 0x11, 0xff];
@@ -31,6 +32,7 @@ pub const ENERGY_COLOR: &[u8] = &[0x11, 0xff, 0x88, 0xff];
 pub const HEALTH_COLOR: &[u8] = &[0xff, 0x11, 0x11, 0xff];
 pub const CORPSE_COLOR: &[u8] = &[0x44, 0x11, 0x11, 0xff];
 pub const OBSTACLE_COLOR: &[u8] = &[0x77, 0x33, 0x33, 0xff];
+pub const GRID_COLOR: &[u8] = &[0xff, 0x00, 0x00, 0xff];
 
 pub const HERBIVOROUS_SPEED: f64 = 1.5; // Pixels per iteration
 pub const CARNIVOROUS_SPEED: f64 = 2.0; // Pixels per iteration

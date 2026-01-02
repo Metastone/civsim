@@ -3,6 +3,7 @@ use crate::components::body_component::BodyComponent;
 use crate::constants::*;
 use crate::ecs::Ecs;
 use crate::ecs::EntityInfo;
+use crate::shared_data::body_grid;
 use std::any::TypeId;
 
 pub fn draw(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: u32) {
@@ -117,6 +118,44 @@ pub fn draw(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: 
                 window_height,
             );
         }
+    }
+
+    let (g_x, g_y, g_w, g_h, g_cell_size) = body_grid::get_coords();
+
+    // Draw body grid lines
+    let mut j = 0;
+    loop {
+        let y = g_y + g_cell_size * (j as f64);
+        if y - GRID_LINE_WIDENESS as f64 / 2.0 > g_y + g_h {
+            break;
+        }
+        draw_rec(
+            (g_x + g_w / 2.0, y),
+            GRID_COLOR,
+            (g_w as u32, GRID_LINE_WIDENESS),
+            pixels,
+            window_width,
+            window_height,
+        );
+        j += 1;
+    }
+
+    // Draw body grid columns
+    let mut i = 0;
+    loop {
+        let x = g_x + g_cell_size * (i as f64);
+        if x - GRID_LINE_WIDENESS as f64 / 2.0 > g_x + g_w {
+            break;
+        }
+        draw_rec(
+            (x, g_y + g_h / 2.0),
+            GRID_COLOR,
+            (GRID_LINE_WIDENESS, g_h as u32),
+            pixels,
+            window_width,
+            window_height,
+        );
+        i += 1;
     }
 }
 

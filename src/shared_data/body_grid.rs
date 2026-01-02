@@ -314,3 +314,7 @@ pub fn delete(entity: EntityId, body: &BodyComponent) {
 pub fn purge_deleted_bodies() {
     BODY_GRID.with_borrow_mut(|grid| grid.purge_deleted_bodies());
 }
+
+pub fn get_coords() -> (f64, f64, f64, f64, f64) {
+    BODY_GRID.with_borrow(|grid| (grid.x, grid.y, grid.w, grid.h, grid.cell_size))
+}
