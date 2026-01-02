@@ -58,7 +58,7 @@ pub fn draw(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: 
             draw_rec(
                 (
                     pos.get_x(),
-                    pos.get_y() + CREATURE_PIXEL_SIZE as f64 / 2.0 + BAR_HEIGHT as f64 / 2.0 + 5.0,
+                    pos.get_y() - CREATURE_PIXEL_SIZE as f64 / 2.0 - BAR_HEIGHT as f64 / 2.0 - 5.0,
                 ),
                 HEALTH_COLOR,
                 (
@@ -75,9 +75,9 @@ pub fn draw(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: 
                 (
                     pos.get_x(),
                     pos.get_y()
-                        + CREATURE_PIXEL_SIZE as f64 / 2.0
-                        + BAR_HEIGHT as f64 * 1.5
-                        + 5.0 * 2.0,
+                        - CREATURE_PIXEL_SIZE as f64 / 2.0
+                        - BAR_HEIGHT as f64 * 1.5
+                        - 5.0 * 2.0,
                 ),
                 ENERGY_COLOR,
                 (
@@ -134,7 +134,7 @@ fn draw_rec(
 ) {
     let pos_in_window = (
         x + (window_width as f64) / 2.0,
-        -y + (window_height as f64) / 2.0,
+        y + (window_height as f64) / 2.0,
     );
     let w = width as i64 / 2;
     let h = height as i64 / 2;
