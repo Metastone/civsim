@@ -126,6 +126,16 @@ fn create_world() -> World {
         ]);
     }
 
+    for _ in 0..OBSTACLES_NB {
+        world.create_entity_with(&[
+            &ObstacleComponent::new(),
+            &BodyComponent::new_rand_pos_not_traversable(
+                OBSTACLE_PIXEL_SIZE.into(),
+                OBSTACLE_PIXEL_SIZE.into(),
+            ),
+        ]);
+    }
+
     world.add_system(Box::new(FoodGrowthSystem));
     world.add_system(Box::new(ReproductionSystem));
     world.add_system(Box::new(HerbivorousMindSystem));

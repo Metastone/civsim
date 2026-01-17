@@ -126,3 +126,12 @@ impl InactiveComponent {
         Self {}
     }
 }
+
+#[derive(Clone, Copy)]
+pub struct ObstacleComponent {}
+impl Component for ObstacleComponent {}
+impl ObstacleComponent {
+    pub fn new() -> Self {
+        Self {}
+    }
+}

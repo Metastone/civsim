@@ -91,6 +91,20 @@ pub fn draw(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: 
         }
     }
 
+    // Draw obstacles
+    for info in iter_entities!(ecs, ObstacleComponent, BodyComponent) {
+        if let Some(body) = ecs.get_component::<BodyComponent>(&info) {
+            draw_square(
+                body,
+                OBSTACLE_COLOR,
+                OBSTACLE_PIXEL_SIZE,
+                pixels,
+                window_width,
+                window_height,
+            );
+        }
+    }
+
     // Draw food
     for info in iter_entities!(ecs, FoodComponent, BodyComponent) {
         if let Some(body) = ecs.get_component::<BodyComponent>(&info) {
