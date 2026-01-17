@@ -6,6 +6,7 @@ mod display;
 mod shared_data;
 mod systems;
 
+use display::Display;
 use ecs::{Component, Ecs, System, Update};
 use pixels::{Pixels, SurfaceTexture};
 use std::{sync::Arc, thread, time};
@@ -32,14 +33,16 @@ use systems::target_herbivorous_system::TargetHerbivorousSystem;
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
-    event::WindowEvent,
+    event::{ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
+    keyboard::Key,
     window::{Window, WindowId},
 };
 
 pub struct World {
     ecs: Ecs,
     systems: Vec<Box<dyn System>>,
+    display: Display,
 }
 
 impl Default for World {
@@ -53,6 +56,7 @@ impl World {
         Self {
             ecs: Ecs::new(),
             systems: Vec::new(),
+            display: Display::new(),
         }
     }
 
@@ -75,7 +79,8 @@ impl World {
     }
 
     fn draw(&mut self, pixels: &mut [u8], window_width: u32, window_height: u32) {
-        display::draw(&mut self.ecs, pixels, window_width, window_height);
+        self.display
+            .draw(&mut self.ecs, pixels, window_width, window_height);
     }
 }
 
@@ -224,6 +229,14 @@ impl ApplicationHandler for App<'_> {
 
                 thread::sleep(time::Duration::from_millis(MS_PER_ITERATION));
                 self.window.as_ref().unwrap().request_redraw();
+            }
+            WindowEvent::KeyboardInput { event, .. } => {
+                if event.logical_key == Key::Character("d".into())
+                    && event.state == ElementState::Pressed
+                    && !event.repeat
+                {
+                    self.world.display.toogle_display_body_grid();
+                }
             }
             _ => (),
         }

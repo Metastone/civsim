@@ -6,123 +6,148 @@ use crate::ecs::EntityInfo;
 use crate::shared_data::body_grid;
 use std::any::TypeId;
 
-pub fn draw(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: u32) {
-    // Background
-    for pixel in pixels.chunks_exact_mut(4) {
-        pixel.copy_from_slice(&[0xcc, 0xcc, 0xcc, 0xff]);
+pub struct Display {
+    display_body_grid: bool,
+}
+
+impl Display {
+    pub fn new() -> Self {
+        Display {
+            display_body_grid: false,
+        }
     }
 
-    // Draw corpses
-    for (body, _) in iter_components!(ecs, (CorpseComponent, BodyComponent), (BodyComponent)) {
-        draw_square(
-            body,
-            CORPSE_COLOR,
-            CREATURE_PIXEL_SIZE,
-            pixels,
-            window_width,
-            window_height,
-        );
+    pub fn toogle_display_body_grid(&mut self) {
+        self.display_body_grid = !self.display_body_grid;
     }
 
-    // Get all creatures in the order of their entity ID.
-    // The point is to always draw them in the same order, to avoid an ugly "flickering" effect
-    // (they change archetype from one iteration to the next)
-    let mut creature_infos: Vec<EntityInfo> =
-        iter_entities!(ecs, CreatureComponent, BodyComponent).collect();
-    creature_infos.sort_by(|a, b| a.entity.cmp(&b.entity));
+    pub fn draw(&self, ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: u32) {
+        // Background
+        for pixel in pixels.chunks_exact_mut(4) {
+            pixel.copy_from_slice(&[0xcc, 0xcc, 0xcc, 0xff]);
+        }
 
-    // Draw creatures
-    for info in creature_infos {
-        // Check what kind of creature this is
-        let color = if ecs.has_component(info.arch_index, &to_ctype!(HerbivorousComponent)) {
-            HERBIVOROUS_COLOR
-        } else {
-            CARNIVOROUS_COLOR
-        };
-        let pos;
-        if let Some(body) = ecs.get_component::<BodyComponent>(&info) {
-            pos = *body;
+        // Draw corpses
+        for (body, _) in iter_components!(ecs, (CorpseComponent, BodyComponent), (BodyComponent)) {
             draw_square(
                 body,
-                color,
+                CORPSE_COLOR,
                 CREATURE_PIXEL_SIZE,
                 pixels,
                 window_width,
                 window_height,
             );
-        } else {
-            continue;
         }
 
-        if let Some(creature) = ecs.get_component::<CreatureComponent>(&info) {
-            // Draw health bar
-            draw_rec(
-                (
-                    pos.get_x(),
-                    pos.get_y() - CREATURE_PIXEL_SIZE as f64 / 2.0 - BAR_HEIGHT as f64 / 2.0 - 5.0,
-                ),
-                HEALTH_COLOR,
-                (
-                    (BAR_WIDTH as f32 * creature.health / MAX_HEALTH) as u32,
-                    BAR_HEIGHT,
-                ),
-                pixels,
-                window_width,
-                window_height,
-            );
+        // Get all creatures in the order of their entity ID.
+        // The point is to always draw them in the same order, to avoid an ugly "flickering" effect
+        // (they change archetype from one iteration to the next)
+        let mut creature_infos: Vec<EntityInfo> =
+            iter_entities!(ecs, CreatureComponent, BodyComponent).collect();
+        creature_infos.sort_by(|a, b| a.entity.cmp(&b.entity));
 
-            // Draw energy bar
-            draw_rec(
-                (
-                    pos.get_x(),
-                    pos.get_y()
-                        - CREATURE_PIXEL_SIZE as f64 / 2.0
-                        - BAR_HEIGHT as f64 * 1.5
-                        - 5.0 * 2.0,
-                ),
-                ENERGY_COLOR,
-                (
-                    (BAR_WIDTH as f32 * creature.energy / MAX_ENERGY) as u32,
-                    BAR_HEIGHT,
-                ),
-                pixels,
-                window_width,
-                window_height,
-            );
+        // Draw creatures
+        for info in creature_infos {
+            // Check what kind of creature this is
+            let color = if ecs.has_component(info.arch_index, &to_ctype!(HerbivorousComponent)) {
+                HERBIVOROUS_COLOR
+            } else {
+                CARNIVOROUS_COLOR
+            };
+            let pos;
+            if let Some(body) = ecs.get_component::<BodyComponent>(&info) {
+                pos = *body;
+                draw_square(
+                    body,
+                    color,
+                    CREATURE_PIXEL_SIZE,
+                    pixels,
+                    window_width,
+                    window_height,
+                );
+            } else {
+                continue;
+            }
+
+            if let Some(creature) = ecs.get_component::<CreatureComponent>(&info) {
+                // Draw health bar
+                draw_rec(
+                    (
+                        pos.get_x(),
+                        pos.get_y()
+                            - CREATURE_PIXEL_SIZE as f64 / 2.0
+                            - BAR_HEIGHT as f64 / 2.0
+                            - 5.0,
+                    ),
+                    HEALTH_COLOR,
+                    (
+                        (BAR_WIDTH as f32 * creature.health / MAX_HEALTH) as u32,
+                        BAR_HEIGHT,
+                    ),
+                    pixels,
+                    window_width,
+                    window_height,
+                );
+
+                // Draw energy bar
+                draw_rec(
+                    (
+                        pos.get_x(),
+                        pos.get_y()
+                            - CREATURE_PIXEL_SIZE as f64 / 2.0
+                            - BAR_HEIGHT as f64 * 1.5
+                            - 5.0 * 2.0,
+                    ),
+                    ENERGY_COLOR,
+                    (
+                        (BAR_WIDTH as f32 * creature.energy / MAX_ENERGY) as u32,
+                        BAR_HEIGHT,
+                    ),
+                    pixels,
+                    window_width,
+                    window_height,
+                );
+            }
+        }
+
+        // Draw obstacles
+        for info in iter_entities!(ecs, ObstacleComponent, BodyComponent) {
+            if let Some(body) = ecs.get_component::<BodyComponent>(&info) {
+                draw_square(
+                    body,
+                    OBSTACLE_COLOR,
+                    OBSTACLE_PIXEL_SIZE,
+                    pixels,
+                    window_width,
+                    window_height,
+                );
+            }
+        }
+
+        // Draw food
+        for info in iter_entities!(ecs, FoodComponent, BodyComponent) {
+            if let Some(body) = ecs.get_component::<BodyComponent>(&info) {
+                draw_square(
+                    body,
+                    FOOD_COLOR,
+                    FOOD_PIXEL_SIZE,
+                    pixels,
+                    window_width,
+                    window_height,
+                );
+            }
+        }
+
+        // Draw body grid lines
+        if self.display_body_grid {
+            draw_body_grid(pixels, window_width, window_height);
         }
     }
+}
 
-    // Draw obstacles
-    for info in iter_entities!(ecs, ObstacleComponent, BodyComponent) {
-        if let Some(body) = ecs.get_component::<BodyComponent>(&info) {
-            draw_square(
-                body,
-                OBSTACLE_COLOR,
-                OBSTACLE_PIXEL_SIZE,
-                pixels,
-                window_width,
-                window_height,
-            );
-        }
-    }
-
-    // Draw food
-    for info in iter_entities!(ecs, FoodComponent, BodyComponent) {
-        if let Some(body) = ecs.get_component::<BodyComponent>(&info) {
-            draw_square(
-                body,
-                FOOD_COLOR,
-                FOOD_PIXEL_SIZE,
-                pixels,
-                window_width,
-                window_height,
-            );
-        }
-    }
-
+fn draw_body_grid(pixels: &mut [u8], window_width: u32, window_height: u32) {
     let (g_x, g_y, g_w, g_h, g_cell_size) = body_grid::get_coords();
 
-    // Draw body grid lines
     let mut j = 0;
     loop {
         let y = g_y + g_cell_size * (j as f64);
