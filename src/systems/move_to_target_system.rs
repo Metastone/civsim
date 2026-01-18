@@ -69,7 +69,7 @@ fn try_move(
         || target_body.get_y() != move_to_target.target_body.get_y()
     {
         move_to_target.target_body = target_body;
-        if !move_to_target.compute_path() {
+        if !move_to_target.compute_path(body) {
             return MoveToTargetResult::Stopped;
         }
     }
@@ -88,7 +88,7 @@ fn try_move(
         MoveResult::Collision => {
             // Try to re-compute a new path
             // Will move next iteration
-            if !move_to_target.compute_path() {
+            if !move_to_target.compute_path(body) {
                 return MoveToTargetResult::Stopped;
             }
         }

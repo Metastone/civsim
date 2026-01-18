@@ -318,6 +318,11 @@ impl BodyGrid {
             bodies.retain(|(_, b)| b.get_w() != 0.0 || b.get_h() != 0.0);
         }
     }
+
+    // TODO remove later
+    fn is_empty_cell(&self, cell_x: usize, cell_y: usize) -> bool {
+        self.grid[cell_y * self.nb_cells_x + cell_x].is_empty()
+    }
 }
 
 pub fn try_translate(entity: EntityId, body: &BodyComponent, offset_x: f64, offset_y: f64) -> bool {
@@ -340,6 +345,28 @@ pub fn purge_deleted_bodies() {
     BODY_GRID.with_borrow_mut(|grid| grid.purge_deleted_bodies());
 }
 
-pub fn get_coords() -> (f64, f64, f64, f64, f64) {
-    BODY_GRID.with_borrow(|grid| (grid.x, grid.y, grid.w, grid.h, grid.cell_size))
+pub fn get_coords() -> (f64, f64, f64, f64, f64, usize, usize) {
+    BODY_GRID.with_borrow(|grid| {
+        (
+            grid.x,
+            grid.y,
+            grid.w,
+            grid.h,
+            grid.cell_size,
+            grid.nb_cells_x,
+            grid.nb_cells_y,
+        )
+    })
+}
+
+pub fn get_cell_coords_with_resize(x: f64, y: f64) -> (usize, usize) {
+    let temp_body = BodyComponent::new_traversable(x, y, 0.0, 0.0);
+    match BODY_GRID.with_borrow_mut(|grid| grid.get_cell_coords_with_resize(&temp_body)) {
+        GetCoordsResult::Ok(cell_x, cell_y) => (cell_x, cell_y),
+        GetCoordsResult::GridResized(cell_x, cell_y) => (cell_x, cell_y),
+    }
+}
+
+pub fn is_empty_cell(cell_x: usize, cell_y: usize) -> bool {
+    BODY_GRID.with_borrow(|grid| grid.is_empty_cell(cell_x, cell_y))
 }

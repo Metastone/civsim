@@ -1,3 +1,4 @@
+mod algorithms;
 mod components;
 mod constants;
 #[macro_use]

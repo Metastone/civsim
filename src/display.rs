@@ -146,7 +146,7 @@ impl Display {
 }
 
 fn draw_body_grid(pixels: &mut [u8], window_width: u32, window_height: u32) {
-    let (g_x, g_y, g_w, g_h, g_cell_size) = body_grid::get_coords();
+    let (g_x, g_y, g_w, g_h, g_cell_size, _, _) = body_grid::get_coords();
 
     let mut j = 0;
     loop {
