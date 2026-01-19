@@ -9,6 +9,20 @@ pub struct WayPoint {
     reached: bool,
 }
 
+impl WayPoint {
+    pub fn get_x(&self) -> f64 {
+        self.x
+    }
+
+    pub fn get_y(&self) -> f64 {
+        self.y
+    }
+
+    pub fn get_reached(&self) -> bool {
+        self.reached
+    }
+}
+
 #[derive(Clone)]
 pub struct MoveToTargetComponent {
     pub target_entity: EntityId,
@@ -96,5 +110,9 @@ impl MoveToTargetComponent {
             }
         }
         None
+    }
+
+    pub fn get_path(&self) -> &Vec<WayPoint> {
+        &self.path
     }
 }

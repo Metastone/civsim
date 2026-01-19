@@ -1,5 +1,6 @@
 use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
+use crate::components::move_to_target_component::MoveToTargetComponent;
 use crate::constants::*;
 use crate::ecs::Ecs;
 use crate::ecs::EntityInfo;
@@ -7,18 +8,16 @@ use crate::shared_data::body_grid;
 use std::any::TypeId;
 
 pub struct Display {
-    display_body_grid: bool,
+    debug_mode: bool,
 }
 
 impl Display {
     pub fn new() -> Self {
-        Display {
-            display_body_grid: false,
-        }
+        Display { debug_mode: false }
     }
 
-    pub fn toogle_display_body_grid(&mut self) {
-        self.display_body_grid = !self.display_body_grid;
+    pub fn toogle_debug_mode(&mut self) {
+        self.debug_mode = !self.debug_mode;
     }
 
     pub fn draw(&self, ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: u32) {
@@ -138,9 +137,9 @@ impl Display {
             }
         }
 
-        // Draw body grid lines
-        if self.display_body_grid {
+        if self.debug_mode {
             draw_body_grid(pixels, window_width, window_height);
+            draw_waypoints(ecs, pixels, window_width, window_height);
         }
     }
 }
@@ -181,6 +180,25 @@ fn draw_body_grid(pixels: &mut [u8], window_width: u32, window_height: u32) {
             window_height,
         );
         i += 1;
+    }
+}
+
+fn draw_waypoints(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: u32) {
+    for (move_to_target_component, ..) in iter_components!(ecs, (), (MoveToTargetComponent)) {
+        for waypoint in move_to_target_component.get_path() {
+            draw_rec(
+                (waypoint.get_x(), waypoint.get_y()),
+                if waypoint.get_reached() {
+                    WAYPOINT_REACHED_COLOR
+                } else {
+                    WAYPOINT_COLOR
+                },
+                (WAYPOINT_PIXEL_SIZE, WAYPOINT_PIXEL_SIZE),
+                pixels,
+                window_width,
+                window_height,
+            );
+        }
     }
 }
 

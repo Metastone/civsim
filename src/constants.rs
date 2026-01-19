@@ -18,6 +18,7 @@ pub const MAX_HEALTH: f32 = 100.0;
 pub const CREATURE_PIXEL_SIZE: u32 = 30;
 pub const FOOD_PIXEL_SIZE: u32 = 10;
 pub const OBSTACLE_PIXEL_SIZE: u32 = 85;
+pub const WAYPOINT_PIXEL_SIZE: u32 = 10;
 pub const CELL_SIZE_FACTOR: f64 = 3.0;
 pub const CONTACT_CENTER_2_CENTER_FACTOR: f64 = 1.3;
 
@@ -32,6 +33,8 @@ pub const ENERGY_COLOR: &[u8] = &[0x11, 0xff, 0x88, 0xff];
 pub const HEALTH_COLOR: &[u8] = &[0xff, 0x11, 0x11, 0xff];
 pub const CORPSE_COLOR: &[u8] = &[0x44, 0x11, 0x11, 0xff];
 pub const OBSTACLE_COLOR: &[u8] = &[0x77, 0x33, 0x33, 0xff];
+pub const WAYPOINT_COLOR: &[u8] = &[0x22, 0x33, 0xff, 0xff];
+pub const WAYPOINT_REACHED_COLOR: &[u8] = &[0x55, 0xaa, 0xff, 0xff];
 pub const GRID_COLOR: &[u8] = &[0xff, 0x00, 0x00, 0xff];
 
 pub const HERBIVOROUS_SPEED: f64 = 1.5; // Pixels per iteration

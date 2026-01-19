@@ -236,7 +236,7 @@ impl ApplicationHandler for App<'_> {
                     && event.state == ElementState::Pressed
                     && !event.repeat
                 {
-                    self.world.display.toogle_display_body_grid();
+                    self.world.display.toogle_debug_mode();
                 }
             }
             _ => (),
