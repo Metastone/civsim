@@ -30,7 +30,9 @@ pub struct MoveToTargetComponent {
     path: Vec<WayPoint>,
     pub speed: f64,
 }
+
 impl Component for MoveToTargetComponent {}
+
 impl MoveToTargetComponent {
     pub fn new(target_entity: EntityId, target_body: BodyComponent, speed: f64) -> Self {
         Self {
@@ -41,7 +43,7 @@ impl MoveToTargetComponent {
         }
     }
 
-    pub fn compute_path(&mut self, body: &BodyComponent) -> bool {
+    pub fn compute_path(&mut self, entity: EntityId, body: &BodyComponent) -> bool {
         // TODO Use PRM-like algorithm in the starting body grid cell to construct a graph (graph A)
         // of all safely reachable places around the starting point.
         // (Add creature size to the obstacles radius)
@@ -66,6 +68,7 @@ impl MoveToTargetComponent {
 
         let mut graph = Graph::new();
         let (start_node, end_node) = graph.add_body_grid_nodes(
+            entity,
             body.get_x(),
             body.get_y(),
             self.target_body.get_x(),
@@ -81,6 +84,14 @@ impl MoveToTargetComponent {
                     reached: false,
                 });
             }
+
+            // Add the target position as the last waypoint
+            self.path.push(WayPoint {
+                x: self.target_body.get_x(),
+                y: self.target_body.get_y(),
+                reached: false,
+            });
+
             return true;
         }
 

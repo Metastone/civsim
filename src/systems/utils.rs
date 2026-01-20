@@ -16,8 +16,7 @@ pub fn move_towards_waypoint(
     waypoint_y: f64,
     speed: f64,
 ) -> MoveResult {
-    let waypoint_temp_body = BodyComponent::new_traversable(waypoint_x, waypoint_y, 0.0, 0.0);
-    if body.almost_collides(&waypoint_temp_body, CONTACT_CENTER_2_CENTER_FACTOR) {
+    if body.almost_at_position(waypoint_x, waypoint_y, speed) {
         MoveResult::WaypointReached
     } else {
         // Get closer to the target

@@ -107,6 +107,7 @@ where
 
 pub type EntityId = usize;
 
+// Not a real entity ID, reserved for entities "to delete"
 pub const RESERVED_ENTITY_ID: EntityId = 0;
 
 pub struct EntityIdAllocator {
@@ -114,7 +115,9 @@ pub struct EntityIdAllocator {
 }
 impl EntityIdAllocator {
     pub fn new() -> Self {
-        EntityIdAllocator { next_id: 1 } // 0 is reserved for entities "to delete"
+        EntityIdAllocator {
+            next_id: RESERVED_ENTITY_ID + 1,
+        }
     }
 
     pub fn get_next_id(&mut self) -> usize {

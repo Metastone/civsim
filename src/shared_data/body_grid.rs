@@ -195,24 +195,19 @@ impl BodyGrid {
         false
     }
 
-    fn collides_in_surronding_cells(
-        &mut self,
-        entity: EntityId,
-        translated_body: &BodyComponent,
-    ) -> bool {
-        let (t_body_cell_x, t_body_cell_y) = match self.get_cell_coords_with_resize(translated_body)
-        {
+    fn collides_in_surronding_cells(&mut self, entity: EntityId, body: &BodyComponent) -> bool {
+        let (body_cell_x, body_cell_y) = match self.get_cell_coords_with_resize(body) {
             GetCoordsResult::Ok(x, y) => (x, y),
             GetCoordsResult::GridResized(x, y) => (x, y),
         };
 
         for i in -1..2 {
-            let cell_x = t_body_cell_x as i64 + i;
+            let cell_x = body_cell_x as i64 + i;
             if cell_x < 0 || cell_x >= self.nb_cells_x as i64 {
                 continue;
             }
             for j in -1..2 {
-                let cell_y = t_body_cell_y as i64 + j;
+                let cell_y = body_cell_y as i64 + j;
                 if cell_y < 0 || cell_y >= self.nb_cells_y as i64 {
                     continue;
                 }
@@ -223,7 +218,7 @@ impl BodyGrid {
                     if is_deleted_body || is_itself {
                         continue;
                     }
-                    if translated_body.collides(b) {
+                    if body.collides(b) {
                         return true;
                     }
                 }
@@ -329,8 +324,8 @@ pub fn try_translate(entity: EntityId, body: &BodyComponent, offset_x: f64, offs
     BODY_GRID.with_borrow_mut(|grid| grid.try_translate(entity, body, offset_x, offset_y))
 }
 
-pub fn collides_in_surronding_cells(entity: EntityId, translated_body: &BodyComponent) -> bool {
-    BODY_GRID.with_borrow_mut(|grid| grid.collides_in_surronding_cells(entity, translated_body))
+pub fn collides_in_surronding_cells(entity: EntityId, body: &BodyComponent) -> bool {
+    BODY_GRID.with_borrow_mut(|grid| grid.collides_in_surronding_cells(entity, body))
 }
 
 pub fn add(entity: EntityId, body: &BodyComponent) {

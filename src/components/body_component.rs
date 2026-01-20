@@ -1,3 +1,4 @@
+use ordered_float::Float;
 use rand::rngs::SmallRng;
 use rand::Rng;
 use rand::SeedableRng;
@@ -10,11 +11,17 @@ use crate::shared_data::body_grid;
 
 #[derive(Clone, Copy)]
 pub struct BodyComponent {
+    // Position of the center of the body
     x: f64,
     y: f64,
+
+    // Size of the body on x and y axis respectively
     w: f64,
     h: f64,
+
+    // Cannot collide with anything, not added to body grid
     is_traversable: bool,
+
     init_with_random_pos: bool,
 }
 
@@ -139,5 +146,9 @@ impl BodyComponent {
             && (self.x + (self.w / 2.0) * factor) > (other.x - (other.w / 2.0) * factor)
             && (self.y - (self.h / 2.0) * factor) < (other.y + (other.h / 2.0) * factor)
             && (self.y + (self.h / 2.0) * factor) > (other.y - (other.h / 2.0) * factor)
+    }
+
+    pub fn almost_at_position(&self, x: f64, y: f64, margin: f64) -> bool {
+        (self.x - x).abs() < margin && (self.y - y).abs() < margin
     }
 }

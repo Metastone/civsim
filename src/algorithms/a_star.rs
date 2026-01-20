@@ -1,3 +1,5 @@
+use crate::components::body_component::BodyComponent;
+use crate::ecs::{self, EntityId};
 use crate::shared_data::body_grid;
 use ordered_float::OrderedFloat;
 use std::cmp;
@@ -68,6 +70,7 @@ impl Graph {
     // respective positions)
     pub fn add_body_grid_nodes(
         &mut self,
+        entity: EntityId,
         start_x: f64,
         start_y: f64,
         goal_x: f64,
@@ -110,44 +113,74 @@ impl Graph {
             for cell_y in min_y..(max_y + 1) {
                 let cell_center_y = coords.to_y(cell_y);
 
-                // Add the node to graph only if the corresponding cell is empty
-                // TODO take into account the surronding cells and size of the moving body
-                if cell_x as usize != s_cell_x
-                    && cell_y as usize != s_cell_y
-                    && !body_grid::is_empty_cell(cell_x as usize, cell_y as usize)
-                {
-                    continue;
+                // Add the node to graph only if the corresponding cell is not colliding anything
+                // But always add the starting cell (TODO until PRM is implemented)
+                if cell_x as usize != s_cell_x && cell_y as usize != s_cell_y {
+                    let cell_body = BodyComponent::new_traversable(
+                        *cell_center_x,
+                        *cell_center_y,
+                        grid_cell_size,
+                        grid_cell_size,
+                    );
+                    if body_grid::collides_in_surronding_cells(entity, &cell_body) {
+                        continue;
+                    }
                 }
 
-                // Compute the neighbours nodes
+                // Compute the neighbours nodes & add them to the graph if not colliding anything
                 let mut neighbours = Vec::with_capacity(4);
+
+                // Left node
                 if cell_x > 0 {
-                    // Left neighbour
-                    neighbours.push(Node {
-                        x: coords.to_x(cell_x - 1),
-                        y: coords.to_y(cell_y),
-                    })
+                    add_to_neighbour_if_ok(
+                        entity,
+                        cell_x - 1,
+                        cell_y,
+                        *cell_center_x - grid_cell_size,
+                        *cell_center_y,
+                        grid_cell_size,
+                        &mut neighbours,
+                        &coords,
+                    );
                 }
+                // Right node
                 if cell_x < max_x {
-                    // Right neighbour
-                    neighbours.push(Node {
-                        x: coords.to_x(cell_x + 1),
-                        y: coords.to_y(cell_y),
-                    })
+                    add_to_neighbour_if_ok(
+                        entity,
+                        cell_x + 1,
+                        cell_y,
+                        *cell_center_x + grid_cell_size,
+                        *cell_center_y,
+                        grid_cell_size,
+                        &mut neighbours,
+                        &coords,
+                    );
                 }
+                // Up node
                 if cell_y > 0 {
-                    // Up neighbour
-                    neighbours.push(Node {
-                        x: coords.to_x(cell_x),
-                        y: coords.to_y(cell_y - 1),
-                    })
+                    add_to_neighbour_if_ok(
+                        entity,
+                        cell_x,
+                        cell_y - 1,
+                        *cell_center_x,
+                        *cell_center_y - grid_cell_size,
+                        grid_cell_size,
+                        &mut neighbours,
+                        &coords,
+                    );
                 }
+                // Down node
                 if cell_y < max_y {
-                    // Down neighbour
-                    neighbours.push(Node {
-                        x: coords.to_x(cell_x),
-                        y: coords.to_y(cell_y + 1),
-                    })
+                    add_to_neighbour_if_ok(
+                        entity,
+                        cell_x,
+                        cell_y + 1,
+                        *cell_center_x,
+                        *cell_center_y + grid_cell_size,
+                        grid_cell_size,
+                        &mut neighbours,
+                        &coords,
+                    );
                 }
 
                 self.neighbours.insert(
@@ -172,6 +205,33 @@ impl Graph {
                 y: coords.to_y(g_cell_y as isize),
             },
         )
+    }
+}
+
+fn add_to_neighbour_if_ok(
+    entity: EntityId,
+    cell_x: isize,
+    cell_y: isize,
+    cell_center_x: f64,
+    cell_center_y: f64,
+    grid_cell_size: f64,
+    neighbours: &mut Vec<Node>,
+    coords: &Grid2CenterCoordConvertor,
+) {
+    let cell_body = BodyComponent::new_traversable(
+        cell_center_x,
+        cell_center_y,
+        grid_cell_size,
+        grid_cell_size,
+    );
+    // Use the cell body to make sure that the whole cell is empty and does not collides anything,
+    // and make sure that we don't detect a collision with the entity for which we are looking for
+    // path.
+    if !body_grid::collides_in_surronding_cells(entity, &cell_body) {
+        neighbours.push(Node {
+            x: coords.to_x(cell_x),
+            y: coords.to_y(cell_y),
+        });
     }
 }
 

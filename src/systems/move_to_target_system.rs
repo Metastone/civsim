@@ -69,7 +69,7 @@ fn try_move(
         || target_body.get_y() != move_to_target.target_body.get_y()
     {
         move_to_target.target_body = target_body;
-        if !move_to_target.compute_path(body) {
+        if !move_to_target.compute_path(info.entity, body) {
             return MoveToTargetResult::Stopped;
         }
     }
@@ -77,7 +77,6 @@ fn try_move(
     let (waypoint_x, waypoint_y) = move_to_target.get_next_waypoint().unwrap();
 
     // Try to move the entity towards the next waypoint
-    // TODO Distinguish reaching last waypoint VS reaching target
     match move_towards_waypoint(info, body, waypoint_x, waypoint_y, move_to_target.speed) {
         MoveResult::WaypointReached => {
             move_to_target.waypoint_reached();
@@ -88,7 +87,7 @@ fn try_move(
         MoveResult::Collision => {
             // Try to re-compute a new path
             // Will move next iteration
-            if !move_to_target.compute_path(body) {
+            if !move_to_target.compute_path(info.entity, body) {
                 return MoveToTargetResult::Stopped;
             }
         }
