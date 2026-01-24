@@ -1,5 +1,7 @@
+use crate::algorithms::rng;
 use crate::components::body_component::BodyComponent;
-use crate::ecs::{self, EntityId};
+use crate::constants::NB_PRM_POSITIONS_GENERATED;
+use crate::ecs::EntityId;
 use crate::shared_data::body_grid;
 use ordered_float::OrderedFloat;
 use std::cmp;
@@ -122,7 +124,7 @@ impl Graph {
                         grid_cell_size,
                         grid_cell_size,
                     );
-                    if body_grid::collides_in_surronding_cells(entity, &cell_body) {
+                    if body_grid::collides(entity, &cell_body) {
                         continue;
                     }
                 }
@@ -206,6 +208,71 @@ impl Graph {
             },
         )
     }
+
+    // PRM-like algorithm to generate a graph of nodes around the target in which the body can
+    // safely navigate without colliding anything
+    pub fn add_prm_nodes(
+        &mut self,
+        entity: EntityId,
+        body: &BodyComponent,
+        target_x: f64,
+        target_y: f64,
+    ) {
+        let (_, _, _, _, grid_cell_size, ..) = body_grid::get_coords();
+        let radius = 1.5 * grid_cell_size;
+
+        // In a radius (squared) around the target, randomly generate non-colliding positions
+        let mut nodes = Vec::new();
+        for _ in 0..NB_PRM_POSITIONS_GENERATED {
+            let x = rng::random_range(target_x - radius, target_x + radius);
+            let y = rng::random_range(target_y - radius, target_y + radius);
+            let temp_body = BodyComponent::new_traversable(x, y, body.get_w(), body.get_h());
+            if !body_grid::collides(entity, &temp_body) {
+                let node = Node {
+                    x: OrderedFloat(x),
+                    y: OrderedFloat(y),
+                };
+                self.neighbours.entry(node).or_insert_with(|| {
+                    nodes.push(node);
+                    Vec::new()
+                });
+            }
+        }
+
+        // Connect these positions if the resulting edge does not intersect anything
+        // (to check this, inflate the bodies size by size of the entity to move)
+        let max_d = max_distance_for_connected_dots(radius, NB_PRM_POSITIONS_GENERATED);
+        for i in 0..nodes.len() {
+            for j in (i + 1)..nodes.len() {
+                if square_euclidian_distance(&nodes[i], &nodes[j]) < max_d.powi(2)
+                    && !body_grid::edge_collides(
+                        (nodes[i].get_x(), nodes[i].get_x()),
+                        (nodes[j].get_x(), nodes[j].get_y()),
+                        entity,
+                        (body.get_w(), body.get_h()),
+                    )
+                {
+                    self.neighbours.get_mut(&nodes[i]).unwrap().push(nodes[j]);
+                    self.neighbours.get_mut(&nodes[j]).unwrap().push(nodes[i]);
+                }
+            }
+        }
+
+        // Connect this graph to the center of the cells surronding the target in the body grid
+    }
+}
+
+fn max_distance_for_connected_dots(r: f64, n: usize) -> f64 {
+    /* Expected distance from a point to its neigbors in homogeneous spatial poisson process:
+     * 1 / (2 * sqrt(lambda)) where lambda is the density.
+     * Inside a disk lambda is N / (pi * r**2).
+     * With N the number of points.
+     * So the expected distance is (r * sqrt(pi)) / (2 * sqrt(N))
+     *
+     * I multiply it by 2 to get a margin for connecting the dots.
+     */
+    let pi_sqrt = 1.772453851;
+    (r * pi_sqrt) / (n as f64).sqrt()
 }
 
 fn add_to_neighbour_if_ok(
@@ -227,7 +294,7 @@ fn add_to_neighbour_if_ok(
     // Use the cell body to make sure that the whole cell is empty and does not collides anything,
     // and make sure that we don't detect a collision with the entity for which we are looking for
     // path.
-    if !body_grid::collides_in_surronding_cells(entity, &cell_body) {
+    if !body_grid::collides(entity, &cell_body) {
         neighbours.push(Node {
             x: coords.to_x(cell_x),
             y: coords.to_y(cell_y),
@@ -238,7 +305,7 @@ fn add_to_neighbour_if_ok(
 pub fn find_reverse_path(graph: &Graph, start: Node, goal: Node) -> Option<Vec<Node>> {
     // Set of discovered nodes
     let mut open_list: Vec<(Node, OrderedFloat<f64>)> = Vec::new();
-    open_list.push((start, OrderedFloat(distance(&start, &goal))));
+    open_list.push((start, OrderedFloat(manhattan_distance(&start, &goal))));
 
     let mut came_from: HashMap<Node, Node> = HashMap::new();
 
@@ -260,14 +327,19 @@ pub fn find_reverse_path(graph: &Graph, start: Node, goal: Node) -> Option<Vec<N
             return Some(reconstruct_path(&came_from, &u));
         }
 
+        // Note: when estimating distances, I assume that the graph is mostly a "grid"
+        // => Hence the usage of manhattan distance
+        // For short paths, this is not true (because of graph partly constructed with PRM-like algo)
+        // TODO improve the distance estimation
+
         for v in graph.get_neighbours(&u).iter() {
             // Check if this path is better than any previous one that passes through v.
             // To do this, compute the length of the path from start to v.
-            let try_g_cost = *g_cost.get(&u).unwrap() + distance(&u, v);
+            let try_g_cost = *g_cost.get(&u).unwrap() + manhattan_distance(&u, v);
             let g_cost_v = g_cost.get(v);
             if g_cost_v.is_none() || try_g_cost < *g_cost_v.unwrap() {
                 // Best path through v ! Estimate total distance to the goal
-                let f_score = try_g_cost + distance(v, &goal);
+                let f_score = try_g_cost + manhattan_distance(v, &goal);
 
                 // Store (or update if v already known) the estimated distance
                 came_from.insert(*v, u);
@@ -286,7 +358,12 @@ pub fn find_reverse_path(graph: &Graph, start: Node, goal: Node) -> Option<Vec<N
     None
 }
 
-fn distance(a: &Node, b: &Node) -> f64 {
+fn square_euclidian_distance(a: &Node, b: &Node) -> f64 {
+    (a.get_x() - b.get_x()).powi(2) + (a.get_y() - b.get_y()).powi(2)
+}
+
+// Accurate for distances in a "grid" graph where you can only go in the 4 cardinal directions
+fn manhattan_distance(a: &Node, b: &Node) -> f64 {
     (a.x.into_inner() - b.x.into_inner()).abs() + (a.y.into_inner() - b.y.into_inner()).abs()
 }
 

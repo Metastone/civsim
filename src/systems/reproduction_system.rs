@@ -29,7 +29,7 @@ impl System for ReproductionSystem {
             );
 
             // Reproduce only if there is a free space for the new creature
-            if body_grid::collides_in_surronding_cells(RESERVED_ENTITY_ID, &new_body) {
+            if body_grid::collides(RESERVED_ENTITY_ID, &new_body) {
                 continue;
             }
 

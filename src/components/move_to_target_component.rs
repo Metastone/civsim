@@ -1,4 +1,4 @@
-use crate::algorithms::a_star::{find_reverse_path, Graph};
+use crate::algorithms::path_finding::{find_reverse_path, Graph};
 use crate::components::body_component::BodyComponent;
 use crate::ecs::{Component, EntityId};
 
@@ -71,6 +71,13 @@ impl MoveToTargetComponent {
             entity,
             body.get_x(),
             body.get_y(),
+            self.target_body.get_x(),
+            self.target_body.get_y(),
+        );
+
+        graph.add_prm_nodes(
+            entity,
+            body,
             self.target_body.get_x(),
             self.target_body.get_y(),
         );

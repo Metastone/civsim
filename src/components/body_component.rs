@@ -1,9 +1,4 @@
-use ordered_float::Float;
-use rand::rngs::SmallRng;
-use rand::Rng;
-use rand::SeedableRng;
-use std::cell::RefCell;
-
+use crate::algorithms::rng;
 use crate::constants::*;
 use crate::ecs::Component;
 use crate::ecs::EntityId;
@@ -27,28 +22,15 @@ pub struct BodyComponent {
 
 impl Component for BodyComponent {
     fn on_create(&mut self, entity: EntityId) {
-        // Initialize RNG
-        thread_local! {
-            static RNG: RefCell<SmallRng> = if RNG_SEED != 0 {
-                RefCell::new(SmallRng::seed_from_u64(RNG_SEED))
-            } else {
-                RefCell::new(SmallRng::from_rng(&mut rand::rng()))
-            }
-        };
-
         // Generate a random position that does not collides with any already existing body
         if self.init_with_random_pos {
             loop {
-                let x = RNG.with_borrow_mut(|rng| {
-                    rng.random_range((SCREEN_WIDTH as f64 / -2.0)..(SCREEN_WIDTH as f64 / 2.0))
-                });
-                let y = RNG.with_borrow_mut(|rng| {
-                    rng.random_range((SCREEN_HEIGHT as f64 / -2.0)..(SCREEN_HEIGHT as f64 / 2.0))
-                });
+                let x = rng::random_range(SCREEN_WIDTH as f64 / -2.0, SCREEN_WIDTH as f64 / 2.0);
+                let y = rng::random_range(SCREEN_HEIGHT as f64 / -2.0, SCREEN_HEIGHT as f64 / 2.0);
 
                 self.x = x;
                 self.y = y;
-                if self.is_traversable || !body_grid::collides_in_surronding_cells(entity, self) {
+                if self.is_traversable || !body_grid::collides(entity, self) {
                     break;
                 }
             }

@@ -227,6 +227,26 @@ impl BodyGrid {
         false
     }
 
+    fn edge_collides(
+        &mut self,
+        position_a: (f64, f64),
+        position_b: (f64, f64),
+        entity: EntityId,
+        margin: (f64, f64),
+    ) -> bool {
+    }
+
+    fn edge_collides_body(position_a: (f64, f64), position_b: (f64, f64), body: &BodyComponent) {}
+
+    // First edge is [a, b], second edge is [c, d]
+    fn edge_collides_edge(
+        pos_a: (f64, f64),
+        pos_b: (f64, f64),
+        pos_c: (f64, f64),
+        pos_d: (f64, f64),
+    ) {
+    }
+
     fn translate(
         &mut self,
         entity: EntityId,
@@ -313,19 +333,23 @@ impl BodyGrid {
             bodies.retain(|(_, b)| b.get_w() != 0.0 || b.get_h() != 0.0);
         }
     }
-
-    // TODO remove later
-    fn is_empty_cell(&self, cell_x: usize, cell_y: usize) -> bool {
-        self.grid[cell_y * self.nb_cells_x + cell_x].is_empty()
-    }
 }
 
 pub fn try_translate(entity: EntityId, body: &BodyComponent, offset_x: f64, offset_y: f64) -> bool {
     BODY_GRID.with_borrow_mut(|grid| grid.try_translate(entity, body, offset_x, offset_y))
 }
 
-pub fn collides_in_surronding_cells(entity: EntityId, body: &BodyComponent) -> bool {
+pub fn collides(entity: EntityId, body: &BodyComponent) -> bool {
     BODY_GRID.with_borrow_mut(|grid| grid.collides_in_surronding_cells(entity, body))
+}
+
+pub fn edge_collides(
+    position_a: (f64, f64),
+    position_b: (f64, f64),
+    entity: EntityId,
+    margin: (f64, f64),
+) -> bool {
+    BODY_GRID.with_borrow_mut(|grid| grid.edge_collides(position_a, position_b, entity, margin))
 }
 
 pub fn add(entity: EntityId, body: &BodyComponent) {
@@ -360,8 +384,4 @@ pub fn get_cell_coords_with_resize(x: f64, y: f64) -> (usize, usize) {
         GetCoordsResult::Ok(cell_x, cell_y) => (cell_x, cell_y),
         GetCoordsResult::GridResized(cell_x, cell_y) => (cell_x, cell_y),
     }
-}
-
-pub fn is_empty_cell(cell_x: usize, cell_y: usize) -> bool {
-    BODY_GRID.with_borrow(|grid| grid.is_empty_cell(cell_x, cell_y))
 }
