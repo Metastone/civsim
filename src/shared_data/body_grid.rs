@@ -90,10 +90,17 @@ impl BodyGrid {
         }
     }
 
-    fn get_cell_coords_with_resize(&mut self, body: &BodyComponent) -> GetCoordsResult {
-        // Get body coordinates relative to the grid
-        let x_in_grid = body.get_x() - self.x;
-        let y_in_grid = body.get_y() - self.y;
+    fn get_cell_coords(&mut self, x: f64, y: f64) -> (usize, usize) {
+        match self.get_cell_coords_impl(x, y) {
+            GetCoordsResult::Ok(cell_x, cell_y) => (cell_x, cell_y),
+            GetCoordsResult::GridResized(cell_x, cell_y) => (cell_x, cell_y),
+        }
+    }
+
+    fn get_cell_coords_impl(&mut self, x: f64, y: f64) -> GetCoordsResult {
+        // Get coordinates relative to the grid
+        let x_in_grid = x - self.x;
+        let y_in_grid = y - self.y;
 
         /* Check if a grid resize is required on x and y axis independently.
          * If a resize is required, the grid will be made at least twice bigger,
@@ -136,8 +143,8 @@ impl BodyGrid {
             self.h = self.cell_size * nb_cells_y as f64;
 
             return GetCoordsResult::GridResized(
-                ((body.get_x() - self.x) / self.cell_size) as usize,
-                ((body.get_y() - self.y) / self.cell_size) as usize,
+                ((x - self.x) / self.cell_size) as usize,
+                ((y - self.y) / self.cell_size) as usize,
             );
         }
 
@@ -196,7 +203,8 @@ impl BodyGrid {
     }
 
     fn collides_in_surronding_cells(&mut self, entity: EntityId, body: &BodyComponent) -> bool {
-        let (body_cell_x, body_cell_y) = match self.get_cell_coords_with_resize(body) {
+        let (body_cell_x, body_cell_y) = match self.get_cell_coords_impl(body.get_x(), body.get_y())
+        {
             GetCoordsResult::Ok(x, y) => (x, y),
             GetCoordsResult::GridResized(x, y) => (x, y),
         };
@@ -227,24 +235,53 @@ impl BodyGrid {
         false
     }
 
+    // a, b are 2D points.
     fn edge_collides(
         &mut self,
-        position_a: (f64, f64),
-        position_b: (f64, f64),
+        a: (f64, f64),
+        b: (f64, f64),
         entity: EntityId,
         margin: (f64, f64),
     ) -> bool {
-    }
+        let (a_cx, a_cy) = self.get_cell_coords(a.0, a.1);
+        let (b_cx, b_cy) = self.get_cell_coords(b.0, b.1);
 
-    fn edge_collides_body(position_a: (f64, f64), position_b: (f64, f64), body: &BodyComponent) {}
+        // Get the bounds of a rectangle that contains the 2D points A and B (vertices of the
+        // edge), with a margin
+        let margin_cx = (margin.0 / self.cell_size) as isize + 1;
+        let margin_cy = (margin.1 / self.cell_size) as isize + 1;
+        let min_x = cmp::max(0, cmp::min(a_cx as isize, b_cx as isize) - margin_cx);
+        let max_x = cmp::min(
+            self.nb_cells_x as isize - 1,
+            cmp::max(a_cx as isize, b_cx as isize) + margin_cx,
+        );
+        let min_y = cmp::max(0, cmp::min(a_cy as isize, b_cy as isize) - margin_cy);
+        let max_y = cmp::min(
+            self.nb_cells_y as isize - 1,
+            cmp::max(a_cy as isize, b_cy as isize) + margin_cy,
+        );
 
-    // First edge is [a, b], second edge is [c, d]
-    fn edge_collides_edge(
-        pos_a: (f64, f64),
-        pos_b: (f64, f64),
-        pos_c: (f64, f64),
-        pos_d: (f64, f64),
-    ) {
+        for cx in min_x..(max_x + 1) {
+            for cy in min_y..(max_y + 1) {
+                for (e, body) in self.grid[cy as usize * self.nb_cells_x + cx as usize].iter() {
+                    let is_deleted_body = body.get_w() == 0.0 && body.get_h() == 0.0;
+                    let is_itself = *e == entity;
+                    if is_deleted_body || is_itself {
+                        continue;
+                    }
+                    let inflated_body = BodyComponent::new_traversable(
+                        body.get_x(),
+                        body.get_y(),
+                        body.get_w() + margin.0,
+                        body.get_h() + margin.1,
+                    );
+                    if edge_collides_body(a, b, &inflated_body) {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
     }
 
     fn translate(
@@ -257,17 +294,19 @@ impl BodyGrid {
          * making sure that they are both valid if a grid resize occurs
          */
         let (cell_x, cell_y, t_cell_x, t_cell_y) = match (
-            self.get_cell_coords_with_resize(body),
-            self.get_cell_coords_with_resize(&translated_body),
+            self.get_cell_coords_impl(body.get_x(), body.get_y()),
+            self.get_cell_coords_impl(translated_body.get_x(), translated_body.get_y()),
         ) {
             (GetCoordsResult::Ok(x, y), GetCoordsResult::Ok(tx, ty)) => (x, y, tx, ty),
             _ => {
                 // The grid was resized, re-compute the coords to be sure they are both valid
-                let (x, y) = match self.get_cell_coords_with_resize(body) {
+                let (x, y) = match self.get_cell_coords_impl(body.get_x(), body.get_y()) {
                     GetCoordsResult::Ok(x, y) => (x, y),
                     GetCoordsResult::GridResized(x, y) => (x, y),
                 };
-                let (tx, ty) = match self.get_cell_coords_with_resize(&translated_body) {
+                let (tx, ty) = match self
+                    .get_cell_coords_impl(translated_body.get_x(), translated_body.get_y())
+                {
                     GetCoordsResult::Ok(x, y) => (x, y),
                     GetCoordsResult::GridResized(x, y) => (x, y),
                 };
@@ -299,7 +338,7 @@ impl BodyGrid {
     }
 
     fn delete(&mut self, entity: EntityId, body: &BodyComponent) {
-        let (cell_x, cell_y) = match self.get_cell_coords_with_resize(body) {
+        let (cell_x, cell_y) = match self.get_cell_coords_impl(body.get_x(), body.get_y()) {
             GetCoordsResult::Ok(x, y) => (x, y),
             GetCoordsResult::GridResized(x, y) => (x, y),
         };
@@ -316,7 +355,7 @@ impl BodyGrid {
     }
 
     fn add(&mut self, entity: EntityId, body: &BodyComponent) {
-        let (cell_x, cell_y) = match self.get_cell_coords_with_resize(body) {
+        let (cell_x, cell_y) = match self.get_cell_coords_impl(body.get_x(), body.get_y()) {
             GetCoordsResult::Ok(x, y) => (x, y),
             GetCoordsResult::GridResized(x, y) => (x, y),
         };
@@ -333,6 +372,41 @@ impl BodyGrid {
             bodies.retain(|(_, b)| b.get_w() != 0.0 || b.get_h() != 0.0);
         }
     }
+}
+
+// a, b are 2D points.
+fn edge_collides_body(a: (f64, f64), b: (f64, f64), body: &BodyComponent) -> bool {
+    /*
+     *   A       M ---- N
+     *    \      |      |
+     *     \     |      |
+     *      \    O ---- P
+     *       \
+     *        B
+     */
+    let m = (body.get_x(), body.get_y());
+    let n = (body.get_x() + body.get_w(), body.get_y());
+    let o = (body.get_x(), body.get_y() + body.get_h());
+    let p = (body.get_x() + body.get_w(), body.get_y() + body.get_h());
+
+    edge_collides_edge(a, b, m, n)
+        || edge_collides_edge(a, b, n, p)
+        || edge_collides_edge(a, b, p, o)
+        || edge_collides_edge(a, b, o, m)
+}
+
+// a, b, c, d are points. First edge is [a, b], second edge is [c, d]
+fn edge_collides_edge(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64)) -> bool {
+    // Lines equations (A, B, C, D, U are 2D points, u1 and u2 are scalar):
+    // line 1 : U = A + u1 * (B - A)
+    // line 2 : U = C + u2 * (D - C)
+
+    let u1 = ((d.0 - c.0) * (a.1 - c.1) - (d.1 - c.1) * (a.0 - c.0))
+        / ((d.1 - c.1) * (b.0 - a.0) - (d.0 - c.0) * (b.1 - a.1));
+    let u2 = ((b.0 - a.0) * (a.1 - c.1) - (b.1 - a.1) * (a.0 - c.0))
+        / ((d.1 - c.1) * (b.0 - a.0) - (d.0 - c.0) * (b.1 - a.1));
+
+    (0.0..=1.0).contains(&u1) || (0.0..=1.0).contains(&u2)
 }
 
 pub fn try_translate(entity: EntityId, body: &BodyComponent, offset_x: f64, offset_y: f64) -> bool {
@@ -378,10 +452,6 @@ pub fn get_coords() -> (f64, f64, f64, f64, f64, usize, usize) {
     })
 }
 
-pub fn get_cell_coords_with_resize(x: f64, y: f64) -> (usize, usize) {
-    let temp_body = BodyComponent::new_traversable(x, y, 0.0, 0.0);
-    match BODY_GRID.with_borrow_mut(|grid| grid.get_cell_coords_with_resize(&temp_body)) {
-        GetCoordsResult::Ok(cell_x, cell_y) => (cell_x, cell_y),
-        GetCoordsResult::GridResized(cell_x, cell_y) => (cell_x, cell_y),
-    }
+pub fn get_cell_coords(x: f64, y: f64) -> (usize, usize) {
+    BODY_GRID.with_borrow_mut(|grid| grid.get_cell_coords(x, y))
 }

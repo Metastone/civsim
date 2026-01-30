@@ -80,9 +80,9 @@ impl Graph {
     ) -> (Node, Node) {
         // Get the coordinates of the start and goal cells in the body grid, while making sure that
         // the grid is resized to hold both, so that coordinates are not invalidated by the resize.
-        body_grid::get_cell_coords_with_resize(start_x, start_y);
-        let (g_cell_x, g_cell_y) = body_grid::get_cell_coords_with_resize(goal_x, goal_y);
-        let (s_cell_x, s_cell_y) = body_grid::get_cell_coords_with_resize(start_x, start_y);
+        body_grid::get_cell_coords(start_x, start_y);
+        let (g_cell_x, g_cell_y) = body_grid::get_cell_coords(goal_x, goal_y);
+        let (s_cell_x, s_cell_y) = body_grid::get_cell_coords(start_x, start_y);
         let (grid_x, grid_y, _, _, grid_cell_size, nb_cells_x, nb_cells_y) =
             body_grid::get_coords();
 
