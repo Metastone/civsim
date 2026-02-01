@@ -14,6 +14,13 @@ pub struct Node {
 }
 
 impl Node {
+    pub fn new(x: f64, y: f64) -> Self {
+        Node {
+            x: OrderedFloat(x),
+            y: OrderedFloat(y),
+        }
+    }
+
     pub fn get_x(&self) -> f64 {
         self.x.into_inner()
     }
@@ -40,12 +47,12 @@ impl Grid2CenterCoordConvertor {
         }
     }
 
-    fn to_x(&self, cell_x: isize) -> OrderedFloat<f64> {
-        OrderedFloat((cell_x as f64) * self.grid_cell_size + self.offset_x)
+    fn to_x(&self, cell_x: isize) -> f64 {
+        (cell_x as f64) * self.grid_cell_size + self.offset_x
     }
 
-    fn to_y(&self, cell_y: isize) -> OrderedFloat<f64> {
-        OrderedFloat((cell_y as f64) * self.grid_cell_size + self.offset_y)
+    fn to_y(&self, cell_y: isize) -> f64 {
+        (cell_y as f64) * self.grid_cell_size + self.offset_y
     }
 }
 
@@ -77,7 +84,7 @@ impl Graph {
         start_y: f64,
         goal_x: f64,
         goal_y: f64,
-    ) -> (Node, Node) {
+    ) {
         // Get the coordinates of the start and goal cells in the body grid, while making sure that
         // the grid is resized to hold both, so that coordinates are not invalidated by the resize.
         body_grid::get_cell_coords(start_x, start_y);
@@ -116,17 +123,14 @@ impl Graph {
                 let cell_center_y = coords.to_y(cell_y);
 
                 // Add the node to graph only if the corresponding cell is not colliding anything
-                // But always add the starting cell (TODO until PRM is implemented)
-                if cell_x as usize != s_cell_x && cell_y as usize != s_cell_y {
-                    let cell_body = BodyComponent::new_traversable(
-                        *cell_center_x,
-                        *cell_center_y,
-                        grid_cell_size,
-                        grid_cell_size,
-                    );
-                    if body_grid::collides(entity, &cell_body) {
-                        continue;
-                    }
+                let cell_body = BodyComponent::new_traversable(
+                    cell_center_x,
+                    cell_center_y,
+                    grid_cell_size,
+                    grid_cell_size,
+                );
+                if body_grid::collides(entity, &cell_body) {
+                    continue;
                 }
 
                 // Compute the neighbours nodes & add them to the graph if not colliding anything
@@ -138,8 +142,8 @@ impl Graph {
                         entity,
                         cell_x - 1,
                         cell_y,
-                        *cell_center_x - grid_cell_size,
-                        *cell_center_y,
+                        cell_center_x - grid_cell_size,
+                        cell_center_y,
                         grid_cell_size,
                         &mut neighbours,
                         &coords,
@@ -151,8 +155,8 @@ impl Graph {
                         entity,
                         cell_x + 1,
                         cell_y,
-                        *cell_center_x + grid_cell_size,
-                        *cell_center_y,
+                        cell_center_x + grid_cell_size,
+                        cell_center_y,
                         grid_cell_size,
                         &mut neighbours,
                         &coords,
@@ -164,8 +168,8 @@ impl Graph {
                         entity,
                         cell_x,
                         cell_y - 1,
-                        *cell_center_x,
-                        *cell_center_y - grid_cell_size,
+                        cell_center_x,
+                        cell_center_y - grid_cell_size,
                         grid_cell_size,
                         &mut neighbours,
                         &coords,
@@ -177,61 +181,52 @@ impl Graph {
                         entity,
                         cell_x,
                         cell_y + 1,
-                        *cell_center_x,
-                        *cell_center_y + grid_cell_size,
+                        cell_center_x,
+                        cell_center_y + grid_cell_size,
                         grid_cell_size,
                         &mut neighbours,
                         &coords,
                     );
                 }
 
-                self.neighbours.insert(
-                    Node {
-                        x: cell_center_x,
-                        y: cell_center_y,
-                    },
-                    neighbours,
-                );
+                self.neighbours
+                    .insert(Node::new(cell_center_x, cell_center_y), neighbours);
             }
         }
-
-        (
-            // Start node
-            Node {
-                x: coords.to_x(s_cell_x as isize),
-                y: coords.to_y(s_cell_y as isize),
-            },
-            // Goal node
-            Node {
-                x: coords.to_x(g_cell_x as isize),
-                y: coords.to_y(g_cell_y as isize),
-            },
-        )
     }
 
     // PRM-like algorithm to generate a graph of nodes around the target in which the body can
-    // safely navigate without colliding anything
+    // safely navigate without colliding anything.
     pub fn add_prm_nodes(
         &mut self,
         entity: EntityId,
         body: &BodyComponent,
         target_x: f64,
         target_y: f64,
-    ) {
-        let (_, _, _, _, grid_cell_size, ..) = body_grid::get_coords();
+    ) -> bool {
+        let (grid_x, grid_y, _, _, grid_cell_size, grid_nb_cells_x, grid_nb_cells_y) =
+            body_grid::get_coords();
         let radius = 1.5 * grid_cell_size;
 
+        // If the start position already collides, it will be impossible to find a path, so quit
+        let temp_body =
+            BodyComponent::new_traversable(target_x, target_y, body.get_w(), body.get_h());
+        if body_grid::collides(entity, &temp_body) {
+            return false;
+        }
+
+        // Add the target position as a node
+        let node = Node::new(target_x, target_y);
+        let mut nodes = vec![node];
+        self.neighbours.insert(node, Vec::new());
+
         // In a radius (squared) around the target, randomly generate non-colliding positions
-        let mut nodes = Vec::new();
         for _ in 0..NB_PRM_POSITIONS_GENERATED {
             let x = rng::random_range(target_x - radius, target_x + radius);
             let y = rng::random_range(target_y - radius, target_y + radius);
             let temp_body = BodyComponent::new_traversable(x, y, body.get_w(), body.get_h());
             if !body_grid::collides(entity, &temp_body) {
-                let node = Node {
-                    x: OrderedFloat(x),
-                    y: OrderedFloat(y),
-                };
+                let node = Node::new(x, y);
                 self.neighbours.entry(node).or_insert_with(|| {
                     nodes.push(node);
                     Vec::new()
@@ -239,8 +234,36 @@ impl Graph {
             }
         }
 
+        // Also take into account positions corresponding to the center of the cells surronding the
+        // target in the body grid.
+        let coords = Grid2CenterCoordConvertor::new(grid_x, grid_y, grid_cell_size);
+        let (t_cx, t_cy) = body_grid::get_cell_coords(target_x, target_y);
+        for i in -1..2 {
+            // TODO with this code, cells not part of the body collision grid are not taken into account, but
+            // maybe they should ? Because they should be free of collision.
+            // TODO think about it. Also check if I did not miss something about grid about grid
+            // resizes invalidating coordinates
+            let cx = i + t_cx as isize;
+            if cx < 0 || cx >= grid_nb_cells_x as isize {
+                continue;
+            }
+            for j in -1..2 {
+                let cy = j + t_cy as isize;
+                if cy < 0 || cy >= grid_nb_cells_y as isize {
+                    continue;
+                }
+                let center_node = Node::new(coords.to_x(cx), coords.to_y(cy));
+                // Only take into account neighbouring nodes that are already in the graph (because
+                // we only want nodes that don't collide)
+                if self.neighbours.contains_key(&center_node) {
+                    nodes.push(center_node);
+                }
+            }
+        }
+
         // Connect these positions if the resulting edge does not intersect anything
         // (to check this, inflate the bodies size by size of the entity to move)
+        let mut at_least_one_edge = false;
         let max_d = max_distance_for_connected_dots(radius, NB_PRM_POSITIONS_GENERATED);
         for i in 0..nodes.len() {
             for j in (i + 1)..nodes.len() {
@@ -254,11 +277,12 @@ impl Graph {
                 {
                     self.neighbours.get_mut(&nodes[i]).unwrap().push(nodes[j]);
                     self.neighbours.get_mut(&nodes[j]).unwrap().push(nodes[i]);
+                    at_least_one_edge = true;
                 }
             }
         }
 
-        // Connect this graph to the center of the cells surronding the target in the body grid
+        at_least_one_edge
     }
 }
 
@@ -295,13 +319,11 @@ fn add_to_neighbour_if_ok(
     // and make sure that we don't detect a collision with the entity for which we are looking for
     // path.
     if !body_grid::collides(entity, &cell_body) {
-        neighbours.push(Node {
-            x: coords.to_x(cell_x),
-            y: coords.to_y(cell_y),
-        });
+        neighbours.push(Node::new(coords.to_x(cell_x), coords.to_y(cell_y)));
     }
 }
 
+// Apply the A* algorithm to find a path
 pub fn find_reverse_path(graph: &Graph, start: Node, goal: Node) -> Option<Vec<Node>> {
     // Set of discovered nodes
     let mut open_list: Vec<(Node, OrderedFloat<f64>)> = Vec::new();

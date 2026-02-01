@@ -1,4 +1,4 @@
-use crate::algorithms::path_finding::{find_reverse_path, Graph};
+use crate::algorithms::path_finding::{find_reverse_path, Graph, Node};
 use crate::components::body_component::BodyComponent;
 use crate::ecs::{Component, EntityId};
 
@@ -44,30 +44,27 @@ impl MoveToTargetComponent {
     }
 
     pub fn compute_path(&mut self, entity: EntityId, body: &BodyComponent) -> bool {
-        // TODO Use PRM-like algorithm in the starting body grid cell to construct a graph (graph A)
-        // of all safely reachable places around the starting point.
-        // (Add creature size to the obstacles radius)
-        // The goal is to be able to reach the center of one of the adjacent cells (if possible)
-        //
-        // Then, construct a graph (graph B) consisting of the centers of the cells of the body grid.
+        // Construct a graph (graph B) consisting of the centers of the cells of the body grid.
         // Only cells up, down, left, right are considered adjacent for the graph construction.
         // The cells considered traversable, taken into account for the graph, are the ones that
         // are empty AND not colliding with anything in the 8 adjacent cells.
         // Restrict it to an area containing the the creature and the target, not the whole map
         // (for performances)
         //
-        // TODO Then, construct a graph (graph C) around the target using a PRM-like algorithm, same
+        // Use PRM-like algorithm to construct a graph (graph A) of all safely reachable places
+        // around the current creature position. Connect nodes that are near each other (if the
+        // edge does not collide, taking the creature size into account).
+        // Connect this graph to the center of the 8 cells adjacent to the creature position
+        // (based on the body collision grid).
+        //
+        // Construct a graph (graph C) around the target using a PRM-like algorithm, same
         // logic as before.
         //
-        // Connect graphs A to the centers of the 4 cells adjacent to the starting cell in graph B.
-        // Connect graphs C to the centers of the 4 cells adjacent to the destination cell in graph B.
-        //
         // Finally, use A* algorithm to find a path to the target, on the full graph made of graphs A, B, C.
-        // If a path is found, it passes through the center of empty cells only, except around the
-        // start and the destination.
 
         let mut graph = Graph::new();
-        let (start_node, end_node) = graph.add_body_grid_nodes(
+
+        graph.add_body_grid_nodes(
             entity,
             body.get_x(),
             body.get_y(),
@@ -75,12 +72,21 @@ impl MoveToTargetComponent {
             self.target_body.get_y(),
         );
 
-        graph.add_prm_nodes(
+        if !graph.add_prm_nodes(entity, body, body.get_x(), body.get_y()) {
+            return false;
+        }
+
+        if !graph.add_prm_nodes(
             entity,
             body,
             self.target_body.get_x(),
             self.target_body.get_y(),
-        );
+        ) {
+            return false;
+        }
+
+        let start_node = Node::new(body.get_x(), body.get_y());
+        let end_node = Node::new(self.target_body.get_x(), self.target_body.get_y());
 
         if let Some(reverse_path) = find_reverse_path(&graph, start_node, end_node) {
             self.path.clear();
@@ -91,14 +97,6 @@ impl MoveToTargetComponent {
                     reached: false,
                 });
             }
-
-            // Add the target position as the last waypoint
-            self.path.push(WayPoint {
-                x: self.target_body.get_x(),
-                y: self.target_body.get_y(),
-                reached: false,
-            });
-
             return true;
         }
 
