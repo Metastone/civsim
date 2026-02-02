@@ -44,6 +44,7 @@ pub struct World {
     ecs: Ecs,
     systems: Vec<Box<dyn System>>,
     display: Display,
+    pause: bool,
 }
 
 impl Default for World {
@@ -58,6 +59,7 @@ impl World {
             ecs: Ecs::new(),
             systems: Vec::new(),
             display: Display::new(),
+            pause: false,
         }
     }
 
@@ -73,15 +75,21 @@ impl World {
     }
 
     pub fn iterate(&mut self) {
-        for s in &self.systems {
-            s.run(&mut self.ecs);
+        if !self.pause {
+            for s in &self.systems {
+                s.run(&mut self.ecs);
+            }
+            body_grid::purge_deleted_bodies();
         }
-        body_grid::purge_deleted_bodies();
     }
 
     fn draw(&mut self, pixels: &mut [u8], window_width: u32, window_height: u32) {
         self.display
             .draw(&mut self.ecs, pixels, window_width, window_height);
+    }
+
+    pub fn toogle_pause(&mut self) {
+        self.pause = !self.pause;
     }
 }
 
@@ -237,6 +245,11 @@ impl ApplicationHandler for App<'_> {
                     && !event.repeat
                 {
                     self.world.display.toogle_debug_mode();
+                } else if event.logical_key == Key::Character("p".into())
+                    && event.state == ElementState::Pressed
+                    && !event.repeat
+                {
+                    self.world.toogle_pause();
                 }
             }
             _ => (),
