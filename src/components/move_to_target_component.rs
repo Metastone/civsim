@@ -28,6 +28,7 @@ pub struct MoveToTargetComponent {
     pub target_entity: EntityId,
     pub target_body: BodyComponent,
     path: Vec<WayPoint>,
+    graph: Graph,
     pub speed: f64,
 }
 
@@ -39,6 +40,7 @@ impl MoveToTargetComponent {
             target_entity,
             target_body,
             path: Vec::new(),
+            graph: Graph::new(),
             speed,
         }
     }
@@ -73,6 +75,7 @@ impl MoveToTargetComponent {
         );
 
         if !graph.add_prm_nodes(entity, body, body.get_x(), body.get_y()) {
+            self.graph = graph;
             return false;
         }
 
@@ -82,6 +85,7 @@ impl MoveToTargetComponent {
             self.target_body.get_x(),
             self.target_body.get_y(),
         ) {
+            self.graph = graph;
             return false;
         }
 
@@ -97,9 +101,11 @@ impl MoveToTargetComponent {
                     reached: false,
                 });
             }
+            self.graph = graph;
             return true;
         }
 
+        self.graph = graph;
         false
     }
 
@@ -128,7 +134,13 @@ impl MoveToTargetComponent {
         None
     }
 
+    // For display
     pub fn get_path(&self) -> &Vec<WayPoint> {
         &self.path
+    }
+
+    // For display
+    pub fn get_graph(&self) -> &Graph {
+        &self.graph
     }
 }

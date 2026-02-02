@@ -26,6 +26,12 @@ impl Display {
             pixel.copy_from_slice(&[0xcc, 0xcc, 0xcc, 0xff]);
         }
 
+        if self.debug_mode {
+            draw_body_grid(pixels, window_width, window_height);
+            draw_graph(ecs, pixels, window_width, window_height);
+            draw_path(ecs, pixels, window_width, window_height);
+        }
+
         // Draw corpses
         for (body, _) in iter_components!(ecs, (CorpseComponent, BodyComponent), (BodyComponent)) {
             draw_square(
@@ -136,11 +142,6 @@ impl Display {
                 );
             }
         }
-
-        if self.debug_mode {
-            draw_body_grid(pixels, window_width, window_height);
-            draw_waypoints(ecs, pixels, window_width, window_height);
-        }
     }
 }
 
@@ -183,21 +184,40 @@ fn draw_body_grid(pixels: &mut [u8], window_width: u32, window_height: u32) {
     }
 }
 
-fn draw_waypoints(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: u32) {
+fn draw_path(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: u32) {
     for (move_to_target_component, ..) in iter_components!(ecs, (), (MoveToTargetComponent)) {
-        for waypoint in move_to_target_component.get_path() {
-            draw_rec(
+        for i in 0..(move_to_target_component.get_path().len() - 1) {
+            let waypoint = move_to_target_component.get_path()[i].clone();
+            let next_waypoint = move_to_target_component.get_path()[i + 1].clone();
+            draw_edge(
                 (waypoint.get_x(), waypoint.get_y()),
+                (next_waypoint.get_x(), next_waypoint.get_y()),
                 if waypoint.get_reached() {
                     WAYPOINT_REACHED_COLOR
                 } else {
                     WAYPOINT_COLOR
                 },
-                (WAYPOINT_PIXEL_SIZE, WAYPOINT_PIXEL_SIZE),
                 pixels,
                 window_width,
                 window_height,
             );
+        }
+    }
+}
+
+fn draw_graph(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: u32) {
+    for (move_to_target_component, ..) in iter_components!(ecs, (), (MoveToTargetComponent)) {
+        for (node, neighbours) in move_to_target_component.get_graph().neighbours.iter() {
+            for nb_node in neighbours {
+                draw_edge(
+                    (node.get_x(), node.get_y()),
+                    (nb_node.get_x(), nb_node.get_y()),
+                    GRAPH_COLOR,
+                    pixels,
+                    window_width,
+                    window_height,
+                );
+            }
         }
     }
 }
@@ -218,6 +238,65 @@ fn draw_square(
         window_width,
         window_height,
     );
+}
+
+// This is probably horribly inefficient, just use it for debugging display
+fn draw_edge(
+    (ax, ay): (f64, f64),
+    (bx, by): (f64, f64),
+    color: &[u8],
+    pixels: &mut [u8],
+    window_width: u32,
+    window_height: u32,
+) {
+    let dx = bx - ax;
+    let dy = by - ay;
+    let m1 = dy / dx;
+    let m2 = dx / dy;
+
+    let x_min = ax + (window_width as f64) / 2.0;
+    let x_max = bx + (window_width as f64) / 2.0;
+    let y_min = ay + (window_height as f64) / 2.0;
+    let y_max = by + (window_height as f64) / 2.0;
+
+    let thickness = GRAPH_EDGE_THICKNESS as isize;
+    let mut x = x_min;
+    while x <= x_max {
+        let pix_x = x as isize;
+        for j in (-thickness / 2)..(thickness / 2) {
+            let pix_y = (m1 * (x - x_min) + y_min) as isize + j;
+            if pix_x >= 0
+                && pix_x < window_width as isize
+                && pix_y >= 0
+                && pix_y < window_height as isize
+            {
+                let index = ((pix_y as usize) * (window_width as usize) + (pix_x as usize)) * 4;
+                pixels[index..(index + 4)].copy_from_slice(color);
+            }
+        }
+
+        x += 1.0;
+    }
+
+    // Now do the same thing with inverted axis.
+    // Otherwise the edges with slopes too steep do not appear continuous
+    let mut y = y_min;
+    while y <= y_max {
+        let pix_y = y as isize;
+        for i in (-thickness / 2)..(thickness / 2) {
+            let pix_x = (m2 * (y - y_min) + x_min) as isize + i;
+            if pix_x >= 0
+                && pix_x < window_width as isize
+                && pix_y >= 0
+                && pix_y < window_height as isize
+            {
+                let index = ((pix_y as usize) * (window_width as usize) + (pix_x as usize)) * 4;
+                pixels[index..(index + 4)].copy_from_slice(color);
+            }
+        }
+
+        y += 1.0;
+    }
 }
 
 fn draw_rec(

@@ -56,8 +56,10 @@ impl Grid2CenterCoordConvertor {
     }
 }
 
+#[derive(Clone)]
 pub struct Graph {
-    neighbours: HashMap<Node, Vec<Node>>,
+    // TODO "pub" temp just for display
+    pub neighbours: HashMap<Node, Vec<Node>>,
 }
 
 impl Graph {
