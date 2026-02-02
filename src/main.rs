@@ -74,13 +74,17 @@ impl World {
         )]);
     }
 
-    pub fn iterate(&mut self) {
+    fn iterate(&mut self) {
         if !self.pause {
-            for s in &self.systems {
-                s.run(&mut self.ecs);
-            }
-            body_grid::purge_deleted_bodies();
+            self.force_iterate();
         }
+    }
+
+    fn force_iterate(&mut self) {
+        for s in &self.systems {
+            s.run(&mut self.ecs);
+        }
+        body_grid::purge_deleted_bodies();
     }
 
     fn draw(&mut self, pixels: &mut [u8], window_width: u32, window_height: u32) {
@@ -250,6 +254,11 @@ impl ApplicationHandler for App<'_> {
                     && !event.repeat
                 {
                     self.world.toogle_pause();
+                } else if event.logical_key == Key::Character("i".into())
+                    && event.state == ElementState::Pressed
+                    && !event.repeat
+                {
+                    self.world.force_iterate();
                 }
             }
             _ => (),
