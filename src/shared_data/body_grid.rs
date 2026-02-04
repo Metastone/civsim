@@ -2,7 +2,6 @@ use crate::components::body_component::BodyComponent;
 use crate::constants::*;
 use crate::ecs::EntityId;
 use std::cell::RefCell;
-use std::cmp;
 
 /* Collision computation grid.
  *
@@ -162,7 +161,7 @@ impl BodyGrid {
             (
                 true,
                 nb_cells,
-                cmp::max(
+                usize::max(
                     nb_cells * 2,
                     (coord_in_grid.abs() / self.cell_size) as usize + 1 + nb_cells,
                 ),
@@ -171,7 +170,7 @@ impl BodyGrid {
             (
                 true,
                 0,
-                cmp::max(nb_cells * 2, (coord_in_grid / self.cell_size) as usize + 1),
+                usize::max(nb_cells * 2, (coord_in_grid / self.cell_size) as usize + 1),
             )
         } else {
             (false, 0, 0)
@@ -243,22 +242,26 @@ impl BodyGrid {
         entity: EntityId,
         margin: (f64, f64),
     ) -> bool {
-        let (a_cx, a_cy) = self.get_cell_coords(a.0, a.1);
+        /* Get the grid cell coordinates for both vertices,
+         * making sure that they are both valid if a grid resize occurs
+         */
+        self.get_cell_coords(a.0, a.1);
         let (b_cx, b_cy) = self.get_cell_coords(b.0, b.1);
+        let (a_cx, a_cy) = self.get_cell_coords(a.0, a.1);
 
         // Get the bounds of a rectangle that contains the 2D points A and B (vertices of the
         // edge), with a margin
         let margin_cx = (margin.0 / self.cell_size) as isize + 1;
         let margin_cy = (margin.1 / self.cell_size) as isize + 1;
-        let min_x = cmp::max(0, cmp::min(a_cx as isize, b_cx as isize) - margin_cx);
-        let max_x = cmp::min(
+        let min_x = isize::max(0, isize::min(a_cx as isize, b_cx as isize) - margin_cx);
+        let max_x = isize::min(
             self.nb_cells_x as isize - 1,
-            cmp::max(a_cx as isize, b_cx as isize) + margin_cx,
+            isize::max(a_cx as isize, b_cx as isize) + margin_cx,
         );
-        let min_y = cmp::max(0, cmp::min(a_cy as isize, b_cy as isize) - margin_cy);
-        let max_y = cmp::min(
+        let min_y = isize::max(0, isize::min(a_cy as isize, b_cy as isize) - margin_cy);
+        let max_y = isize::min(
             self.nb_cells_y as isize - 1,
-            cmp::max(a_cy as isize, b_cy as isize) + margin_cy,
+            isize::max(a_cy as isize, b_cy as isize) + margin_cy,
         );
 
         for cx in min_x..(max_x + 1) {
@@ -384,12 +387,20 @@ fn edge_collides_body(a: (f64, f64), b: (f64, f64), body: &BodyComponent) -> boo
      *       \
      *        B
      */
-    let m = (body.get_x(), body.get_y());
-    let n = (body.get_x() + body.get_w(), body.get_y());
-    let o = (body.get_x(), body.get_y() + body.get_h());
-    let p = (body.get_x() + body.get_w(), body.get_y() + body.get_h());
+    let half_w = body.get_w() / 2.0;
+    let half_h = body.get_h() / 2.0;
+    let m = (body.get_x() - half_w, body.get_y() - half_h);
+    let n = (body.get_x() + half_w, body.get_y() - half_h);
+    let o = (body.get_x() - half_w, body.get_y() + half_h);
+    let p = (body.get_x() + half_w, body.get_y() + half_h);
 
-    edge_collides_edge(a, b, m, n)
+    let edge_inside_square = f64::min(a.0, b.0) >= m.0
+        && f64::max(a.0, b.0) <= n.0
+        && f64::min(a.1, b.1) >= m.1
+        && f64::max(a.1, b.1) <= o.1;
+
+    edge_inside_square
+        || edge_collides_edge(a, b, m, n)
         || edge_collides_edge(a, b, n, p)
         || edge_collides_edge(a, b, p, o)
         || edge_collides_edge(a, b, o, m)
@@ -397,16 +408,21 @@ fn edge_collides_body(a: (f64, f64), b: (f64, f64), body: &BodyComponent) -> boo
 
 // a, b, c, d are points. First edge is [a, b], second edge is [c, d]
 fn edge_collides_edge(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64)) -> bool {
-    // Lines equations (A, B, C, D, U are 2D points, u1 and u2 are scalar):
-    // line 1 : U = A + u1 * (B - A)
-    // line 2 : U = C + u2 * (D - C)
+    /* Lines equations :
+     * line 1 : U = A + u1 * (B - A)
+     * line 2 : U = C + u2 * (D - C)
+     *
+     * - A, B, C, D, U are 2D points, u1 and u2 are scalar
+     * - U is the point of intersection
+     * - The edges intersect if U is in the edges (u1 & u2 in [0.0, 1.0])
+     */
 
     let u1 = ((d.0 - c.0) * (a.1 - c.1) - (d.1 - c.1) * (a.0 - c.0))
         / ((d.1 - c.1) * (b.0 - a.0) - (d.0 - c.0) * (b.1 - a.1));
     let u2 = ((b.0 - a.0) * (a.1 - c.1) - (b.1 - a.1) * (a.0 - c.0))
         / ((d.1 - c.1) * (b.0 - a.0) - (d.0 - c.0) * (b.1 - a.1));
 
-    (0.0..=1.0).contains(&u1) || (0.0..=1.0).contains(&u2)
+    (0.0..=1.0).contains(&u1) && (0.0..=1.0).contains(&u2)
 }
 
 pub fn try_translate(entity: EntityId, body: &BodyComponent, offset_x: f64, offset_y: f64) -> bool {

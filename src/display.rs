@@ -13,7 +13,7 @@ pub struct Display {
 
 impl Display {
     pub fn new() -> Self {
-        Display { debug_mode: false }
+        Display { debug_mode: true }
     }
 
     pub fn toogle_debug_mode(&mut self) {

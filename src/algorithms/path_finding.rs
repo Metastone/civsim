@@ -4,7 +4,6 @@ use crate::constants::NB_PRM_POSITIONS_GENERATED;
 use crate::ecs::EntityId;
 use crate::shared_data::body_grid;
 use ordered_float::OrderedFloat;
-use std::cmp;
 use std::collections::HashMap;
 
 #[derive(Eq, PartialEq, Hash, Copy, Clone)]
@@ -98,21 +97,21 @@ impl Graph {
         // Get the bounds of a rectangle that contains the start and goal cells in the body grid,
         // with a margin (to allow going around obstacles close to start or goal)
         let margin_nb_cells = 1;
-        let min_x = cmp::max(
+        let min_x = isize::max(
             0,
-            cmp::min(s_cell_x as isize, g_cell_x as isize) - margin_nb_cells,
+            isize::min(s_cell_x as isize, g_cell_x as isize) - margin_nb_cells,
         );
-        let max_x = cmp::min(
+        let max_x = isize::min(
             nb_cells_x as isize - 1,
-            cmp::max(s_cell_x as isize, g_cell_x as isize) + margin_nb_cells,
+            isize::max(s_cell_x as isize, g_cell_x as isize) + margin_nb_cells,
         );
-        let min_y = cmp::max(
+        let min_y = isize::max(
             0,
-            cmp::min(s_cell_y as isize, g_cell_y as isize) - margin_nb_cells,
+            isize::min(s_cell_y as isize, g_cell_y as isize) - margin_nb_cells,
         );
-        let max_y = cmp::min(
+        let max_y = isize::min(
             nb_cells_y as isize - 1,
-            cmp::max(s_cell_y as isize, g_cell_y as isize) + margin_nb_cells,
+            isize::max(s_cell_y as isize, g_cell_y as isize) + margin_nb_cells,
         );
 
         // Create the nodes corresponding to the center of the cells, and for each store a list of
@@ -206,9 +205,12 @@ impl Graph {
         target_x: f64,
         target_y: f64,
     ) -> bool {
+        // Important: do this first, because it can resize the body grid and invalidate coordinates
+        let (t_cx, t_cy) = body_grid::get_cell_coords(target_x, target_y);
+
         let (grid_x, grid_y, _, _, grid_cell_size, grid_nb_cells_x, grid_nb_cells_y) =
             body_grid::get_coords();
-        let radius = 1.5 * grid_cell_size;
+        let radius = 1.1 * grid_cell_size;
 
         // If the start position already collides, it will be impossible to find a path, so quit
         let temp_body =
@@ -222,29 +224,24 @@ impl Graph {
         let mut nodes = vec![node];
         self.neighbours.insert(node, Vec::new());
 
-        // In a radius (squared) around the target, randomly generate non-colliding positions
+        // In a radius (squared) around the target, randomly generate positions
         for _ in 0..NB_PRM_POSITIONS_GENERATED {
             let x = rng::random_range(target_x - radius, target_x + radius);
             let y = rng::random_range(target_y - radius, target_y + radius);
-            let temp_body = BodyComponent::new_traversable(x, y, body.get_w(), body.get_h());
-            if !body_grid::collides(entity, &temp_body) {
-                let node = Node::new(x, y);
-                self.neighbours.entry(node).or_insert_with(|| {
-                    nodes.push(node);
-                    Vec::new()
-                });
-            }
+            let node = Node::new(x, y);
+            self.neighbours.entry(node).or_insert_with(|| {
+                nodes.push(node);
+                Vec::new()
+            });
         }
 
         // Also take into account positions corresponding to the center of the cells surronding the
         // target in the body grid.
         let coords = Grid2CenterCoordConvertor::new(grid_x, grid_y, grid_cell_size);
-        let (t_cx, t_cy) = body_grid::get_cell_coords(target_x, target_y);
+
         for i in -1..2 {
             // TODO with this code, cells not part of the body collision grid are not taken into account, but
             // maybe they should ? Because they should be free of collision.
-            // TODO think about it. Also check if I did not miss something about grid about grid
-            // resizes invalidating coordinates
             let cx = i + t_cx as isize;
             if cx < 0 || cx >= grid_nb_cells_x as isize {
                 continue;
@@ -265,13 +262,14 @@ impl Graph {
 
         // Connect these positions if the resulting edge does not intersect anything
         // (to check this, inflate the bodies size by size of the entity to move)
+        // TODO edge_collides can cause a grid resize --> handle this
         let mut at_least_one_edge = false;
         let max_d = max_distance_for_connected_dots(radius, NB_PRM_POSITIONS_GENERATED);
         for i in 0..nodes.len() {
             for j in (i + 1)..nodes.len() {
                 if square_euclidian_distance(&nodes[i], &nodes[j]) < max_d.powi(2)
                     && !body_grid::edge_collides(
-                        (nodes[i].get_x(), nodes[i].get_x()),
+                        (nodes[i].get_x(), nodes[i].get_y()),
                         (nodes[j].get_x(), nodes[j].get_y()),
                         entity,
                         (body.get_w(), body.get_h()),
@@ -294,11 +292,10 @@ fn max_distance_for_connected_dots(r: f64, n: usize) -> f64 {
      * Inside a disk lambda is N / (pi * r**2).
      * With N the number of points.
      * So the expected distance is (r * sqrt(pi)) / (2 * sqrt(N))
-     *
-     * I multiply it by 2 to get a margin for connecting the dots.
      */
-    let pi_sqrt = 1.772453851;
-    (r * pi_sqrt) / (n as f64).sqrt()
+    // TODO check if it's a good heuristic
+    let half_pi_sqrt = 0.886;
+    (r * half_pi_sqrt) / (n as f64).sqrt() * 5.0
 }
 
 fn add_to_neighbour_if_ok(

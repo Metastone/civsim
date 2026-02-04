@@ -59,7 +59,7 @@ impl World {
             ecs: Ecs::new(),
             systems: Vec::new(),
             display: Display::new(),
-            pause: false,
+            pause: true,
         }
     }
 
