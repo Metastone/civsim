@@ -103,7 +103,7 @@ fn create_world() -> World {
     for _ in 0..FOOD_NB {
         world.create_entity_with(&[
             &FoodComponent::new(),
-            &BodyComponent::new_rand_pos_traversable_2(
+            &BodyComponent::new_rand_pos_traversable(
                 FOOD_PIXEL_SIZE.into(),
                 FOOD_PIXEL_SIZE.into(),
             ),
@@ -148,7 +148,7 @@ fn create_world() -> World {
     for _ in 0..OBSTACLES_NB {
         world.create_entity_with(&[
             &ObstacleComponent::new(),
-            &BodyComponent::new_rand_pos_not_traversable_2(
+            &BodyComponent::new_rand_pos_not_traversable(
                 OBSTACLE_PIXEL_SIZE.into(),
                 OBSTACLE_PIXEL_SIZE.into(),
             ),

@@ -18,8 +18,6 @@ pub struct BodyComponent {
     is_traversable: bool,
 
     init_with_random_pos: bool,
-
-    test: bool,
 }
 
 impl Component for BodyComponent {
@@ -27,17 +25,8 @@ impl Component for BodyComponent {
         // Generate a random position that does not collides with any already existing body
         if self.init_with_random_pos {
             loop {
-                let x = if self.test {
-                    rng::random_range(500.0, 1000.0)
-                } else {
-                    rng::random_range(SCREEN_WIDTH as f64 / -2.0, SCREEN_WIDTH as f64 / 2.0)
-                };
-                let y = if self.test {
-                    rng::random_range(-100.0, 500.0)
-                } else {
-                    rng::random_range(SCREEN_HEIGHT as f64 / -2.0, SCREEN_HEIGHT as f64 / 2.0)
-                };
-
+                let x = rng::random_range(SCREEN_WIDTH as f64 / -2.0, SCREEN_WIDTH as f64 / 2.0);
+                let y = rng::random_range(SCREEN_HEIGHT as f64 / -2.0, SCREEN_HEIGHT as f64 / 2.0);
                 self.x = x;
                 self.y = y;
                 if self.is_traversable || !body_grid::collides(entity, self) {
@@ -65,19 +54,6 @@ impl BodyComponent {
             h,
             is_traversable: false,
             init_with_random_pos: true,
-            test: false,
-        }
-    }
-
-    pub fn new_rand_pos_not_traversable_2(w: f64, h: f64) -> Self {
-        Self {
-            x: 0.0, // Temp x,y -> will be updated in on_create
-            y: 0.0,
-            w,
-            h,
-            is_traversable: false,
-            init_with_random_pos: true,
-            test: true,
         }
     }
 
@@ -89,19 +65,6 @@ impl BodyComponent {
             h,
             is_traversable: true,
             init_with_random_pos: true,
-            test: false,
-        }
-    }
-
-    pub fn new_rand_pos_traversable_2(w: f64, h: f64) -> Self {
-        Self {
-            x: 0.0, // Temp x,y -> will be updated in on_create
-            y: 0.0,
-            w,
-            h,
-            is_traversable: true,
-            init_with_random_pos: true,
-            test: true,
         }
     }
 
@@ -113,7 +76,6 @@ impl BodyComponent {
             h,
             is_traversable: false,
             init_with_random_pos: false,
-            test: false,
         }
     }
 
@@ -125,7 +87,6 @@ impl BodyComponent {
             h,
             is_traversable: true,
             init_with_random_pos: false,
-            test: false,
         }
     }
 

@@ -1,4 +1,4 @@
-pub const RNG_SEED: u64 = 5; // 0 means not seeded
+pub const RNG_SEED: u64 = 1; // 0 means not seeded
 
 pub const SCREEN_WIDTH: u32 = 2560;
 pub const SCREEN_HEIGHT: u32 = 1440;
@@ -47,8 +47,8 @@ pub const HERBIVOROUS_NB: usize = 1;
 pub const CARNIVOROUS_NB: usize = 0;
 pub const FOOD_NB: usize = 1;
 pub const CORPSE_NB: usize = 0;
-pub const OBSTACLES_NB: usize = 15;
+pub const OBSTACLES_NB: usize = 0;
 
-pub const NEW_FOOD_PER_TICK: usize = 0;
+pub const NEW_FOOD_PER_TICK: usize = 1;
 
 pub const NB_PRM_POSITIONS_GENERATED: usize = 1000;
