@@ -10,6 +10,7 @@ use std::collections::HashMap;
 pub struct Node {
     x: OrderedFloat<f64>,
     y: OrderedFloat<f64>,
+    is_cell_center: bool,
 }
 
 impl Node {
@@ -17,6 +18,15 @@ impl Node {
         Node {
             x: OrderedFloat(x),
             y: OrderedFloat(y),
+            is_cell_center: false,
+        }
+    }
+
+    pub fn new_cell_center(x: f64, y: f64) -> Self {
+        Node {
+            x: OrderedFloat(x),
+            y: OrderedFloat(y),
+            is_cell_center: true,
         }
     }
 
@@ -143,59 +153,49 @@ impl Graph {
 
                 // Left node
                 if cell_x > 0 {
-                    add_to_neighbour_if_ok(
+                    add_neighbour_cell_center(
                         entity,
-                        cell_x - 1,
-                        cell_y,
                         cell_center_x - grid_cell_size,
                         cell_center_y,
                         grid_cell_size,
                         &mut neighbours,
-                        &coords,
                     );
                 }
                 // Right node
                 if cell_x < max_x {
-                    add_to_neighbour_if_ok(
+                    add_neighbour_cell_center(
                         entity,
-                        cell_x + 1,
-                        cell_y,
                         cell_center_x + grid_cell_size,
                         cell_center_y,
                         grid_cell_size,
                         &mut neighbours,
-                        &coords,
                     );
                 }
                 // Up node
                 if cell_y > 0 {
-                    add_to_neighbour_if_ok(
+                    add_neighbour_cell_center(
                         entity,
-                        cell_x,
-                        cell_y - 1,
                         cell_center_x,
                         cell_center_y - grid_cell_size,
                         grid_cell_size,
                         &mut neighbours,
-                        &coords,
                     );
                 }
                 // Down node
                 if cell_y < max_y {
-                    add_to_neighbour_if_ok(
+                    add_neighbour_cell_center(
                         entity,
-                        cell_x,
-                        cell_y + 1,
                         cell_center_x,
                         cell_center_y + grid_cell_size,
                         grid_cell_size,
                         &mut neighbours,
-                        &coords,
                     );
                 }
 
-                self.neighbours
-                    .insert(Node::new(cell_center_x, cell_center_y), neighbours);
+                self.neighbours.insert(
+                    Node::new_cell_center(cell_center_x, cell_center_y),
+                    neighbours,
+                );
             }
         }
     }
@@ -209,7 +209,7 @@ impl Graph {
         target_x: f64,
         target_y: f64,
     ) -> bool {
-        // If the start position already collides, it will be impossible to find a path, so quit
+        // If the target position already collides, it will be impossible to find a path, so quit
         let temp_body =
             BodyComponent::new_traversable(target_x, target_y, body.get_w(), body.get_h());
         if body_grid::collides(entity, &temp_body) {
@@ -217,9 +217,8 @@ impl Graph {
         }
 
         // Add the target position as a node
-        let node = Node::new(target_x, target_y);
-        let mut nodes = vec![node];
-        self.neighbours.insert(node, Vec::new());
+        self.neighbours
+            .insert(Node::new(target_x, target_y), Vec::new());
 
         // In a radius (squared) around the target, randomly generate positions
         let r = get_graph_connection_radius();
@@ -227,38 +226,37 @@ impl Graph {
             let x = rng::random_range(target_x - r, target_x + r);
             let y = rng::random_range(target_y - r, target_y + r);
             let node = Node::new(x, y);
-            self.neighbours.entry(node).or_insert_with(|| {
-                nodes.push(node);
-                Vec::new()
-            });
+            self.neighbours.entry(node).or_default();
         }
 
         true
     }
 
+    // Connect these positions if the resulting edge does not intersect anything
+    // (to check this, inflate the bodies size by size of the entity to move)
     pub fn connect_nodes(&mut self, entity: EntityId, body: &BodyComponent) -> bool {
-        // Connect these positions if the resulting edge does not intersect anything
-        // (to check this, inflate the bodies size by size of the entity to move)
-        // TODO edge_collides can cause a grid resize --> handle this
         let mut at_least_one_edge = false;
+
         let r = get_graph_connection_radius();
-        let max_d2 = max_distance_for_connected_dots(r, NB_PRM_POSITIONS_GENERATED).powi(2);
+        let max_d = max_distance_for_connected_dots(r, NB_PRM_POSITIONS_GENERATED);
+        let max_d2 = max_d.powi(2);
         let nodes: Vec<Node> = self.neighbours.keys().cloned().collect();
 
         for i in 0..nodes.len() {
             for j in (i + 1)..nodes.len() {
                 let a = &nodes[i];
                 let b = &nodes[j];
-                if square_euclidian_distance(a, b) < max_d2
+                if !(a.is_cell_center && b.is_cell_center) // cell centers are already connected
+                    && square_euclidian_distance(a, b) < max_d2
                     && !body_grid::edge_collides(
-                        (nodes[i].get_x(), nodes[i].get_y()),
-                        (nodes[j].get_x(), nodes[j].get_y()),
+                        (a.get_x(), a.get_y()),
+                        (b.get_x(), b.get_y()),
                         entity,
                         (body.get_w(), body.get_h()),
                     )
                 {
-                    self.neighbours.get_mut(&nodes[i]).unwrap().push(nodes[j]);
-                    self.neighbours.get_mut(&nodes[j]).unwrap().push(nodes[i]);
+                    self.neighbours.get_mut(a).unwrap().push(*b);
+                    self.neighbours.get_mut(b).unwrap().push(*a);
                     at_least_one_edge = true;
                 }
             }
@@ -284,15 +282,15 @@ fn get_graph_connection_radius() -> f64 {
     1.1 * grid_cell_size
 }
 
-fn add_to_neighbour_if_ok(
+// Use the cell body to make sure that the whole cell is empty and does not collides anything,
+// and make sure that we don't detect a collision with the entity for which we are looking for
+// path.
+fn add_neighbour_cell_center(
     entity: EntityId,
-    cell_x: isize,
-    cell_y: isize,
     cell_center_x: f64,
     cell_center_y: f64,
     grid_cell_size: f64,
     neighbours: &mut Vec<Node>,
-    coords: &Grid2CenterCoordConvertor,
 ) {
     let cell_body = BodyComponent::new_traversable(
         cell_center_x,
@@ -300,11 +298,8 @@ fn add_to_neighbour_if_ok(
         grid_cell_size,
         grid_cell_size,
     );
-    // Use the cell body to make sure that the whole cell is empty and does not collides anything,
-    // and make sure that we don't detect a collision with the entity for which we are looking for
-    // path.
     if !body_grid::collides(entity, &cell_body) {
-        neighbours.push(Node::new(coords.to_x(cell_x), coords.to_y(cell_y)));
+        neighbours.push(Node::new_cell_center(cell_center_x, cell_center_y));
     }
 }
 
@@ -312,7 +307,10 @@ fn add_to_neighbour_if_ok(
 pub fn find_reverse_path(graph: &Graph, start: Node, goal: Node) -> Option<Vec<Node>> {
     // Set of discovered nodes
     let mut open_list: Vec<(Node, OrderedFloat<f64>)> = Vec::new();
-    open_list.push((start, OrderedFloat(manhattan_distance(&start, &goal))));
+    open_list.push((
+        start,
+        OrderedFloat(square_euclidian_distance(&start, &goal)),
+    ));
 
     let mut came_from: HashMap<Node, Node> = HashMap::new();
 
@@ -337,16 +335,14 @@ pub fn find_reverse_path(graph: &Graph, start: Node, goal: Node) -> Option<Vec<N
         // Note: when estimating distances, I assume that the graph is mostly a "grid"
         // => Hence the usage of manhattan distance
         // For short paths, this is not true (because of graph partly constructed with PRM-like algo)
-        // TODO improve the distance estimation
-
         for v in graph.get_neighbours(&u).iter() {
             // Check if this path is better than any previous one that passes through v.
             // To do this, compute the length of the path from start to v.
-            let try_g_cost = *g_cost.get(&u).unwrap() + manhattan_distance(&u, v);
+            let try_g_cost = *g_cost.get(&u).unwrap() + square_euclidian_distance(&u, v);
             let g_cost_v = g_cost.get(v);
             if g_cost_v.is_none() || try_g_cost < *g_cost_v.unwrap() {
                 // Best path through v ! Estimate total distance to the goal
-                let f_score = try_g_cost + manhattan_distance(v, &goal);
+                let f_score = try_g_cost + square_euclidian_distance(v, &goal);
 
                 // Store (or update if v already known) the estimated distance
                 came_from.insert(*v, u);
@@ -370,6 +366,7 @@ fn square_euclidian_distance(a: &Node, b: &Node) -> f64 {
 }
 
 // Accurate for distances in a "grid" graph where you can only go in the 4 cardinal directions
+#[allow(dead_code)]
 fn manhattan_distance(a: &Node, b: &Node) -> f64 {
     (a.x.into_inner() - b.x.into_inner()).abs() + (a.y.into_inner() - b.y.into_inner()).abs()
 }
