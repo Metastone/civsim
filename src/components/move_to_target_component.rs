@@ -64,9 +64,9 @@ impl MoveToTargetComponent {
         //
         // Finally, use A* algorithm to find a path to the target, on the full graph made of graphs A, B, C.
 
-        let mut graph = Graph::new();
+        self.graph.clear();
 
-        graph.add_body_grid_nodes(
+        self.graph.add_body_grid_nodes(
             entity,
             body.get_x(),
             body.get_y(),
@@ -74,25 +74,30 @@ impl MoveToTargetComponent {
             self.target_body.get_y(),
         );
 
-        if !graph.add_prm_nodes(entity, body, body.get_x(), body.get_y()) {
-            self.graph = graph;
+        if !self
+            .graph
+            .add_prm_nodes(entity, body, body.get_x(), body.get_y())
+        {
             return false;
         }
 
-        if !graph.add_prm_nodes(
+        if !self.graph.add_prm_nodes(
             entity,
             body,
             self.target_body.get_x(),
             self.target_body.get_y(),
         ) {
-            self.graph = graph;
+            return false;
+        }
+
+        if !self.graph.connect_nodes(entity, body) {
             return false;
         }
 
         let start_node = Node::new(body.get_x(), body.get_y());
         let end_node = Node::new(self.target_body.get_x(), self.target_body.get_y());
 
-        if let Some(reverse_path) = find_reverse_path(&graph, start_node, end_node) {
+        if let Some(reverse_path) = find_reverse_path(&self.graph, start_node, end_node) {
             self.path.clear();
             for n in reverse_path.iter().rev() {
                 self.path.push(WayPoint {
@@ -101,11 +106,9 @@ impl MoveToTargetComponent {
                     reached: false,
                 });
             }
-            self.graph = graph;
             return true;
         }
 
-        self.graph = graph;
         false
     }
 

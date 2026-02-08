@@ -68,6 +68,10 @@ impl Graph {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.neighbours.clear();
+    }
+
     pub fn get_neighbours(&self, n: &Node) -> Vec<Node> {
         if let Some(neighbours) = self.neighbours.get(n) {
             neighbours.clone()
@@ -205,13 +209,6 @@ impl Graph {
         target_x: f64,
         target_y: f64,
     ) -> bool {
-        // Important: do this first, because it can resize the body grid and invalidate coordinates
-        let (t_cx, t_cy) = body_grid::get_cell_coords(target_x, target_y);
-
-        let (grid_x, grid_y, _, _, grid_cell_size, grid_nb_cells_x, grid_nb_cells_y) =
-            body_grid::get_coords();
-        let radius = 1.1 * grid_cell_size;
-
         // If the start position already collides, it will be impossible to find a path, so quit
         let temp_body =
             BodyComponent::new_traversable(target_x, target_y, body.get_w(), body.get_h());
@@ -225,9 +222,10 @@ impl Graph {
         self.neighbours.insert(node, Vec::new());
 
         // In a radius (squared) around the target, randomly generate positions
+        let r = get_graph_connection_radius();
         for _ in 0..NB_PRM_POSITIONS_GENERATED {
-            let x = rng::random_range(target_x - radius, target_x + radius);
-            let y = rng::random_range(target_y - radius, target_y + radius);
+            let x = rng::random_range(target_x - r, target_x + r);
+            let y = rng::random_range(target_y - r, target_y + r);
             let node = Node::new(x, y);
             self.neighbours.entry(node).or_insert_with(|| {
                 nodes.push(node);
@@ -235,39 +233,23 @@ impl Graph {
             });
         }
 
-        // Also take into account positions corresponding to the center of the cells surronding the
-        // target in the body grid.
-        let coords = Grid2CenterCoordConvertor::new(grid_x, grid_y, grid_cell_size);
+        true
+    }
 
-        for i in -1..2 {
-            // TODO with this code, cells not part of the body collision grid are not taken into account, but
-            // maybe they should ? Because they should be free of collision.
-            let cx = i + t_cx as isize;
-            if cx < 0 || cx >= grid_nb_cells_x as isize {
-                continue;
-            }
-            for j in -1..2 {
-                let cy = j + t_cy as isize;
-                if cy < 0 || cy >= grid_nb_cells_y as isize {
-                    continue;
-                }
-                let center_node = Node::new(coords.to_x(cx), coords.to_y(cy));
-                // Only take into account neighbouring nodes that are already in the graph (because
-                // we only want nodes that don't collide)
-                if self.neighbours.contains_key(&center_node) {
-                    nodes.push(center_node);
-                }
-            }
-        }
-
+    pub fn connect_nodes(&mut self, entity: EntityId, body: &BodyComponent) -> bool {
         // Connect these positions if the resulting edge does not intersect anything
         // (to check this, inflate the bodies size by size of the entity to move)
         // TODO edge_collides can cause a grid resize --> handle this
         let mut at_least_one_edge = false;
-        let max_d = max_distance_for_connected_dots(radius, NB_PRM_POSITIONS_GENERATED);
+        let r = get_graph_connection_radius();
+        let max_d2 = max_distance_for_connected_dots(r, NB_PRM_POSITIONS_GENERATED).powi(2);
+        let nodes: Vec<Node> = self.neighbours.keys().cloned().collect();
+
         for i in 0..nodes.len() {
             for j in (i + 1)..nodes.len() {
-                if square_euclidian_distance(&nodes[i], &nodes[j]) < max_d.powi(2)
+                let a = &nodes[i];
+                let b = &nodes[j];
+                if square_euclidian_distance(a, b) < max_d2
                     && !body_grid::edge_collides(
                         (nodes[i].get_x(), nodes[i].get_y()),
                         (nodes[j].get_x(), nodes[j].get_y()),
@@ -291,11 +273,15 @@ fn max_distance_for_connected_dots(r: f64, n: usize) -> f64 {
      * 1 / (2 * sqrt(lambda)) where lambda is the density.
      * Inside a disk lambda is N / (pi * r**2).
      * With N the number of points.
-     * So the expected distance is (r * sqrt(pi)) / (2 * sqrt(N))
+     * So the expected distance is (sqrt(pi) / 2) * (r / sqrt(N))
      */
-    // TODO check if it's a good heuristic
     let half_pi_sqrt = 0.886;
-    (r * half_pi_sqrt) / (n as f64).sqrt() * 5.0
+    (r * half_pi_sqrt) / (n as f64).sqrt() * 5.0 // arbitrary factor
+}
+
+fn get_graph_connection_radius() -> f64 {
+    let (_, _, _, _, grid_cell_size, ..) = body_grid::get_coords();
+    1.1 * grid_cell_size
 }
 
 fn add_to_neighbour_if_ok(
