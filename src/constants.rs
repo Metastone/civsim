@@ -19,6 +19,7 @@ pub const CREATURE_PIXEL_SIZE: u32 = 30;
 pub const FOOD_PIXEL_SIZE: u32 = 10;
 pub const OBSTACLE_PIXEL_SIZE: u32 = 85;
 pub const CELL_SIZE_FACTOR: f64 = 10.0;
+pub const CONTACT_CENTER_2_CENTER_FACTOR: f64 = 1.01;
 
 pub const REPROD_X_OFFSET: f64 = 10.0;
 

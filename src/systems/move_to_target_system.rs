@@ -1,7 +1,7 @@
 use crate::components::body_component::BodyComponent;
 use crate::components::move_to_target_component::MoveToTargetComponent;
+use crate::constants::CONTACT_CENTER_2_CENTER_FACTOR;
 use crate::ecs::{Ecs, EntityId, EntityInfo, System, Update};
-use crate::systems::utils::{move_towards_waypoint, MoveResult};
 use std::any::TypeId;
 use std::collections::HashMap;
 
@@ -10,14 +10,6 @@ enum MoveToTargetResult {
     Stopped,
     Reached,
 }
-
-// TODO détection collision avec target si entity target et pas juste une position (et je crois que
-// c'est forcément le cas pour l'instant)
-// Et gérer le fait que si la target est une cible collisionable, il faut quand même pouvoir
-// trouver un chemin jusqu'à elle (sinon les carnivores peuvent pas bouger)
-// Et alors comment l'atteindre ? Marge pour détecter collision, ou j'autorise les carnivores à
-// collisionner leur target ? ou marge infime + ajustement du déplacement pour quasi-toucher la
-// target ?
 
 /* Move all entities towards their target while avoiding collisions.
  * Each entity follows a path composed of a series of waypoint (computed to avoid collisions).
@@ -31,7 +23,7 @@ impl System for MoveToTargetSystem {
         // Get the positions (bodies) of all targets
         let mut target_bodies: HashMap<EntityId, Option<BodyComponent>> =
             iter_components!(ecs, (), (MoveToTargetComponent))
-                .map(|(move_to_target, _)| (move_to_target.target_entity, None))
+                .map(|(move_to_target, _)| (move_to_target.target_entity(), None))
                 .collect();
         for (entity, body) in target_bodies.iter_mut() {
             *body = ecs
@@ -52,7 +44,7 @@ impl System for MoveToTargetSystem {
                     });
                     updates.push(Update::Add {
                         info,
-                        comp: move_to_target.get_on_failure(),
+                        comp: move_to_target.on_failure().clone_box(),
                     });
                 }
                 MoveToTargetResult::Reached => {
@@ -63,7 +55,7 @@ impl System for MoveToTargetSystem {
                     });
                     updates.push(Update::Add {
                         info,
-                        comp: move_to_target.get_on_target_reached(),
+                        comp: move_to_target.on_target_reached().clone_box(),
                     });
                 }
                 _ => {}
@@ -82,53 +74,66 @@ fn try_move(
 ) -> MoveToTargetResult {
     // Get the target position, if possible (the entity could have been deleted)
     let target_body;
-    if let Some(b) = target_bodies[&move_to_target.target_entity] {
+    if let Some(b) = target_bodies[&move_to_target.target_entity()] {
         target_body = b;
     } else {
         return MoveToTargetResult::Stopped;
     }
+    *move_to_target.target_body_mut() = target_body;
 
-    // Compute a new path if none or if the target moved
-    if move_to_target.get_next_waypoint().is_none()
-        || target_body.get_x() != move_to_target.target_body.get_x()
-        || target_body.get_y() != move_to_target.target_body.get_y()
-    {
-        move_to_target.target_body = target_body;
+    /* Idea for performance :
+     *
+     * If on a previous run of this system for the same creature entity, no path was found,
+     * (so Stopped -> Component MoveToTarget deleted)
+     * AND in this new run, the target is the same as before AND has not moved
+     *
+     * Then its probable that the path resolution will still fail this time
+     * (not certain because maybe some obstacles moved).
+     * Maybe I can do something to try avoid infinite loop of useless trying of path computation ?
+     *
+     * Not sure if this case will be frequent and / or an issue.
+     */
+
+    // Compute a new path if necessary
+    if move_to_target.next_waypoint().is_none() {
         if !move_to_target.compute_path(info.entity, body) {
             return MoveToTargetResult::Stopped;
         }
     }
 
-    let (waypoint_x, waypoint_y) = move_to_target.get_next_waypoint().unwrap();
+    let (waypoint_x, waypoint_y) = move_to_target.next_waypoint().unwrap();
 
-    // Try to move the entity towards the next waypoint
-    match move_towards_waypoint(
-        info,
-        body,
-        waypoint_x,
-        waypoint_y,
-        move_to_target.get_speed(),
-    ) {
-        MoveResult::WaypointReached => {
-            move_to_target.waypoint_reached();
-            if move_to_target.is_last_waypoint() {
-                return MoveToTargetResult::Reached;
-            }
+    // Check if the target is reached (no need to go though all waypoints if it's already reached)
+    if body.almost_collides(move_to_target.target_body(), CONTACT_CENTER_2_CENTER_FACTOR) {
+        move_to_target.waypoint_reached();
+        return MoveToTargetResult::Reached;
+    }
+    // Check if the next waypoint is reached
+    else if body.almost_at_position(waypoint_x, waypoint_y, move_to_target.speed()) {
+        move_to_target.waypoint_reached();
+        if move_to_target.is_last_waypoint_reached() {
+            return MoveToTargetResult::Stopped;
         }
-        MoveResult::Collision => {
-            // Try to re-compute a new path
-            // Will move next iteration
-            //
-            // TODO si on ne trouve pas de chemin et que la target n'a pas bougé à l'itération
-            // suivante, forte chances de foirer à nouveau (sauf si des obstacles on bougés...)
-            // De même, même si la target a bougé, attend peut être quelques itérations avant de
-            // recalculer un chemin
-            // Tout ça pour éviter de pomper toute la puissance de calcul
+    }
+    // Try to move closer to the next waypoint
+    else {
+        let vec_to_target = (waypoint_x - body.get_x(), waypoint_y - body.get_y());
+        let norm = (vec_to_target.0.powi(2) + vec_to_target.1.powi(2)).sqrt();
+        let offset_x = vec_to_target.0 / norm * move_to_target.speed();
+        let offset_y = vec_to_target.1 / norm * move_to_target.speed();
+        if body.try_translate(
+            info.entity,
+            move_to_target.target_entity(),
+            offset_x,
+            offset_y,
+        ) {
+            return MoveToTargetResult::Moved;
+        } else {
+            // Move failed: try to re-compute a new path
             if !move_to_target.compute_path(info.entity, body) {
                 return MoveToTargetResult::Stopped;
             }
         }
-        _ => {}
     }
     MoveToTargetResult::Moved
 }

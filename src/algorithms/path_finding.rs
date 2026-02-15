@@ -67,8 +67,7 @@ impl Grid2CenterCoordConvertor {
 
 #[derive(Clone)]
 pub struct Graph {
-    // TODO "pub" temp just for display
-    pub neighbours: HashMap<Node, Vec<Node>>,
+    neighbours: HashMap<Node, Vec<Node>>,
 }
 
 impl Graph {
@@ -82,7 +81,11 @@ impl Graph {
         self.neighbours.clear();
     }
 
-    pub fn get_neighbours(&self, n: &Node) -> Vec<Node> {
+    pub fn neighbours(&self) -> &HashMap<Node, Vec<Node>> {
+        &self.neighbours
+    }
+
+    pub fn neighbours_of(&self, n: &Node) -> Vec<Node> {
         if let Some(neighbours) = self.neighbours.get(n) {
             neighbours.clone()
         } else {
@@ -97,6 +100,7 @@ impl Graph {
         entity: EntityId,
         start_x: f64,
         start_y: f64,
+        target_entity: EntityId,
         goal_x: f64,
         goal_y: f64,
     ) {
@@ -144,7 +148,7 @@ impl Graph {
                     grid_cell_size,
                     grid_cell_size,
                 );
-                if body_grid::collides(entity, &cell_body) {
+                if body_grid::collides_2(entity, target_entity, &cell_body) {
                     continue;
                 }
 
@@ -155,6 +159,7 @@ impl Graph {
                 if cell_x > 0 {
                     add_neighbour_cell_center(
                         entity,
+                        target_entity,
                         cell_center_x - grid_cell_size,
                         cell_center_y,
                         grid_cell_size,
@@ -165,6 +170,7 @@ impl Graph {
                 if cell_x < max_x {
                     add_neighbour_cell_center(
                         entity,
+                        target_entity,
                         cell_center_x + grid_cell_size,
                         cell_center_y,
                         grid_cell_size,
@@ -175,6 +181,7 @@ impl Graph {
                 if cell_y > 0 {
                     add_neighbour_cell_center(
                         entity,
+                        target_entity,
                         cell_center_x,
                         cell_center_y - grid_cell_size,
                         grid_cell_size,
@@ -185,6 +192,7 @@ impl Graph {
                 if cell_y < max_y {
                     add_neighbour_cell_center(
                         entity,
+                        target_entity,
                         cell_center_x,
                         cell_center_y + grid_cell_size,
                         grid_cell_size,
@@ -200,31 +208,32 @@ impl Graph {
         }
     }
 
-    // PRM-like algorithm to generate a graph of nodes around the target in which the body can
+    // PRM-like algorithm to generate a graph of nodes around a position in which the body can
     // safely navigate without colliding anything.
     pub fn add_prm_nodes(
         &mut self,
         entity: EntityId,
+        target_entity: EntityId,
         body: &BodyComponent,
-        target_x: f64,
-        target_y: f64,
+        center_x: f64,
+        center_y: f64,
     ) -> bool {
         // If the target position already collides, it will be impossible to find a path, so quit
         let temp_body =
-            BodyComponent::new_traversable(target_x, target_y, body.get_w(), body.get_h());
-        if body_grid::collides(entity, &temp_body) {
+            BodyComponent::new_traversable(center_x, center_y, body.get_w(), body.get_h());
+        if body_grid::collides_2(entity, target_entity, &temp_body) {
             return false;
         }
 
         // Add the target position as a node
         self.neighbours
-            .insert(Node::new(target_x, target_y), Vec::new());
+            .insert(Node::new(center_x, center_y), Vec::new());
 
         // In a radius (squared) around the target, randomly generate positions
         let r = get_graph_connection_radius();
         for _ in 0..NB_PRM_POSITIONS_GENERATED {
-            let x = rng::random_range(target_x - r, target_x + r);
-            let y = rng::random_range(target_y - r, target_y + r);
+            let x = rng::random_range(center_x - r, center_x + r);
+            let y = rng::random_range(center_y - r, center_y + r);
             let node = Node::new(x, y);
             self.neighbours.entry(node).or_default();
         }
@@ -234,7 +243,12 @@ impl Graph {
 
     // Connect these positions if the resulting edge does not intersect anything
     // (to check this, inflate the bodies size by size of the entity to move)
-    pub fn connect_nodes(&mut self, entity: EntityId, body: &BodyComponent) -> bool {
+    pub fn connect_nodes(
+        &mut self,
+        entity: EntityId,
+        target_entity: EntityId,
+        body: &BodyComponent,
+    ) -> bool {
         let mut at_least_one_edge = false;
 
         let r = get_graph_connection_radius();
@@ -252,6 +266,7 @@ impl Graph {
                         (a.get_x(), a.get_y()),
                         (b.get_x(), b.get_y()),
                         entity,
+                        target_entity,
                         (body.get_w(), body.get_h()),
                     )
                 {
@@ -287,6 +302,7 @@ fn get_graph_connection_radius() -> f64 {
 // path.
 fn add_neighbour_cell_center(
     entity: EntityId,
+    target_entity: EntityId,
     cell_center_x: f64,
     cell_center_y: f64,
     grid_cell_size: f64,
@@ -298,7 +314,7 @@ fn add_neighbour_cell_center(
         grid_cell_size,
         grid_cell_size,
     );
-    if !body_grid::collides(entity, &cell_body) {
+    if !body_grid::collides_2(entity, target_entity, &cell_body) {
         neighbours.push(Node::new_cell_center(cell_center_x, cell_center_y));
     }
 }
@@ -335,7 +351,7 @@ pub fn find_reverse_path(graph: &Graph, start: Node, goal: Node) -> Option<Vec<N
         // Note: when estimating distances, I assume that the graph is mostly a "grid"
         // => Hence the usage of manhattan distance
         // For short paths, this is not true (because of graph partly constructed with PRM-like algo)
-        for v in graph.get_neighbours(&u).iter() {
+        for v in graph.neighbours_of(&u).iter() {
             // Check if this path is better than any previous one that passes through v.
             // To do this, compute the length of the path from start to v.
             let try_g_cost = *g_cost.get(&u).unwrap() + square_euclidian_distance(&u, v);

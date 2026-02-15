@@ -28,6 +28,11 @@ use systems::hunger_system::HungerSystem;
 use systems::move_to_target_system::MoveToTargetSystem;
 use systems::reproduction_system::ReproductionSystem;
 
+// TODO make all getters / setters rust style (no get & return mutable references like
+// attribute_mut()
+
+// TODO fix determinism
+
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,

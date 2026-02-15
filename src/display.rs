@@ -186,13 +186,13 @@ fn draw_body_grid(pixels: &mut [u8], window_width: u32, window_height: u32) {
 
 fn draw_path(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: u32) {
     for (move_to_target_component, ..) in iter_components!(ecs, (), (MoveToTargetComponent)) {
-        for i in 0..(move_to_target_component.get_path().len() - 1) {
-            let waypoint = move_to_target_component.get_path()[i].clone();
-            let next_waypoint = move_to_target_component.get_path()[i + 1].clone();
+        for i in 0..(move_to_target_component.path().len() - 1) {
+            let waypoint = move_to_target_component.path()[i].clone();
+            let next_waypoint = move_to_target_component.path()[i + 1].clone();
             draw_edge(
-                (waypoint.get_x(), waypoint.get_y()),
-                (next_waypoint.get_x(), next_waypoint.get_y()),
-                if waypoint.get_reached() {
+                (waypoint.x(), waypoint.y()),
+                (next_waypoint.x(), next_waypoint.y()),
+                if waypoint.reached() {
                     WAYPOINT_REACHED_COLOR
                 } else {
                     WAYPOINT_COLOR
@@ -207,7 +207,7 @@ fn draw_path(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height:
 
 fn draw_graph(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height: u32) {
     for (move_to_target_component, ..) in iter_components!(ecs, (), (MoveToTargetComponent)) {
-        for (node, neighbours) in move_to_target_component.get_graph().neighbours.iter() {
+        for (node, neighbours) in move_to_target_component.graph().neighbours().iter() {
             for nb_node in neighbours {
                 draw_edge(
                     (node.get_x(), node.get_y()),
