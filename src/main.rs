@@ -33,6 +33,8 @@ use systems::reproduction_system::ReproductionSystem;
 
 // TODO fix determinism
 
+// TODO path finding chooses the closest target always, even if unreachable. Fix this.
+
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,

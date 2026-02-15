@@ -18,7 +18,7 @@ pub const MAX_HEALTH: f32 = 100.0;
 pub const CREATURE_PIXEL_SIZE: u32 = 30;
 pub const FOOD_PIXEL_SIZE: u32 = 10;
 pub const OBSTACLE_PIXEL_SIZE: u32 = 85;
-pub const CELL_SIZE_FACTOR: f64 = 10.0;
+pub const CELL_SIZE_FACTOR: f64 = 3.0;
 pub const CONTACT_CENTER_2_CENTER_FACTOR: f64 = 1.01;
 
 pub const REPROD_X_OFFSET: f64 = 10.0;
@@ -45,12 +45,12 @@ pub const CARNIVOROUS_SPEED: f64 = 2.0; // Pixels per iteration
 
 pub const MS_PER_ITERATION: u64 = 16;
 
-pub const HERBIVOROUS_NB: usize = 1;
+pub const HERBIVOROUS_NB: usize = 10;
 pub const CARNIVOROUS_NB: usize = 1;
-pub const FOOD_NB: usize = 100;
+pub const FOOD_NB: usize = 1;
 pub const CORPSE_NB: usize = 0;
-pub const OBSTACLES_NB: usize = 0;
+pub const OBSTACLES_NB: usize = 1;
 
-pub const NEW_FOOD_PER_TICK: usize = 0;
+pub const NEW_FOOD_PER_TICK: usize = 1;
 
-pub const NB_PRM_POSITIONS_GENERATED: usize = 1000;
+pub const NB_PRM_POSITIONS_GENERATED: usize = 100;
