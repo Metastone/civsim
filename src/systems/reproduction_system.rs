@@ -14,16 +14,16 @@ impl System for ReproductionSystem {
         for info in iter_entities!(ecs, CreatureComponent, BodyComponent) {
             // Check if the creature has enough energy to reproduce
             {
-                let creature = ecs.get_component_mut::<CreatureComponent>(&info).unwrap();
+                let creature = ecs.component_mut::<CreatureComponent>(&info).unwrap();
                 if creature.energy < REPROD_ENERGY_THRESHOLD {
                     continue;
                 }
             }
 
-            let body = ecs.get_component::<BodyComponent>(&info).unwrap();
+            let body = ecs.component::<BodyComponent>(&info).unwrap();
             let new_body = BodyComponent::new_not_traversable(
-                body.get_x() + CREATURE_PIXEL_SIZE as f64 + REPROD_X_OFFSET,
-                body.get_y(),
+                body.x() + CREATURE_PIXEL_SIZE as f64 + REPROD_X_OFFSET,
+                body.y(),
                 CREATURE_PIXEL_SIZE.into(),
                 CREATURE_PIXEL_SIZE.into(),
             );
@@ -53,7 +53,7 @@ impl System for ReproductionSystem {
 
             // Apply reproduction energy cost to parent creature
             {
-                let creature = ecs.get_component_mut::<CreatureComponent>(&info).unwrap();
+                let creature = ecs.component_mut::<CreatureComponent>(&info).unwrap();
                 creature.energy -= REPROD_ENERGY_COST;
             }
         }

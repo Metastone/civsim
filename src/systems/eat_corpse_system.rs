@@ -12,7 +12,7 @@ impl System for EatCorpseSystem {
         // Make sure that a corpse is not eaten by more than one creature
         let mut corpse_to_creature: HashMap<EntityId, EntityInfo> = HashMap::new();
         for info in iter_entities!(ecs, EatingCorpseComponent) {
-            if let Some(eating_corpse) = ecs.get_component::<EatingCorpseComponent>(&info) {
+            if let Some(eating_corpse) = ecs.component::<EatingCorpseComponent>(&info) {
                 corpse_to_creature.insert(eating_corpse.corpse_entity, info);
             }
             updates.push(Update::Delete {
@@ -27,7 +27,7 @@ impl System for EatCorpseSystem {
 
         // Increase energy of creatures that ate a corpse
         for info in corpse_to_creature.values() {
-            if let Some(creature) = ecs.get_component_mut::<CreatureComponent>(info) {
+            if let Some(creature) = ecs.component_mut::<CreatureComponent>(info) {
                 creature.energy += CORPSE_ENERGY;
                 if creature.energy > MAX_ENERGY {
                     creature.energy = MAX_ENERGY;
@@ -37,7 +37,7 @@ impl System for EatCorpseSystem {
 
         // Remove eaten corpse entities
         for corpse_entity in corpse_to_creature.keys() {
-            if let Some(info) = ecs.get_entity_info(*corpse_entity) {
+            if let Some(info) = ecs.entity_info(*corpse_entity) {
                 updates.push(Update::DeleteEntity(info));
             }
         }

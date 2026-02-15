@@ -10,18 +10,18 @@ impl System for DeathSystem {
 
         for info in iter_entities!(ecs, CreatureComponent, BodyComponent) {
             // Check if the creature should die
-            if let Some(creature) = ecs.get_component::<CreatureComponent>(&info)
+            if let Some(creature) = ecs.component::<CreatureComponent>(&info)
                 && creature.health <= 0.0
             {
                 // Create a corpse
-                if let Some(body) = ecs.get_component::<BodyComponent>(&info) {
+                if let Some(body) = ecs.component::<BodyComponent>(&info) {
                     updates.push(Update::Create(vec![
                         Box::new(CorpseComponent),
                         Box::new(BodyComponent::new_not_traversable(
-                            body.get_x(),
-                            body.get_y(),
-                            body.get_w(),
-                            body.get_h(),
+                            body.x(),
+                            body.y(),
+                            body.w(),
+                            body.h(),
                         )),
                     ]));
                 }

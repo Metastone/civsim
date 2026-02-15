@@ -26,9 +26,7 @@ impl System for MoveToTargetSystem {
                 .map(|(move_to_target, _)| (move_to_target.target_entity(), None))
                 .collect();
         for (entity, body) in target_bodies.iter_mut() {
-            *body = ecs
-                .get_component_from_entity::<BodyComponent>(*entity)
-                .copied();
+            *body = ecs.component_from_entity::<BodyComponent>(*entity).copied();
         }
 
         // Iterate over all "move to target" entities
@@ -95,10 +93,8 @@ fn try_move(
      */
 
     // Compute a new path if necessary
-    if move_to_target.next_waypoint().is_none() {
-        if !move_to_target.compute_path(info.entity, body) {
-            return MoveToTargetResult::Stopped;
-        }
+    if move_to_target.next_waypoint().is_none() && !move_to_target.compute_path(info.entity, body) {
+        return MoveToTargetResult::Stopped;
     }
 
     let (waypoint_x, waypoint_y) = move_to_target.next_waypoint().unwrap();
@@ -117,7 +113,7 @@ fn try_move(
     }
     // Try to move closer to the next waypoint
     else {
-        let vec_to_target = (waypoint_x - body.get_x(), waypoint_y - body.get_y());
+        let vec_to_target = (waypoint_x - body.x(), waypoint_y - body.y());
         let norm = (vec_to_target.0.powi(2) + vec_to_target.1.powi(2)).sqrt();
         let offset_x = vec_to_target.0 / norm * move_to_target.speed();
         let offset_y = vec_to_target.1 / norm * move_to_target.speed();

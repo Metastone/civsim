@@ -30,11 +30,11 @@ impl Node {
         }
     }
 
-    pub fn get_x(&self) -> f64 {
+    pub fn x(&self) -> f64 {
         self.x.into_inner()
     }
 
-    pub fn get_y(&self) -> f64 {
+    pub fn y(&self) -> f64 {
         self.y.into_inner()
     }
 }
@@ -109,8 +109,7 @@ impl Graph {
         body_grid::get_cell_coords(start_x, start_y);
         let (g_cell_x, g_cell_y) = body_grid::get_cell_coords(goal_x, goal_y);
         let (s_cell_x, s_cell_y) = body_grid::get_cell_coords(start_x, start_y);
-        let (grid_x, grid_y, _, _, grid_cell_size, nb_cells_x, nb_cells_y) =
-            body_grid::get_coords();
+        let (grid_x, grid_y, _, _, grid_cell_size, nb_cells_x, nb_cells_y) = body_grid::coords();
 
         // Get the bounds of a rectangle that contains the start and goal cells in the body grid,
         // with a margin (to allow going around obstacles close to start or goal)
@@ -219,8 +218,7 @@ impl Graph {
         center_y: f64,
     ) -> bool {
         // If the target position already collides, it will be impossible to find a path, so quit
-        let temp_body =
-            BodyComponent::new_traversable(center_x, center_y, body.get_w(), body.get_h());
+        let temp_body = BodyComponent::new_traversable(center_x, center_y, body.w(), body.h());
         if body_grid::collides_2(entity, target_entity, &temp_body) {
             return false;
         }
@@ -230,7 +228,7 @@ impl Graph {
             .insert(Node::new(center_x, center_y), Vec::new());
 
         // In a radius (squared) around the target, randomly generate positions
-        let r = get_graph_connection_radius();
+        let r = graph_connection_radius();
         for _ in 0..NB_PRM_POSITIONS_GENERATED {
             let x = rng::random_range(center_x - r, center_x + r);
             let y = rng::random_range(center_y - r, center_y + r);
@@ -251,7 +249,7 @@ impl Graph {
     ) -> bool {
         let mut at_least_one_edge = false;
 
-        let r = get_graph_connection_radius();
+        let r = graph_connection_radius();
         let max_d = max_distance_for_connected_dots(r, NB_PRM_POSITIONS_GENERATED);
         let max_d2 = max_d.powi(2);
         let nodes: Vec<Node> = self.neighbours.keys().cloned().collect();
@@ -263,11 +261,11 @@ impl Graph {
                 if !(a.is_cell_center && b.is_cell_center) // cell centers are already connected
                     && square_euclidian_distance(a, b) < max_d2
                     && !body_grid::edge_collides(
-                        (a.get_x(), a.get_y()),
-                        (b.get_x(), b.get_y()),
+                        (a.x(), a.y()),
+                        (b.x(), b.y()),
                         entity,
                         target_entity,
-                        (body.get_w(), body.get_h()),
+                        (body.w(), body.h()),
                     )
                 {
                     self.neighbours.get_mut(a).unwrap().push(*b);
@@ -292,8 +290,8 @@ fn max_distance_for_connected_dots(r: f64, n: usize) -> f64 {
     (r * half_pi_sqrt) / (n as f64).sqrt() * 5.0 // arbitrary factor
 }
 
-fn get_graph_connection_radius() -> f64 {
-    let (_, _, _, _, grid_cell_size, ..) = body_grid::get_coords();
+fn graph_connection_radius() -> f64 {
+    let (_, _, _, _, grid_cell_size, ..) = body_grid::coords();
     1.1 * grid_cell_size
 }
 
@@ -378,7 +376,7 @@ pub fn find_reverse_path(graph: &Graph, start: Node, goal: Node) -> Option<Vec<N
 }
 
 fn square_euclidian_distance(a: &Node, b: &Node) -> f64 {
-    (a.get_x() - b.get_x()).powi(2) + (a.get_y() - b.get_y()).powi(2)
+    (a.x() - b.x()).powi(2) + (a.y() - b.y()).powi(2)
 }
 
 // Accurate for distances in a "grid" graph where you can only go in the 4 cardinal directions

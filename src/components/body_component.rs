@@ -90,19 +90,19 @@ impl BodyComponent {
         }
     }
 
-    pub fn get_x(&self) -> f64 {
+    pub fn x(&self) -> f64 {
         self.x
     }
 
-    pub fn get_y(&self) -> f64 {
+    pub fn y(&self) -> f64 {
         self.y
     }
 
-    pub fn get_w(&self) -> f64 {
+    pub fn w(&self) -> f64 {
         self.w
     }
 
-    pub fn get_h(&self) -> f64 {
+    pub fn h(&self) -> f64 {
         self.h
     }
 

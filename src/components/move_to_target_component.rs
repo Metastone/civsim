@@ -76,16 +76,16 @@ impl MoveToTargetComponent {
 
         self.graph.add_body_grid_nodes(
             entity,
-            body.get_x(),
-            body.get_y(),
+            body.x(),
+            body.y(),
             self.target_entity,
-            self.target_body.get_x(),
-            self.target_body.get_y(),
+            self.target_body.x(),
+            self.target_body.y(),
         );
 
         if !self
             .graph
-            .add_prm_nodes(entity, self.target_entity, body, body.get_x(), body.get_y())
+            .add_prm_nodes(entity, self.target_entity, body, body.x(), body.y())
         {
             return false;
         }
@@ -94,8 +94,8 @@ impl MoveToTargetComponent {
             entity,
             self.target_entity,
             body,
-            self.target_body.get_x(),
-            self.target_body.get_y(),
+            self.target_body.x(),
+            self.target_body.y(),
         ) {
             return false;
         }
@@ -104,14 +104,14 @@ impl MoveToTargetComponent {
             return false;
         }
 
-        let start_node = Node::new(body.get_x(), body.get_y());
-        let end_node = Node::new(self.target_body.get_x(), self.target_body.get_y());
+        let start_node = Node::new(body.x(), body.y());
+        let end_node = Node::new(self.target_body.x(), self.target_body.y());
 
         if let Some(reverse_path) = find_reverse_path(&self.graph, start_node, end_node) {
             for n in reverse_path.iter().rev() {
                 self.path.push(WayPoint {
-                    x: n.get_x(),
-                    y: n.get_y(),
+                    x: n.x(),
+                    y: n.y(),
                     reached: false,
                 });
             }

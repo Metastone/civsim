@@ -30,9 +30,7 @@ impl System for AttackHerbivorousSystem {
 
         // Decrease life of attacked herbivorous entities
         for h_entity in attacked_herbivorous.iter() {
-            if let Some(creature) =
-                ecs.get_component_mut_from_entity::<CreatureComponent>(*h_entity)
-            {
+            if let Some(creature) = ecs.component_mut_from_entity::<CreatureComponent>(*h_entity) {
                 creature.health -= CARNIVOROUS_ATTACK;
                 if creature.health < 0.0 {
                     creature.health = 0.0;

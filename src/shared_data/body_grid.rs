@@ -189,10 +189,10 @@ impl BodyGrid {
         offset_y: f64,
     ) -> bool {
         let translated_body = BodyComponent::new_traversable(
-            body.get_x() + offset_x,
-            body.get_y() + offset_y,
-            body.get_w(),
-            body.get_h(),
+            body.x() + offset_x,
+            body.y() + offset_y,
+            body.w(),
+            body.h(),
         );
 
         if !self.collides_in_surronding_cells_2(entity, target_entity, &translated_body) {
@@ -203,8 +203,7 @@ impl BodyGrid {
     }
 
     fn collides_in_surronding_cells(&mut self, entity: EntityId, body: &BodyComponent) -> bool {
-        let (body_cell_x, body_cell_y) = match self.get_cell_coords_impl(body.get_x(), body.get_y())
-        {
+        let (body_cell_x, body_cell_y) = match self.get_cell_coords_impl(body.x(), body.y()) {
             GetCoordsResult::Ok(x, y) => (x, y),
             GetCoordsResult::GridResized(x, y) => (x, y),
         };
@@ -221,7 +220,7 @@ impl BodyGrid {
                 }
                 for (e, b) in self.grid[cell_y as usize * self.nb_cells_x + cell_x as usize].iter()
                 {
-                    let is_deleted_body = b.get_w() == 0.0 && b.get_h() == 0.0;
+                    let is_deleted_body = b.w() == 0.0 && b.h() == 0.0;
                     let is_itself = *e == entity;
                     if is_deleted_body || is_itself {
                         continue;
@@ -241,8 +240,7 @@ impl BodyGrid {
         target_entity: EntityId,
         body: &BodyComponent,
     ) -> bool {
-        let (body_cell_x, body_cell_y) = match self.get_cell_coords_impl(body.get_x(), body.get_y())
-        {
+        let (body_cell_x, body_cell_y) = match self.get_cell_coords_impl(body.x(), body.y()) {
             GetCoordsResult::Ok(x, y) => (x, y),
             GetCoordsResult::GridResized(x, y) => (x, y),
         };
@@ -259,7 +257,7 @@ impl BodyGrid {
                 }
                 for (e, b) in self.grid[cell_y as usize * self.nb_cells_x + cell_x as usize].iter()
                 {
-                    let is_deleted_body = b.get_w() == 0.0 && b.get_h() == 0.0;
+                    let is_deleted_body = b.w() == 0.0 && b.h() == 0.0;
                     let is_itself = *e == entity;
                     let is_target = *e == target_entity;
                     if is_deleted_body || is_itself || is_target {
@@ -308,17 +306,17 @@ impl BodyGrid {
         for cx in min_x..(max_x + 1) {
             for cy in min_y..(max_y + 1) {
                 for (e, body) in self.grid[cy as usize * self.nb_cells_x + cx as usize].iter() {
-                    let is_deleted_body = body.get_w() == 0.0 && body.get_h() == 0.0;
+                    let is_deleted_body = body.w() == 0.0 && body.h() == 0.0;
                     let is_itself = *e == entity;
                     let is_target = *e == target_entity;
                     if is_deleted_body || is_itself || is_target {
                         continue;
                     }
                     let inflated_body = BodyComponent::new_traversable(
-                        body.get_x(),
-                        body.get_y(),
-                        body.get_w() + margin.0,
-                        body.get_h() + margin.1,
+                        body.x(),
+                        body.y(),
+                        body.w() + margin.0,
+                        body.h() + margin.1,
                     );
                     if edge_collides_body(a, b, &inflated_body) {
                         return true;
@@ -339,22 +337,21 @@ impl BodyGrid {
          * making sure that they are both valid if a grid resize occurs
          */
         let (cell_x, cell_y, t_cell_x, t_cell_y) = match (
-            self.get_cell_coords_impl(body.get_x(), body.get_y()),
-            self.get_cell_coords_impl(translated_body.get_x(), translated_body.get_y()),
+            self.get_cell_coords_impl(body.x(), body.y()),
+            self.get_cell_coords_impl(translated_body.x(), translated_body.y()),
         ) {
             (GetCoordsResult::Ok(x, y), GetCoordsResult::Ok(tx, ty)) => (x, y, tx, ty),
             _ => {
                 // The grid was resized, re-compute the coords to be sure they are both valid
-                let (x, y) = match self.get_cell_coords_impl(body.get_x(), body.get_y()) {
+                let (x, y) = match self.get_cell_coords_impl(body.x(), body.y()) {
                     GetCoordsResult::Ok(x, y) => (x, y),
                     GetCoordsResult::GridResized(x, y) => (x, y),
                 };
-                let (tx, ty) = match self
-                    .get_cell_coords_impl(translated_body.get_x(), translated_body.get_y())
-                {
-                    GetCoordsResult::Ok(x, y) => (x, y),
-                    GetCoordsResult::GridResized(x, y) => (x, y),
-                };
+                let (tx, ty) =
+                    match self.get_cell_coords_impl(translated_body.x(), translated_body.y()) {
+                        GetCoordsResult::Ok(x, y) => (x, y),
+                        GetCoordsResult::GridResized(x, y) => (x, y),
+                    };
                 (x, y, tx, ty)
             }
         };
@@ -383,7 +380,7 @@ impl BodyGrid {
     }
 
     fn delete(&mut self, entity: EntityId, body: &BodyComponent) {
-        let (cell_x, cell_y) = match self.get_cell_coords_impl(body.get_x(), body.get_y()) {
+        let (cell_x, cell_y) = match self.get_cell_coords_impl(body.x(), body.y()) {
             GetCoordsResult::Ok(x, y) => (x, y),
             GetCoordsResult::GridResized(x, y) => (x, y),
         };
@@ -400,7 +397,7 @@ impl BodyGrid {
     }
 
     fn add(&mut self, entity: EntityId, body: &BodyComponent) {
-        let (cell_x, cell_y) = match self.get_cell_coords_impl(body.get_x(), body.get_y()) {
+        let (cell_x, cell_y) = match self.get_cell_coords_impl(body.x(), body.y()) {
             GetCoordsResult::Ok(x, y) => (x, y),
             GetCoordsResult::GridResized(x, y) => (x, y),
         };
@@ -414,7 +411,7 @@ impl BodyGrid {
 
     fn purge_deleted_bodies(&mut self) {
         for bodies in self.grid.iter_mut() {
-            bodies.retain(|(_, b)| b.get_w() != 0.0 || b.get_h() != 0.0);
+            bodies.retain(|(_, b)| b.w() != 0.0 || b.h() != 0.0);
         }
     }
 }
@@ -429,12 +426,12 @@ fn edge_collides_body(a: (f64, f64), b: (f64, f64), body: &BodyComponent) -> boo
      *       \
      *        B
      */
-    let half_w = body.get_w() / 2.0;
-    let half_h = body.get_h() / 2.0;
-    let m = (body.get_x() - half_w, body.get_y() - half_h);
-    let n = (body.get_x() + half_w, body.get_y() - half_h);
-    let o = (body.get_x() - half_w, body.get_y() + half_h);
-    let p = (body.get_x() + half_w, body.get_y() + half_h);
+    let half_w = body.w() / 2.0;
+    let half_h = body.h() / 2.0;
+    let m = (body.x() - half_w, body.y() - half_h);
+    let n = (body.x() + half_w, body.y() - half_h);
+    let o = (body.x() - half_w, body.y() + half_h);
+    let p = (body.x() + half_w, body.y() + half_h);
 
     let edge_inside_square = f64::min(a.0, b.0) >= m.0
         && f64::max(a.0, b.0) <= n.0
@@ -511,7 +508,7 @@ pub fn purge_deleted_bodies() {
     BODY_GRID.with_borrow_mut(|grid| grid.purge_deleted_bodies());
 }
 
-pub fn get_coords() -> (f64, f64, f64, f64, f64, usize, usize) {
+pub fn coords() -> (f64, f64, f64, f64, f64, usize, usize) {
     BODY_GRID.with_borrow(|grid| {
         (
             grid.x,

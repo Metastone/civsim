@@ -12,8 +12,7 @@ where
     let mut closest_distance_squared = f64::MAX;
     let mut opt_entity = None;
     for (t_body, t_info) in iter_components!(ecs, (C), (BodyComponent)) {
-        let distance_squared =
-            (t_body.get_x() - body.get_x()).powi(2) + (t_body.get_y() - body.get_y()).powi(2);
+        let distance_squared = (t_body.x() - body.x()).powi(2) + (t_body.y() - body.y()).powi(2);
         if distance_squared < closest_distance_squared {
             closest_distance_squared = distance_squared;
             opt_entity = Some((closest_distance_squared, t_info.entity, *t_body));

@@ -126,7 +126,7 @@ impl EntityIdAllocator {
         }
     }
 
-    pub fn get_next_id(&mut self) -> usize {
+    pub fn next_id(&mut self) -> usize {
         let ret = self.next_id;
         self.next_id += 1;
         ret
@@ -165,7 +165,7 @@ impl EntityIterator {
             entity_index: 0,
             i_arch: 0,
             archetype_indexes: ecs.with_comps(required_ctypes),
-            archetype_entities: ecs.get_archetype_entity_info(),
+            archetype_entities: ecs.archetype_entity_info(),
         }
     }
 }
@@ -354,27 +354,27 @@ impl Ecs {
         false
     }
 
-    pub fn get_component_from_entity<C>(&self, entity: usize) -> Option<&C>
+    pub fn component_from_entity<C>(&self, entity: usize) -> Option<&C>
     where
         C: Component,
     {
-        if let Some(info) = self.get_entity_info(entity) {
-            return self.get_component::<C>(&info);
+        if let Some(info) = self.entity_info(entity) {
+            return self.component::<C>(&info);
         }
         None
     }
 
-    pub fn get_component_mut_from_entity<C>(&mut self, entity: usize) -> Option<&mut C>
+    pub fn component_mut_from_entity<C>(&mut self, entity: usize) -> Option<&mut C>
     where
         C: Component,
     {
-        if let Some(info) = self.get_entity_info(entity) {
-            return self.get_component_mut::<C>(&info);
+        if let Some(info) = self.entity_info(entity) {
+            return self.component_mut::<C>(&info);
         }
         None
     }
 
-    pub fn get_component<C>(&self, info: &EntityInfo) -> Option<&C>
+    pub fn component<C>(&self, info: &EntityInfo) -> Option<&C>
     where
         C: Component,
     {
@@ -390,7 +390,7 @@ impl Ecs {
         }
     }
 
-    pub fn get_component_mut<C>(&mut self, info: &EntityInfo) -> Option<&mut C>
+    pub fn component_mut<C>(&mut self, info: &EntityInfo) -> Option<&mut C>
     where
         C: Component,
     {
@@ -419,7 +419,7 @@ impl Ecs {
             .collect()
     }
 
-    fn get_archetype_entity_info(&self) -> Vec<ArchetypeEntityInfo> {
+    fn archetype_entity_info(&self) -> Vec<ArchetypeEntityInfo> {
         self.archetypes.iter().map(|a| a.entities.clone()).collect()
     }
 
@@ -447,7 +447,7 @@ impl Ecs {
         }
     }
 
-    pub fn get_entity_info(&self, entity: usize) -> Option<EntityInfo> {
+    pub fn entity_info(&self, entity: usize) -> Option<EntityInfo> {
         // Look in all archetypes to find the entity
         for (arch_index, archetype) in self.archetypes.iter().enumerate() {
             if let Some((entity_index, entity)) = archetype
@@ -730,7 +730,7 @@ impl Ecs {
         };
 
         // Create the entity to the archetype
-        let entity = self.ids.get_next_id();
+        let entity = self.ids.next_id();
         archetype.entities.push(entity);
         for comp in comps {
             let mut c = comp.clone_box();

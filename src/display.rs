@@ -60,7 +60,7 @@ impl Display {
                 CARNIVOROUS_COLOR
             };
             let pos;
-            if let Some(body) = ecs.get_component::<BodyComponent>(&info) {
+            if let Some(body) = ecs.component::<BodyComponent>(&info) {
                 pos = *body;
                 draw_square(
                     body,
@@ -74,15 +74,12 @@ impl Display {
                 continue;
             }
 
-            if let Some(creature) = ecs.get_component::<CreatureComponent>(&info) {
+            if let Some(creature) = ecs.component::<CreatureComponent>(&info) {
                 // Draw health bar
                 draw_rec(
                     (
-                        pos.get_x(),
-                        pos.get_y()
-                            - CREATURE_PIXEL_SIZE as f64 / 2.0
-                            - BAR_HEIGHT as f64 / 2.0
-                            - 5.0,
+                        pos.x(),
+                        pos.y() - CREATURE_PIXEL_SIZE as f64 / 2.0 - BAR_HEIGHT as f64 / 2.0 - 5.0,
                     ),
                     HEALTH_COLOR,
                     (
@@ -97,8 +94,8 @@ impl Display {
                 // Draw energy bar
                 draw_rec(
                     (
-                        pos.get_x(),
-                        pos.get_y()
+                        pos.x(),
+                        pos.y()
                             - CREATURE_PIXEL_SIZE as f64 / 2.0
                             - BAR_HEIGHT as f64 * 1.5
                             - 5.0 * 2.0,
@@ -117,7 +114,7 @@ impl Display {
 
         // Draw obstacles
         for info in iter_entities!(ecs, ObstacleComponent, BodyComponent) {
-            if let Some(body) = ecs.get_component::<BodyComponent>(&info) {
+            if let Some(body) = ecs.component::<BodyComponent>(&info) {
                 draw_square(
                     body,
                     OBSTACLE_COLOR,
@@ -131,7 +128,7 @@ impl Display {
 
         // Draw food
         for info in iter_entities!(ecs, FoodComponent, BodyComponent) {
-            if let Some(body) = ecs.get_component::<BodyComponent>(&info) {
+            if let Some(body) = ecs.component::<BodyComponent>(&info) {
                 draw_square(
                     body,
                     FOOD_COLOR,
@@ -146,7 +143,7 @@ impl Display {
 }
 
 fn draw_body_grid(pixels: &mut [u8], window_width: u32, window_height: u32) {
-    let (g_x, g_y, g_w, g_h, g_cell_size, _, _) = body_grid::get_coords();
+    let (g_x, g_y, g_w, g_h, g_cell_size, _, _) = body_grid::coords();
 
     let mut j = 0;
     loop {
@@ -210,8 +207,8 @@ fn draw_graph(ecs: &mut Ecs, pixels: &mut [u8], window_width: u32, window_height
         for (node, neighbours) in move_to_target_component.graph().neighbours().iter() {
             for nb_node in neighbours {
                 draw_edge(
-                    (node.get_x(), node.get_y()),
-                    (nb_node.get_x(), nb_node.get_y()),
+                    (node.x(), node.y()),
+                    (nb_node.x(), nb_node.y()),
                     GRAPH_COLOR,
                     pixels,
                     window_width,
@@ -231,7 +228,7 @@ fn draw_square(
     window_height: u32,
 ) {
     draw_rec(
-        (body.get_x(), body.get_y()),
+        (body.x(), body.y()),
         color,
         (size, size),
         pixels,
