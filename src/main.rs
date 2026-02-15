@@ -27,9 +27,6 @@ use systems::herbivorous_mind_system::HerbivorousMindSystem;
 use systems::hunger_system::HungerSystem;
 use systems::move_to_target_system::MoveToTargetSystem;
 use systems::reproduction_system::ReproductionSystem;
-use systems::target_corpse_system::TargetCorpseSystem;
-use systems::target_food_system::TargetFoodSystem;
-use systems::target_herbivorous_system::TargetHerbivorousSystem;
 
 use winit::{
     application::ApplicationHandler,
@@ -158,11 +155,8 @@ fn create_world() -> World {
     world.add_system(Box::new(FoodGrowthSystem));
     world.add_system(Box::new(ReproductionSystem));
     world.add_system(Box::new(HerbivorousMindSystem));
-    world.add_system(Box::new(TargetFoodSystem));
     world.add_system(Box::new(EatFoodSystem));
     world.add_system(Box::new(CarnivorousMindSystem));
-    world.add_system(Box::new(TargetCorpseSystem));
-    world.add_system(Box::new(TargetHerbivorousSystem));
     world.add_system(Box::new(EatCorpseSystem));
     world.add_system(Box::new(AttackHerbivorousSystem));
     world.add_system(Box::new(HungerSystem));

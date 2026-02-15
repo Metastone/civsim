@@ -1,7 +1,7 @@
 use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
 use crate::components::move_to_target_component::MoveToTargetComponent;
-use crate::ecs::{Ecs, System, Update};
+use crate::ecs::{Ecs, System, Update, Component};
 use crate::systems::utils;
 use std::any::TypeId;
 use std::collections::HashMap;
@@ -51,23 +51,20 @@ impl System for CarnivorousMindSystem {
             }
 
             if found_target {
-                if is_corpse {
-                    updates.push(Update::Add {
-                        info: *info,
-                        comp: Box::new(TargetCorpseComponent::new(target_entity)),
-                    });
+                let on_target_reached: Box<dyn Component> = if is_corpse {
+                    Box::new(EatingCorpseComponent::new(target_entity))
                 } else {
-                    updates.push(Update::Add {
-                        info: *info,
-                        comp: Box::new(TargetHerbivorousComponent::new(target_entity)),
-                    });
-                }
+                    Box::new(AttackingHerbivorousComponent::new(target_entity))
+                };
+                let on_failure = Box::new(InactiveComponent::new());
                 updates.push(Update::Add {
                     info: *info,
                     comp: Box::new(MoveToTargetComponent::new(
                         target_entity,
                         target_body.unwrap(),
                         CARNIVOROUS_SPEED,
+                        on_target_reached,
+                        on_failure,
                     )),
                 });
                 updates.push(Update::Delete {

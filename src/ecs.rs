@@ -105,6 +105,12 @@ where
     }
 }
 
+impl Clone for Box<dyn Component> {
+    fn clone(&self) -> Box<dyn Component> {
+        self.clone_box()
+    }
+}
+
 pub type EntityId = usize;
 
 // Not a real entity ID, reserved for entities "to delete"

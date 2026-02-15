@@ -122,6 +122,8 @@ impl BodyComponent {
             && (self.y + self.h / 2.0) > (other.y - other.h / 2.0)
     }
 
+    // TODO remove if I really don't use it
+    #[allow(unused)]
     pub fn almost_collides(&self, other: &BodyComponent, factor: f64) -> bool {
         (self.x - (self.w / 2.0) * factor) < (other.x + (other.w / 2.0) * factor)
             && (self.x + (self.w / 2.0) * factor) > (other.x - (other.w / 2.0) * factor)

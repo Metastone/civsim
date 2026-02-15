@@ -47,16 +47,16 @@ impl System for HerbivorousMindSystem {
         for (herbivorous_info, found) in found {
             if found {
                 let (found_entity, found_body) = closest_target_of.get(&herbivorous_info).unwrap();
-                updates.push(Update::Add {
-                    info: herbivorous_info,
-                    comp: Box::new(TargetFoodComponent::new(*found_entity)),
-                });
+                let on_target_reached = Box::new(EatingFoodComponent::new(*found_entity));
+                let on_failure = Box::new(InactiveComponent::new());
                 updates.push(Update::Add {
                     info: herbivorous_info,
                     comp: Box::new(MoveToTargetComponent::new(
                         *found_entity,
                         *found_body,
                         HERBIVOROUS_SPEED,
+                        on_target_reached,
+                        on_failure,
                     )),
                 });
                 updates.push(Update::Delete {

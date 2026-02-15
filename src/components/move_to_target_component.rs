@@ -29,19 +29,29 @@ pub struct MoveToTargetComponent {
     pub target_body: BodyComponent,
     path: Vec<WayPoint>,
     graph: Graph,
-    pub speed: f64,
+    speed: f64,
+    on_target_reached: Box<dyn Component>,
+    on_failure: Box<dyn Component>,
 }
 
 impl Component for MoveToTargetComponent {}
 
 impl MoveToTargetComponent {
-    pub fn new(target_entity: EntityId, target_body: BodyComponent, speed: f64) -> Self {
+    pub fn new(
+        target_entity: EntityId,
+        target_body: BodyComponent,
+        speed: f64,
+        on_target_reached: Box<dyn Component>,
+        on_failure: Box<dyn Component>,
+    ) -> Self {
         Self {
             target_entity,
             target_body,
             path: Vec::new(),
             graph: Graph::new(),
             speed,
+            on_target_reached,
+            on_failure,
         }
     }
 
@@ -135,6 +145,18 @@ impl MoveToTargetComponent {
             }
         }
         None
+    }
+
+    pub fn get_speed(&self) -> f64 {
+        self.speed
+    }
+
+    pub fn get_on_target_reached(&self) -> Box<dyn Component> {
+        self.on_target_reached.clone()
+    }
+
+    pub fn get_on_failure(&self) -> Box<dyn Component> {
+        self.on_failure.clone()
     }
 
     // For display

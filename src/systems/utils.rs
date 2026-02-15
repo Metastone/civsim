@@ -1,5 +1,4 @@
 use crate::components::body_component::BodyComponent;
-use crate::constants::CONTACT_CENTER_2_CENTER_FACTOR;
 use crate::ecs::{ComponentType, Ecs, EntityId, EntityInfo};
 use std::any::TypeId;
 
@@ -30,10 +29,6 @@ pub fn move_towards_waypoint(
             MoveResult::Collision
         }
     }
-}
-
-pub fn is_target_reached(body: &BodyComponent, target_body: &BodyComponent) -> bool {
-    body.almost_collides(target_body, CONTACT_CENTER_2_CENTER_FACTOR)
 }
 
 pub fn find_closest(

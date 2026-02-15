@@ -8,6 +8,7 @@ use std::collections::HashMap;
 enum MoveToTargetResult {
     Moved,
     Stopped,
+    Reached,
 }
 
 /* Move all entities towards their target while avoiding collisions.
@@ -34,15 +35,30 @@ impl System for MoveToTargetSystem {
         for (body, move_to_target, info) in
             iter_components!(ecs, (), (BodyComponent, MoveToTargetComponent))
         {
-            if let MoveToTargetResult::Stopped =
-                try_move(body, move_to_target, &info, &target_bodies)
-            {
-                // Go into motionless state
-                updates.push(Update::Delete {
-                    info,
-                    c_type: to_ctype!(MoveToTargetComponent),
-                });
-                continue;
+            match try_move(body, move_to_target, &info, &target_bodies) {
+                MoveToTargetResult::Stopped => {
+                    // Go into motionless state
+                    updates.push(Update::Delete {
+                        info,
+                        c_type: to_ctype!(MoveToTargetComponent),
+                    });
+                    updates.push(Update::Add {
+                        info,
+                        comp: move_to_target.get_on_failure(),
+                    });
+                }
+                MoveToTargetResult::Reached => {
+                    // Go into motionless state
+                    updates.push(Update::Delete {
+                        info,
+                        c_type: to_ctype!(MoveToTargetComponent),
+                    });
+                    updates.push(Update::Add {
+                        info,
+                        comp: move_to_target.get_on_target_reached(),
+                    });
+                }
+                _ => {}
             }
         }
 
@@ -77,11 +93,17 @@ fn try_move(
     let (waypoint_x, waypoint_y) = move_to_target.get_next_waypoint().unwrap();
 
     // Try to move the entity towards the next waypoint
-    match move_towards_waypoint(info, body, waypoint_x, waypoint_y, move_to_target.speed) {
+    match move_towards_waypoint(
+        info,
+        body,
+        waypoint_x,
+        waypoint_y,
+        move_to_target.get_speed(),
+    ) {
         MoveResult::WaypointReached => {
             move_to_target.waypoint_reached();
             if move_to_target.is_last_waypoint() {
-                return MoveToTargetResult::Stopped;
+                return MoveToTargetResult::Reached;
             }
         }
         MoveResult::Collision => {

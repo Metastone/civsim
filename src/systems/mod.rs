@@ -9,7 +9,4 @@ pub mod herbivorous_mind_system;
 pub mod hunger_system;
 pub mod move_to_target_system;
 pub mod reproduction_system;
-pub mod target_corpse_system;
-pub mod target_food_system;
-pub mod target_herbivorous_system;
 pub mod utils;
