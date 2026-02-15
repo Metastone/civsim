@@ -1,5 +1,5 @@
 use crate::components::body_component::BodyComponent;
-use crate::ecs::{ComponentType, Ecs, EntityId, EntityInfo};
+use crate::ecs::{Component, Ecs, EntityId, EntityInfo};
 use std::any::TypeId;
 
 pub enum MoveResult {
@@ -31,22 +31,22 @@ pub fn move_towards_waypoint(
     }
 }
 
-pub fn find_closest(
-    ecs: &Ecs,
+pub fn find_closest<C>(
+    ecs: &mut Ecs,
     body: &BodyComponent,
-    c_type: ComponentType,
-) -> Option<(f64, EntityId)> {
+) -> Option<(f64, EntityId, BodyComponent)>
+where
+    C: Component,
+{
     let mut closest_distance_squared = f64::MAX;
     let mut opt_entity = None;
-    for info in ecs.iter_entities_with(&[c_type, to_ctype!(BodyComponent)]) {
-        if let Some(o_body) = ecs.get_component::<BodyComponent>(&info) {
-            let distance_squared =
-                (o_body.get_x() - body.get_x()).powi(2) + (o_body.get_y() - body.get_y()).powi(2);
-            if distance_squared < closest_distance_squared {
-                closest_distance_squared = distance_squared;
-                opt_entity = Some(info.entity);
-            }
+    for (t_body, t_info) in iter_components!(ecs, (C), (BodyComponent)) {
+        let distance_squared =
+            (t_body.get_x() - body.get_x()).powi(2) + (t_body.get_y() - body.get_y()).powi(2);
+        if distance_squared < closest_distance_squared {
+            closest_distance_squared = distance_squared;
+            opt_entity = Some((closest_distance_squared, t_info.entity, *t_body));
         }
     }
-    opt_entity.map(|entity| (closest_distance_squared, entity))
+    opt_entity
 }

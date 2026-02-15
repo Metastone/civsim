@@ -11,6 +11,14 @@ enum MoveToTargetResult {
     Reached,
 }
 
+// TODO détection collision avec target si entity target et pas juste une position (et je crois que
+// c'est forcément le cas pour l'instant)
+// Et gérer le fait que si la target est une cible collisionable, il faut quand même pouvoir
+// trouver un chemin jusqu'à elle (sinon les carnivores peuvent pas bouger)
+// Et alors comment l'atteindre ? Marge pour détecter collision, ou j'autorise les carnivores à
+// collisionner leur target ? ou marge infime + ajustement du déplacement pour quasi-toucher la
+// target ?
+
 /* Move all entities towards their target while avoiding collisions.
  * Each entity follows a path composed of a series of waypoint (computed to avoid collisions).
  * If a collision occurs (i.e because other entities moved), a new path is computed.
@@ -80,8 +88,9 @@ fn try_move(
         return MoveToTargetResult::Stopped;
     }
 
-    // Recompute a new path if the target moved
-    if target_body.get_x() != move_to_target.target_body.get_x()
+    // Compute a new path if none or if the target moved
+    if move_to_target.get_next_waypoint().is_none()
+        || target_body.get_x() != move_to_target.target_body.get_x()
         || target_body.get_y() != move_to_target.target_body.get_y()
     {
         move_to_target.target_body = target_body;
@@ -109,6 +118,12 @@ fn try_move(
         MoveResult::Collision => {
             // Try to re-compute a new path
             // Will move next iteration
+            //
+            // TODO si on ne trouve pas de chemin et que la target n'a pas bougé à l'itération
+            // suivante, forte chances de foirer à nouveau (sauf si des obstacles on bougés...)
+            // De même, même si la target a bougé, attend peut être quelques itérations avant de
+            // recalculer un chemin
+            // Tout ça pour éviter de pomper toute la puissance de calcul
             if !move_to_target.compute_path(info.entity, body) {
                 return MoveToTargetResult::Stopped;
             }

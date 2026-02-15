@@ -22,7 +22,7 @@ impl System for ReproductionSystem {
 
             let body = ecs.get_component::<BodyComponent>(&info).unwrap();
             let new_body = BodyComponent::new_not_traversable(
-                body.get_x() + CREATURE_PIXEL_SIZE as f64,
+                body.get_x() + CREATURE_PIXEL_SIZE as f64 + REPROD_X_OFFSET,
                 body.get_y(),
                 CREATURE_PIXEL_SIZE.into(),
                 CREATURE_PIXEL_SIZE.into(),

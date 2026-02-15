@@ -31,23 +31,24 @@ impl System for CarnivorousMindSystem {
             let mut is_corpse = false;
 
             // Check corpses
-            if let Some((distance_squared, closest_entity)) =
-                utils::find_closest(ecs, body, to_ctype!(CorpseComponent))
+            if let Some((distance_squared, closest_entity, closest_body)) =
+                utils::find_closest::<CorpseComponent>(ecs, body)
             {
                 closest_distance_squared = distance_squared;
                 found_target = true;
                 is_corpse = true;
                 target_entity = closest_entity;
-                target_body = Some(*ecs.get_component::<BodyComponent>(info).unwrap());
+                target_body = Some(closest_body);
             }
 
             // Check herbivorous
-            if let Some((distance_squared, closest_entity)) =
-                utils::find_closest(ecs, body, to_ctype!(HerbivorousComponent))
+            if let Some((distance_squared, closest_entity, closest_body)) =
+                utils::find_closest::<HerbivorousComponent>(ecs, body)
                 && distance_squared < closest_distance_squared
             {
                 found_target = true;
                 target_entity = closest_entity;
+                target_body = Some(closest_body);
             }
 
             if found_target {
@@ -67,6 +68,7 @@ impl System for CarnivorousMindSystem {
                         on_failure,
                     )),
                 });
+                // TODO parametre generique pour le type de composant à supprimer
                 updates.push(Update::Delete {
                     info: *info,
                     c_type: to_ctype!(InactiveComponent),

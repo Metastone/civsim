@@ -20,6 +20,8 @@ pub const FOOD_PIXEL_SIZE: u32 = 10;
 pub const OBSTACLE_PIXEL_SIZE: u32 = 85;
 pub const CELL_SIZE_FACTOR: f64 = 10.0;
 
+pub const REPROD_X_OFFSET: f64 = 10.0;
+
 pub const BAR_WIDTH: u32 = 30;
 pub const BAR_HEIGHT: u32 = 5;
 pub const GRID_LINE_WIDENESS: u32 = 5;
@@ -43,11 +45,11 @@ pub const CARNIVOROUS_SPEED: f64 = 2.0; // Pixels per iteration
 pub const MS_PER_ITERATION: u64 = 16;
 
 pub const HERBIVOROUS_NB: usize = 1;
-pub const CARNIVOROUS_NB: usize = 0;
-pub const FOOD_NB: usize = 1;
+pub const CARNIVOROUS_NB: usize = 1;
+pub const FOOD_NB: usize = 100;
 pub const CORPSE_NB: usize = 0;
 pub const OBSTACLES_NB: usize = 0;
 
-pub const NEW_FOOD_PER_TICK: usize = 1;
+pub const NEW_FOOD_PER_TICK: usize = 0;
 
 pub const NB_PRM_POSITIONS_GENERATED: usize = 1000;

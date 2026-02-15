@@ -29,17 +29,11 @@ impl System for HerbivorousMindSystem {
             found.insert(*info, false);
 
             // Check all foods
-            if let Some((_, closest_entity)) =
-                utils::find_closest(ecs, body, to_ctype!(FoodComponent))
+            if let Some((_, closest_entity, closest_body)) =
+                utils::find_closest::<FoodComponent>(ecs, body)
             {
                 found.insert(*info, true);
-                closest_target_of.insert(
-                    *info,
-                    (
-                        closest_entity,
-                        *ecs.get_component::<BodyComponent>(info).unwrap(),
-                    ),
-                );
+                closest_target_of.insert(*info, (closest_entity, closest_body));
             }
         }
 
