@@ -362,7 +362,7 @@ impl Ecs {
     where
         C: Component,
     {
-        if let Some(info) = self.entity_info(entity) {
+        if let Some(info) = self.get_entity_info(entity) {
             return self.component::<C>(&info);
         }
         None
@@ -372,7 +372,7 @@ impl Ecs {
     where
         C: Component,
     {
-        if let Some(info) = self.entity_info(entity) {
+        if let Some(info) = self.get_entity_info(entity) {
             return self.component_mut::<C>(&info);
         }
         None
@@ -451,7 +451,7 @@ impl Ecs {
         }
     }
 
-    pub fn entity_info(&self, entity: usize) -> Option<EntityInfo> {
+    pub fn get_entity_info(&self, entity: usize) -> Option<EntityInfo> {
         // Look in all archetypes to find the entity
         for (arch_index, archetype) in self.archetypes.iter().enumerate() {
             if let Some((entity_index, entity)) = archetype

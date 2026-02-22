@@ -22,10 +22,10 @@ impl System for ReproductionSystem {
 
             let body = ecs.component::<BodyComponent>(&info).unwrap();
             let new_body = BodyComponent::new_not_traversable(
-                body.x() + CREATURE_PIXEL_SIZE as f64 + REPROD_X_OFFSET,
+                body.x() + CREATURE_SIZE as f64 + REPROD_X_OFFSET,
                 body.y(),
-                CREATURE_PIXEL_SIZE.into(),
-                CREATURE_PIXEL_SIZE.into(),
+                CREATURE_SIZE.into(),
+                CREATURE_SIZE.into(),
             );
 
             // Reproduce only if there is a free space for the new creature

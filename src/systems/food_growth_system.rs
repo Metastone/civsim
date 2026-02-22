@@ -11,8 +11,8 @@ impl System for FoodGrowthSystem {
             updates.push(Update::Create(vec![
                 Box::new(FoodComponent::new()),
                 Box::new(BodyComponent::new_rand_pos_traversable(
-                    FOOD_PIXEL_SIZE.into(),
-                    FOOD_PIXEL_SIZE.into(),
+                    FOOD_SIZE.into(),
+                    FOOD_SIZE.into(),
                 )),
             ]));
         }

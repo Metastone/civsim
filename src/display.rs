@@ -37,7 +37,7 @@ impl Display {
             draw_square(
                 body,
                 CORPSE_COLOR,
-                CREATURE_PIXEL_SIZE,
+                CREATURE_SIZE,
                 pixels,
                 window_width,
                 window_height,
@@ -65,7 +65,7 @@ impl Display {
                 draw_square(
                     body,
                     color,
-                    CREATURE_PIXEL_SIZE,
+                    CREATURE_SIZE,
                     pixels,
                     window_width,
                     window_height,
@@ -79,7 +79,7 @@ impl Display {
                 draw_rec(
                     (
                         pos.x(),
-                        pos.y() - CREATURE_PIXEL_SIZE as f64 / 2.0 - BAR_HEIGHT as f64 / 2.0 - 5.0,
+                        pos.y() - CREATURE_SIZE as f64 / 2.0 - BAR_HEIGHT as f64 / 2.0 - 5.0,
                     ),
                     HEALTH_COLOR,
                     (
@@ -95,10 +95,7 @@ impl Display {
                 draw_rec(
                     (
                         pos.x(),
-                        pos.y()
-                            - CREATURE_PIXEL_SIZE as f64 / 2.0
-                            - BAR_HEIGHT as f64 * 1.5
-                            - 5.0 * 2.0,
+                        pos.y() - CREATURE_SIZE as f64 / 2.0 - BAR_HEIGHT as f64 * 1.5 - 5.0 * 2.0,
                     ),
                     ENERGY_COLOR,
                     (
@@ -118,7 +115,7 @@ impl Display {
                 draw_square(
                     body,
                     OBSTACLE_COLOR,
-                    OBSTACLE_PIXEL_SIZE,
+                    OBSTACLE_SIZE,
                     pixels,
                     window_width,
                     window_height,
@@ -132,7 +129,7 @@ impl Display {
                 draw_square(
                     body,
                     FOOD_COLOR,
-                    FOOD_PIXEL_SIZE,
+                    FOOD_SIZE,
                     pixels,
                     window_width,
                     window_height,

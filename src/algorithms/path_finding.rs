@@ -6,6 +6,39 @@ use crate::shared_data::body_grid;
 use ordered_float::OrderedFloat;
 use std::collections::HashMap;
 
+#[derive(Clone)]
+pub struct WayPoint {
+    x: f64,
+    y: f64,
+    reached: bool,
+}
+
+impl WayPoint {
+    pub fn new(x: f64, y: f64) -> Self {
+        WayPoint {
+            x,
+            y,
+            reached: false,
+        }
+    }
+
+    pub fn x(&self) -> f64 {
+        self.x
+    }
+
+    pub fn y(&self) -> f64 {
+        self.y
+    }
+
+    pub fn reached(&self) -> bool {
+        self.reached
+    }
+
+    pub fn set_reached(&mut self) {
+        self.reached = true;
+    }
+}
+
 #[derive(Eq, PartialEq, Hash, Copy, Clone)]
 pub struct Node {
     x: OrderedFloat<f64>,
@@ -381,7 +414,7 @@ fn square_euclidian_distance(a: &Node, b: &Node) -> f64 {
 
 // Accurate for distances in a "grid" graph where you can only go in the 4 cardinal directions
 #[allow(dead_code)]
-fn manhattan_distance(a: &Node, b: &Node) -> f64 {
+fn taxicab_distance(a: &Node, b: &Node) -> f64 {
     (a.x.into_inner() - b.x.into_inner()).abs() + (a.y.into_inner() - b.y.into_inner()).abs()
 }
 
@@ -393,4 +426,67 @@ fn reconstruct_path(came_from: &HashMap<Node, Node>, node: &Node) -> Vec<Node> {
         reverse_path.push(*n);
     }
     reverse_path
+}
+
+/// Construct a graph consisting of the centers of the cells of the body grid.
+/// Only cells up, down, left, right are considered adjacent for the graph construction.
+/// The cells considered traversable, taken into account for the graph, are the ones that
+/// are empty AND not colliding with anything in the 8 adjacent cells.
+/// Restrict it to an area containing the the creature and the target, not the whole map
+/// (for performances)
+///
+/// Use PRM-like algorithm to add to the graph nodes corresponding to non-colliding places
+/// around the current creature position, and around the target.
+///
+/// Connect nodes that are near each other (if the edge does not collide, taking the
+/// creature size into account).
+///
+/// Finally, use A* algorithm on this constructed graph to find a path to the target.
+pub fn compute_path(
+    entity: EntityId,
+    body: &BodyComponent,
+    target_entity: EntityId,
+    target_body: &BodyComponent,
+) -> Option<(Vec<WayPoint>, Graph)> {
+    let mut graph = Graph::new();
+
+    graph.add_body_grid_nodes(
+        entity,
+        body.x(),
+        body.y(),
+        target_entity,
+        target_body.x(),
+        target_body.y(),
+    );
+
+    if !graph.add_prm_nodes(entity, target_entity, body, body.x(), body.y()) {
+        return None;
+    }
+
+    if !graph.add_prm_nodes(
+        entity,
+        target_entity,
+        body,
+        target_body.x(),
+        target_body.y(),
+    ) {
+        return None;
+    }
+
+    if !graph.connect_nodes(entity, target_entity, body) {
+        return None;
+    }
+
+    let start_node = Node::new(body.x(), body.y());
+    let end_node = Node::new(target_body.x(), target_body.y());
+
+    if let Some(reverse_path) = find_reverse_path(&graph, start_node, end_node) {
+        let mut path = Vec::new();
+        for n in reverse_path.iter().rev() {
+            path.push(WayPoint::new(n.x(), n.y()));
+        }
+        return Some((path, graph));
+    }
+
+    None
 }

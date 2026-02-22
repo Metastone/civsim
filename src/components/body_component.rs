@@ -29,7 +29,7 @@ impl Component for BodyComponent {
                 let y = rng::random_range(SCREEN_HEIGHT as f64 / -2.0, SCREEN_HEIGHT as f64 / 2.0);
                 self.x = x;
                 self.y = y;
-                if self.is_traversable || !body_grid::collides(entity, self) {
+                if !body_grid::collides(entity, self) {
                     break;
                 }
             }

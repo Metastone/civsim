@@ -1,3 +1,4 @@
+use crate::algorithms::path_finding::WayPoint;
 use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
 use crate::components::move_to_target_component::MoveToTargetComponent;
@@ -26,29 +27,32 @@ impl System for CarnivorousMindSystem {
         for (info, body) in &carnivorous_body {
             let mut target_entity = 0;
             let mut target_body: Option<BodyComponent> = None;
+            let mut path_to_target: Option<Vec<WayPoint>> = None;
             let mut closest_distance_squared = f64::MAX;
             let mut found_target = false;
             let mut is_corpse = false;
 
             // Check corpses
-            if let Some((distance_squared, closest_entity, closest_body)) =
-                utils::find_closest::<CorpseComponent>(ecs, body)
+            if let Some((distance_squared, closest_entity, closest_body, closest_path)) =
+                utils::find_closest_reachable::<CorpseComponent>(ecs, info.entity, body)
             {
                 closest_distance_squared = distance_squared;
                 found_target = true;
                 is_corpse = true;
                 target_entity = closest_entity;
                 target_body = Some(closest_body);
+                path_to_target = Some(closest_path);
             }
 
             // Check herbivorous
-            if let Some((distance_squared, closest_entity, closest_body)) =
-                utils::find_closest::<HerbivorousComponent>(ecs, body)
+            if let Some((distance_squared, closest_entity, closest_body, closest_path)) =
+                utils::find_closest_reachable::<HerbivorousComponent>(ecs, info.entity, body)
                 && distance_squared < closest_distance_squared
             {
                 found_target = true;
                 target_entity = closest_entity;
                 target_body = Some(closest_body);
+                path_to_target = Some(closest_path);
             }
 
             if found_target {
@@ -63,6 +67,7 @@ impl System for CarnivorousMindSystem {
                     comp: Box::new(MoveToTargetComponent::new(
                         target_entity,
                         target_body.unwrap(),
+                        path_to_target.unwrap(),
                         CARNIVOROUS_SPEED,
                         on_target_reached,
                         on_failure,

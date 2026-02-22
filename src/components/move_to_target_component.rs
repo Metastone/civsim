@@ -1,33 +1,12 @@
-use crate::algorithms::path_finding::{find_reverse_path, Graph, Node};
+use crate::algorithms::path_finding::{compute_path, Graph, WayPoint};
 use crate::components::body_component::BodyComponent;
 use crate::ecs::{Component, EntityId};
-
-#[derive(Clone)]
-pub struct WayPoint {
-    x: f64,
-    y: f64,
-    reached: bool,
-}
-
-impl WayPoint {
-    pub fn x(&self) -> f64 {
-        self.x
-    }
-
-    pub fn y(&self) -> f64 {
-        self.y
-    }
-
-    pub fn reached(&self) -> bool {
-        self.reached
-    }
-}
 
 #[derive(Clone)]
 pub struct MoveToTargetComponent {
     target_entity: EntityId,
     target_body: BodyComponent,
-    path: Vec<WayPoint>,
+    path_to_target: Vec<WayPoint>,
     graph: Graph,
     speed: f64,
     on_target_reached: Box<dyn Component>,
@@ -40,6 +19,7 @@ impl MoveToTargetComponent {
     pub fn new(
         target_entity: EntityId,
         target_body: BodyComponent,
+        path_to_target: Vec<WayPoint>,
         speed: f64,
         on_target_reached: Box<dyn Component>,
         on_failure: Box<dyn Component>,
@@ -47,7 +27,7 @@ impl MoveToTargetComponent {
         Self {
             target_entity,
             target_body,
-            path: Vec::new(),
+            path_to_target,
             graph: Graph::new(),
             speed,
             on_target_reached,
@@ -55,66 +35,16 @@ impl MoveToTargetComponent {
         }
     }
 
+    // TODO maybe refactor this and call compute_path in caller only ? or maybe not
     pub fn compute_path(&mut self, entity: EntityId, body: &BodyComponent) -> bool {
-        // Construct a graph consisting of the centers of the cells of the body grid.
-        // Only cells up, down, left, right are considered adjacent for the graph construction.
-        // The cells considered traversable, taken into account for the graph, are the ones that
-        // are empty AND not colliding with anything in the 8 adjacent cells.
-        // Restrict it to an area containing the the creature and the target, not the whole map
-        // (for performances)
-        //
-        // Use PRM-like algorithm to add to the graph nodes corresponding to non-colliding places
-        // around the current creature position, and around the target.
-        //
-        // Connect nodes that are near each other (if the edge does not collide, taking the
-        // creature size into account).
-        //
-        // Finally, use A* algorithm on this constructed graph to find a path to the target.
-
         self.graph.clear();
-        self.path.clear();
+        self.path_to_target.clear();
 
-        self.graph.add_body_grid_nodes(
-            entity,
-            body.x(),
-            body.y(),
-            self.target_entity,
-            self.target_body.x(),
-            self.target_body.y(),
-        );
-
-        if !self
-            .graph
-            .add_prm_nodes(entity, self.target_entity, body, body.x(), body.y())
+        if let Some((path, graph)) =
+            compute_path(entity, body, self.target_entity, &self.target_body)
         {
-            return false;
-        }
-
-        if !self.graph.add_prm_nodes(
-            entity,
-            self.target_entity,
-            body,
-            self.target_body.x(),
-            self.target_body.y(),
-        ) {
-            return false;
-        }
-
-        if !self.graph.connect_nodes(entity, self.target_entity, body) {
-            return false;
-        }
-
-        let start_node = Node::new(body.x(), body.y());
-        let end_node = Node::new(self.target_body.x(), self.target_body.y());
-
-        if let Some(reverse_path) = find_reverse_path(&self.graph, start_node, end_node) {
-            for n in reverse_path.iter().rev() {
-                self.path.push(WayPoint {
-                    x: n.x(),
-                    y: n.y(),
-                    reached: false,
-                });
-            }
+            self.path_to_target = path;
+            self.graph = graph;
             return true;
         }
 
@@ -122,25 +52,25 @@ impl MoveToTargetComponent {
     }
 
     pub fn waypoint_reached(&mut self) {
-        for waypoint in self.path.iter_mut() {
-            if !waypoint.reached {
-                waypoint.reached = true;
+        for waypoint in self.path_to_target.iter_mut() {
+            if !waypoint.reached() {
+                waypoint.set_reached();
                 break;
             }
         }
     }
 
     pub fn next_waypoint(&self) -> Option<(f64, f64)> {
-        for waypoint in self.path.iter() {
-            if !waypoint.reached {
-                return Some((waypoint.x, waypoint.y));
+        for waypoint in self.path_to_target.iter() {
+            if !waypoint.reached() {
+                return Some((waypoint.x(), waypoint.y()));
             }
         }
         None
     }
 
     pub fn is_last_waypoint_reached(&self) -> bool {
-        self.path.last().is_none_or(|wp| wp.reached())
+        self.path_to_target.last().is_none_or(|wp| wp.reached())
     }
 
     pub fn target_entity(&self) -> EntityId {
@@ -169,7 +99,7 @@ impl MoveToTargetComponent {
 
     // For display
     pub fn path(&self) -> &Vec<WayPoint> {
-        &self.path
+        &self.path_to_target
     }
 
     // For display

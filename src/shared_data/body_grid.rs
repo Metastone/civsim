@@ -23,9 +23,66 @@ thread_local! {
             SCREEN_WIDTH as f64 / 2.0,
             - (SCREEN_HEIGHT as f64) / 2.0,
             SCREEN_HEIGHT as f64 / 2.0,
-            CREATURE_PIXEL_SIZE as f64
+            CREATURE_SIZE as f64
         )
     )
+}
+
+enum Direction {
+    Up,
+    Right,
+    Down,
+    Left,
+}
+
+pub struct ClosestEntityIterator {
+    // Constants
+    entity: EntityId,
+    body: BodyComponent,
+    start_cell_x: isize,
+    start_cell_y: isize,
+    cell_x: isize,
+    cell_y: isize,
+    max_taxicab_distance: f64,
+
+    // Clock-wise spiral variables
+    direction: Direction,
+    countdown_next_turn: usize,
+    countdown_spiral_increase: usize,
+    spiral_side_length: usize,
+}
+
+impl ClosestEntityIterator {
+    fn new(
+        body_grid: &mut BodyGrid,
+        entity: EntityId,
+        body: &BodyComponent,
+        max_taxicab_distance: f64,
+    ) -> Self {
+        let (start_cell_x, start_cell_y) = body_grid.get_cell_coords(body.x(), body.y());
+        ClosestEntityIterator {
+            entity,
+            body: *body,
+            start_cell_x: start_cell_x as isize,
+            start_cell_y: start_cell_y as isize,
+            cell_x: start_cell_x as isize,
+            cell_y: start_cell_y as isize,
+            max_taxicab_distance,
+            direction: Direction::Up,
+            countdown_next_turn: 0,
+            countdown_spiral_increase: 2,
+            spiral_side_length: 1,
+        }
+    }
+}
+
+impl Iterator for ClosestEntityIterator {
+    // (<entity found>, <euclidian distance squared>)
+    type Item = (EntityId, f64);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        BODY_GRID.with_borrow(|grid| grid.next_closest_entity(self))
+    }
 }
 
 enum GetCoordsResult {
@@ -50,6 +107,95 @@ pub struct BodyGrid {
 }
 
 impl BodyGrid {
+    fn next_closest_entity(&self, it: &mut ClosestEntityIterator) -> Option<(EntityId, f64)> {
+        let mut found_entity = RESERVED_ENTITY_ID;
+        let mut squared_euclidian_distance = f64::MAX;
+
+        while found_entity == RESERVED_ENTITY_ID {
+            // If we got too far away from the starting cell, stop the search, end iterator
+            let taxicab_distance = ((it.cell_x - it.start_cell_x).abs()
+                + (it.cell_y - it.start_cell_y).abs()) as f64
+                * self.cell_size;
+            if taxicab_distance > it.max_taxicab_distance {
+                return None;
+            }
+
+            // TODO handle case where there are several bodies in the cell
+            // (currently, I just get the closest, and on next() call I skip to the next cell)
+
+            // Look for the closest entity in the current cell
+            if it.cell_x >= 0
+                && it.cell_x < self.nb_cells_x as isize
+                && it.cell_y >= 0
+                && it.cell_y < self.nb_cells_y as isize
+            {
+                let mut temp_found_entity = RESERVED_ENTITY_ID;
+                let mut temp_min_distance = f64::MAX;
+                for (e, b) in
+                    self.grid[it.cell_y as usize * self.nb_cells_x + it.cell_x as usize].iter()
+                {
+                    let d = (b.x() - it.body.x()).powi(2) + (b.y() - it.body.y()).powi(2);
+                    if *e != it.entity && d < temp_min_distance {
+                        temp_min_distance = d;
+                        temp_found_entity = *e;
+                    }
+                }
+
+                if temp_found_entity != RESERVED_ENTITY_ID {
+                    found_entity = temp_found_entity;
+                    squared_euclidian_distance = temp_min_distance;
+                }
+            }
+
+            // Handle direction change to follow a clock-wise spiral around the starting cell
+            if it.countdown_next_turn == 0 {
+                match it.direction {
+                    Direction::Up => {
+                        it.direction = Direction::Right;
+                    }
+                    Direction::Right => {
+                        it.direction = Direction::Down;
+                    }
+                    Direction::Down => {
+                        it.direction = Direction::Left;
+                    }
+                    Direction::Left => {
+                        it.direction = Direction::Up;
+                    }
+                }
+                if it.countdown_spiral_increase == 0 {
+                    it.countdown_spiral_increase = 2;
+                    it.spiral_side_length += 1;
+                }
+                it.countdown_spiral_increase -= 1;
+                it.countdown_next_turn = it.spiral_side_length;
+            }
+            it.countdown_next_turn -= 1;
+
+            // Advance one cell in the current direction
+            match it.direction {
+                Direction::Up => {
+                    it.cell_y -= 1;
+                }
+                Direction::Right => {
+                    it.cell_x += 1;
+                }
+                Direction::Down => {
+                    it.cell_y += 1;
+                }
+                Direction::Left => {
+                    it.cell_x -= 1;
+                }
+            }
+        }
+
+        // If an entity was found, return it to the iterator caller
+        if found_entity != RESERVED_ENTITY_ID {
+            return Some((found_entity, squared_euclidian_distance));
+        }
+        None
+    }
+
     pub fn new(
         mut min_x: f64,
         mut max_x: f64,
@@ -61,7 +207,7 @@ impl BodyGrid {
         max_x += max_entity_size / 2.0;
         min_y -= max_entity_size / 2.0;
         max_y += max_entity_size / 2.0;
-        let max_entity_size = CREATURE_PIXEL_SIZE as f64;
+        let max_entity_size = CREATURE_SIZE as f64;
         let cell_size = max_entity_size * CELL_SIZE_FACTOR;
 
         // Compute the minimal size for the grid (float)
@@ -391,6 +537,17 @@ impl BodyGrid {
             bodies.retain(|(_, b)| b.w() != 0.0 || b.h() != 0.0);
         }
     }
+
+    fn iter_closest(
+        &mut self,
+        entity: EntityId,
+        body: &BodyComponent,
+        max_taxicab_distance: f64,
+    ) -> ClosestEntityIterator {
+        // I use taxical distance because it's faster to compute than euclidian distance,
+        // and an approximation is enough for now.
+        ClosestEntityIterator::new(self, entity, body, max_taxicab_distance)
+    }
 }
 
 // a, b are 2D points.
@@ -506,4 +663,12 @@ pub fn coords() -> (f64, f64, f64, f64, f64, usize, usize) {
 
 pub fn get_cell_coords(x: f64, y: f64) -> (usize, usize) {
     BODY_GRID.with_borrow_mut(|grid| grid.get_cell_coords(x, y))
+}
+
+pub fn iter_closest(
+    entity: EntityId,
+    body: &BodyComponent,
+    max_taxicab_distance: f64,
+) -> ClosestEntityIterator {
+    BODY_GRID.with_borrow_mut(|grid| grid.iter_closest(entity, body, max_taxicab_distance))
 }

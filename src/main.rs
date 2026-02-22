@@ -102,10 +102,7 @@ fn create_world() -> World {
     for _ in 0..FOOD_NB {
         world.create_entity_with(&[
             &FoodComponent::new(),
-            &BodyComponent::new_rand_pos_traversable(
-                FOOD_PIXEL_SIZE.into(),
-                FOOD_PIXEL_SIZE.into(),
-            ),
+            &BodyComponent::new_rand_pos_traversable(FOOD_SIZE.into(), FOOD_SIZE.into()),
         ]);
     }
 
@@ -113,8 +110,8 @@ fn create_world() -> World {
         world.create_entity_with(&[
             &CreatureComponent::new(),
             &BodyComponent::new_rand_pos_not_traversable(
-                CREATURE_PIXEL_SIZE.into(),
-                CREATURE_PIXEL_SIZE.into(),
+                CREATURE_SIZE.into(),
+                CREATURE_SIZE.into(),
             ),
             &HerbivorousComponent::new(),
             &InactiveComponent::new(),
@@ -125,8 +122,8 @@ fn create_world() -> World {
         world.create_entity_with(&[
             &CreatureComponent::new(),
             &BodyComponent::new_rand_pos_not_traversable(
-                CREATURE_PIXEL_SIZE.into(),
-                CREATURE_PIXEL_SIZE.into(),
+                CREATURE_SIZE.into(),
+                CREATURE_SIZE.into(),
             ),
             &CarnivorousComponent::new(),
             &InactiveComponent::new(),
@@ -138,8 +135,8 @@ fn create_world() -> World {
         world.create_entity_with(&[
             &CorpseComponent::new(),
             &BodyComponent::new_rand_pos_not_traversable(
-                CREATURE_PIXEL_SIZE.into(),
-                CREATURE_PIXEL_SIZE.into(),
+                CREATURE_SIZE.into(),
+                CREATURE_SIZE.into(),
             ),
         ]);
     }
@@ -148,8 +145,8 @@ fn create_world() -> World {
         world.create_entity_with(&[
             &ObstacleComponent::new(),
             &BodyComponent::new_rand_pos_not_traversable(
-                OBSTACLE_PIXEL_SIZE.into(),
-                OBSTACLE_PIXEL_SIZE.into(),
+                OBSTACLE_SIZE.into(),
+                OBSTACLE_SIZE.into(),
             ),
         ]);
     }
