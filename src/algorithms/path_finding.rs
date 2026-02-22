@@ -147,7 +147,7 @@ impl Graph {
                     grid_cell_size,
                     grid_cell_size,
                 );
-                if body_grid::collides_2(entity, target_entity, &cell_body) {
+                if body_grid::collides_except_target(entity, target_entity, &cell_body) {
                     continue;
                 }
 
@@ -219,7 +219,7 @@ impl Graph {
     ) -> bool {
         // If the target position already collides, it will be impossible to find a path, so quit
         let temp_body = BodyComponent::new_traversable(center_x, center_y, body.w(), body.h());
-        if body_grid::collides_2(entity, target_entity, &temp_body) {
+        if body_grid::collides_except_target(entity, target_entity, &temp_body) {
             return false;
         }
 
@@ -312,7 +312,7 @@ fn add_neighbour_cell_center(
         grid_cell_size,
         grid_cell_size,
     );
-    if !body_grid::collides_2(entity, target_entity, &cell_body) {
+    if !body_grid::collides_except_target(entity, target_entity, &cell_body) {
         neighbours.push(Node::new_cell_center(cell_center_x, cell_center_y));
     }
 }

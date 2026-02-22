@@ -28,11 +28,6 @@ use systems::hunger_system::HungerSystem;
 use systems::move_to_target_system::MoveToTargetSystem;
 use systems::reproduction_system::ReproductionSystem;
 
-// TODO make all getters / setters rust style (no get & return mutable references like
-// attribute_mut()
-
-// TODO fix determinism
-
 // TODO path finding chooses the closest target always, even if unreachable. Fix this.
 
 use winit::{

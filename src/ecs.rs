@@ -74,10 +74,14 @@ pub trait Component: Any + CloneComponent {
         TypeId::of::<Self>()
     }
 
+    /// Called by the ECS when the component is added to the data.
+    /// It does not necessarily happen immediately when the component is first provided to the ECS,
+    /// because of the ECS batch modifications mechanism.
     fn on_create(&mut self, _entity: EntityId) {
         // Default implementation NOOP
     }
 
+    /// Called by the ECS when the component is permanently deleted.
     fn on_delete(&mut self, _entity: EntityId) {
         // Default implementation NOOP
     }

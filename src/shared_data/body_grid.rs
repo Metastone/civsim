@@ -1,6 +1,6 @@
 use crate::components::body_component::BodyComponent;
 use crate::constants::*;
-use crate::ecs::EntityId;
+use crate::ecs::{EntityId, RESERVED_ENTITY_ID};
 use std::cell::RefCell;
 
 /* Collision computation grid.
@@ -177,9 +177,8 @@ impl BodyGrid {
         }
     }
 
-    /* Return true if the body was translated successfully (no collision)
-     * otherwise, return false and do nothing
-     */
+    /// Return true if the body was translated successfully (no collision).
+    /// otherwise, return false and do nothing.
     fn try_translate(
         &mut self,
         entity: EntityId,
@@ -188,53 +187,30 @@ impl BodyGrid {
         offset_x: f64,
         offset_y: f64,
     ) -> bool {
-        let translated_body = BodyComponent::new_traversable(
-            body.x() + offset_x,
-            body.y() + offset_y,
-            body.w(),
-            body.h(),
-        );
+        let mut translated_body = *body;
+        translated_body.translate(offset_x, offset_y);
 
-        if !self.collides_in_surronding_cells_2(entity, target_entity, &translated_body) {
+        if !self.collides_except_target(entity, target_entity, &translated_body) {
             self.translate(entity, body, translated_body);
             return true;
         }
         false
     }
 
-    fn collides_in_surronding_cells(&mut self, entity: EntityId, body: &BodyComponent) -> bool {
-        let (body_cell_x, body_cell_y) = match self.get_cell_coords_impl(body.x(), body.y()) {
-            GetCoordsResult::Ok(x, y) => (x, y),
-            GetCoordsResult::GridResized(x, y) => (x, y),
-        };
-
-        for i in -1..2 {
-            let cell_x = body_cell_x as i64 + i;
-            if cell_x < 0 || cell_x >= self.nb_cells_x as i64 {
-                continue;
-            }
-            for j in -1..2 {
-                let cell_y = body_cell_y as i64 + j;
-                if cell_y < 0 || cell_y >= self.nb_cells_y as i64 {
-                    continue;
-                }
-                for (e, b) in self.grid[cell_y as usize * self.nb_cells_x + cell_x as usize].iter()
-                {
-                    let is_deleted_body = b.w() == 0.0 && b.h() == 0.0;
-                    let is_itself = *e == entity;
-                    if is_deleted_body || is_itself {
-                        continue;
-                    }
-                    if body.collides(b) {
-                        return true;
-                    }
-                }
-            }
-        }
-        false
+    fn collides(&mut self, entity: EntityId, body: &BodyComponent) -> bool {
+        self.collides_impl(entity, RESERVED_ENTITY_ID, body)
     }
 
-    fn collides_in_surronding_cells_2(
+    fn collides_except_target(
+        &mut self,
+        entity: EntityId,
+        target_entity: EntityId,
+        body: &BodyComponent,
+    ) -> bool {
+        self.collides_impl(entity, target_entity, body)
+    }
+
+    fn collides_impl(
         &mut self,
         entity: EntityId,
         target_entity: EntityId,
@@ -259,8 +235,8 @@ impl BodyGrid {
                 {
                     let is_deleted_body = b.w() == 0.0 && b.h() == 0.0;
                     let is_itself = *e == entity;
-                    let is_target = *e == target_entity;
-                    if is_deleted_body || is_itself || is_target {
+                    let is_target = target_entity != RESERVED_ENTITY_ID && *e == target_entity;
+                    if b.is_traversable() || is_deleted_body || is_itself || is_target {
                         continue;
                     }
                     if body.collides(b) {
@@ -272,7 +248,6 @@ impl BodyGrid {
         false
     }
 
-    // a, b are 2D points.
     fn edge_collides(
         &mut self,
         a: (f64, f64),
@@ -281,6 +256,8 @@ impl BodyGrid {
         target_entity: EntityId,
         margin: (f64, f64),
     ) -> bool {
+        // a, b are 2D points.
+
         /* Get the grid cell coordinates for both vertices,
          * making sure that they are both valid if a grid resize occurs
          */
@@ -309,7 +286,7 @@ impl BodyGrid {
                     let is_deleted_body = body.w() == 0.0 && body.h() == 0.0;
                     let is_itself = *e == entity;
                     let is_target = *e == target_entity;
-                    if is_deleted_body || is_itself || is_target {
+                    if body.is_traversable() || is_deleted_body || is_itself || is_target {
                         continue;
                     }
                     let inflated_body = BodyComponent::new_traversable(
@@ -445,9 +422,11 @@ fn edge_collides_body(a: (f64, f64), b: (f64, f64), body: &BodyComponent) -> boo
         || edge_collides_edge(a, b, o, m)
 }
 
-// a, b, c, d are points. First edge is [a, b], second edge is [c, d]
 fn edge_collides_edge(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64)) -> bool {
-    /* Lines equations :
+    /*
+     * a, b, c, d are points. First edge is [a, b], second edge is [c, d]
+     *
+     * Lines equations :
      * line 1 : U = A + u1 * (B - A)
      * line 2 : U = C + u2 * (D - C)
      *
@@ -476,12 +455,15 @@ pub fn try_translate(
 }
 
 pub fn collides(entity: EntityId, body: &BodyComponent) -> bool {
-    BODY_GRID.with_borrow_mut(|grid| grid.collides_in_surronding_cells(entity, body))
+    BODY_GRID.with_borrow_mut(|grid| grid.collides(entity, body))
 }
 
-pub fn collides_2(entity: EntityId, target_entity: EntityId, body: &BodyComponent) -> bool {
-    BODY_GRID
-        .with_borrow_mut(|grid| grid.collides_in_surronding_cells_2(entity, target_entity, body))
+pub fn collides_except_target(
+    entity: EntityId,
+    target_entity: EntityId,
+    body: &BodyComponent,
+) -> bool {
+    BODY_GRID.with_borrow_mut(|grid| grid.collides_except_target(entity, target_entity, body))
 }
 
 pub fn edge_collides(

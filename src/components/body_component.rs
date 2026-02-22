@@ -14,7 +14,7 @@ pub struct BodyComponent {
     w: f64,
     h: f64,
 
-    // Cannot collide with anything, not added to body grid
+    // Cannot collide with anything
     is_traversable: bool,
 
     init_with_random_pos: bool,
@@ -34,10 +34,7 @@ impl Component for BodyComponent {
                 }
             }
         }
-
-        if !self.is_traversable {
-            body_grid::add(entity, self);
-        }
+        body_grid::add(entity, self);
     }
 
     fn on_delete(&mut self, entity: EntityId) {
@@ -106,6 +103,10 @@ impl BodyComponent {
         self.h
     }
 
+    pub fn is_traversable(&self) -> bool {
+        self.is_traversable
+    }
+
     pub fn try_translate(
         &mut self,
         entity: EntityId,
@@ -119,6 +120,11 @@ impl BodyComponent {
             return true;
         }
         false
+    }
+
+    pub fn translate(&mut self, offset_x: f64, offset_y: f64) {
+        self.x += offset_x;
+        self.y += offset_y;
     }
 
     pub fn collides(&self, other: &BodyComponent) -> bool {
