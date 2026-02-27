@@ -45,6 +45,9 @@ pub struct ClosestEntityIterator {
     cell_y: isize,
     max_taxicab_distance: f64,
 
+    // nt-th closest in current body-grid cell (from 0)
+    nth_closest: usize,
+
     // Clock-wise spiral variables
     direction: Direction,
     countdown_next_turn: usize,
@@ -68,6 +71,7 @@ impl ClosestEntityIterator {
             cell_x: start_cell_x as isize,
             cell_y: start_cell_y as isize,
             max_taxicab_distance,
+            nth_closest: 0,
             direction: Direction::Up,
             countdown_next_turn: 0,
             countdown_spiral_increase: 2,
@@ -120,30 +124,33 @@ impl BodyGrid {
                 return None;
             }
 
-            // TODO handle case where there are several bodies in the cell
-            // (currently, I just get the closest, and on next() call I skip to the next cell)
-
             // Look for the closest entity in the current cell
             if it.cell_x >= 0
                 && it.cell_x < self.nb_cells_x as isize
                 && it.cell_y >= 0
                 && it.cell_y < self.nb_cells_y as isize
             {
-                let mut temp_found_entity = RESERVED_ENTITY_ID;
-                let mut temp_min_distance = f64::MAX;
+                let mut entities_found = Vec::new();
                 for (e, b) in
                     self.grid[it.cell_y as usize * self.nb_cells_x + it.cell_x as usize].iter()
                 {
-                    let d = (b.x() - it.body.x()).powi(2) + (b.y() - it.body.y()).powi(2);
-                    if *e != it.entity && d < temp_min_distance {
-                        temp_min_distance = d;
-                        temp_found_entity = *e;
+                    if *e != it.entity {
+                        let d = (b.x() - it.body.x()).powi(2) + (b.y() - it.body.y()).powi(2);
+                        entities_found.push((*e, d));
                     }
                 }
+                entities_found.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
-                if temp_found_entity != RESERVED_ENTITY_ID {
-                    found_entity = temp_found_entity;
-                    squared_euclidian_distance = temp_min_distance;
+                if it.nth_closest < entities_found.len() {
+                    found_entity = entities_found[it.nth_closest].0;
+                    squared_euclidian_distance = entities_found[it.nth_closest].1;
+                    it.nth_closest += 1;
+
+                    // We found an entity so exit, to advance to the next cell only when all
+                    // entities in the current  cell are iterated on.
+                    break;
+                } else {
+                    it.nth_closest = 0;
                 }
             }
 
