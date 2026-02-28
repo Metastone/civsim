@@ -28,8 +28,6 @@ use systems::hunger_system::HungerSystem;
 use systems::move_to_target_system::MoveToTargetSystem;
 use systems::reproduction_system::ReproductionSystem;
 
-// TODO path finding chooses the closest target always, even if unreachable. Fix this.
-
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
@@ -42,7 +40,6 @@ use winit::{
 pub struct World {
     ecs: Ecs,
     systems: Vec<Box<dyn System>>,
-    display: Display,
     pause: bool,
 }
 
@@ -57,7 +54,6 @@ impl World {
         Self {
             ecs: Ecs::new(),
             systems: Vec::new(),
-            display: Display::new(),
             pause: true,
         }
     }
@@ -84,11 +80,6 @@ impl World {
             s.run(&mut self.ecs);
         }
         body_grid::purge_deleted_bodies();
-    }
-
-    fn draw(&mut self, pixels: &mut [u8], window_width: u32, window_height: u32) {
-        self.display
-            .draw(&mut self.ecs, pixels, window_width, window_height);
     }
 
     pub fn toogle_pause(&mut self) {
@@ -170,6 +161,7 @@ struct App<'window> {
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'window>>,
     world: World,
+    display: Display,
 }
 impl Default for App<'_> {
     fn default() -> Self {
@@ -177,6 +169,7 @@ impl Default for App<'_> {
             window: Default::default(),
             pixels: Default::default(),
             world: create_world(),
+            display: Display::new(),
         }
     }
 }
@@ -194,15 +187,15 @@ impl ApplicationHandler for App<'_> {
                 )
                 .unwrap(),
         );
+        let size = window.inner_size();
         let pixels = {
-            let window_size = window.inner_size();
-            let surface_texture =
-                SurfaceTexture::new(window_size.width, window_size.height, window.clone());
+            let surface_texture = SurfaceTexture::new(size.width, size.height, window.clone());
             Pixels::new(SCREEN_WIDTH, SCREEN_HEIGHT, surface_texture).unwrap()
         };
 
         self.window = Some(window);
         self.pixels = Some(pixels);
+        self.display.resize(size.width, size.height);
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
@@ -221,15 +214,14 @@ impl ApplicationHandler for App<'_> {
                     .unwrap()
                     .resize_surface(size.width, size.height)
                     .unwrap();
+                self.display.resize(size.width, size.height);
             }
             WindowEvent::RedrawRequested => {
                 self.world.iterate();
 
-                let window_size = self.window.as_ref().unwrap().inner_size();
-                self.world.draw(
+                self.display.draw(
+                    &mut self.world.ecs,
                     self.pixels.as_mut().unwrap().frame_mut(),
-                    window_size.width,
-                    window_size.height,
                 );
                 self.pixels.as_mut().unwrap().render().unwrap();
 
@@ -241,7 +233,7 @@ impl ApplicationHandler for App<'_> {
                     && event.state == ElementState::Pressed
                     && !event.repeat
                 {
-                    self.world.display.toogle_debug_mode();
+                    self.display.toogle_debug_mode();
                 } else if event.logical_key == Key::Character("p".into())
                     && event.state == ElementState::Pressed
                     && !event.repeat
