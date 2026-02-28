@@ -1,3 +1,4 @@
+use crate::algorithms::perlin_noise::perlin_noise;
 use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
 use crate::components::move_to_target_component::MoveToTargetComponent;
@@ -80,15 +81,38 @@ impl Display {
             return;
         }
 
-        // Background
-        for pixel in pixels.chunks_exact_mut(4) {
-            pixel.copy_from_slice(&[0xcc, 0xcc, 0xcc, 0xff]);
-        }
-
         if self.debug_mode {
+            // Background
+            for p_x in 0..self.window_width {
+                for p_y in 0..self.window_height {
+                    let x = (p_x as f64
+                        - (self.window_width as f64) / 2.0
+                        - self.camera_offset_x as f64)
+                        / self.zoom;
+                    let y = (p_y as f64
+                        - (self.window_height as f64) / 2.0
+                        - self.camera_offset_y as f64)
+                        / self.zoom;
+
+                    let index =
+                        ((p_y as usize) * (self.window_width as usize) + (p_x as usize)) * 4;
+
+                    // TODO understand: my perlin noise seems to return values in [-1.0; 1.0]
+                    let n = perlin_noise(x, y);
+                    let b: u8 = ((n + 1.0) * 255.0 / 2.0) as u8;
+                    let r: u8 = 255 - b;
+                    pixels[index..(index + 4)].copy_from_slice(&[r, 0x00, b, 0xff]);
+                }
+            }
+
             self.draw_body_grid(pixels);
             self.draw_graph(ecs, pixels);
             self.draw_path(ecs, pixels);
+        } else {
+            // Background
+            for pixel in pixels.chunks_exact_mut(4) {
+                pixel.copy_from_slice(&[0xcc, 0xcc, 0xcc, 0xff]);
+            }
         }
 
         // Draw corpses
