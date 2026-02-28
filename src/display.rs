@@ -12,6 +12,9 @@ pub struct Display {
     debug_mode: bool,
     window_width: u32,
     window_height: u32,
+    camera_offset_x: isize,
+    camera_offset_y: isize,
+    zoom_factor: f64,
 }
 
 impl Display {
@@ -21,6 +24,9 @@ impl Display {
             debug_mode: false,
             window_width: 0,
             window_height: 0,
+            camera_offset_x: 0,
+            camera_offset_y: 0,
+            zoom_factor: 1.0,
         }
     }
 
@@ -32,6 +38,41 @@ impl Display {
 
     pub fn toogle_debug_mode(&mut self) {
         self.debug_mode = !self.debug_mode;
+    }
+
+    pub fn zoom_in(&mut self) {
+        self.zoom(ZOOM_FACTOR);
+    }
+
+    pub fn zoom_out(&mut self) {
+        self.zoom(1.0 / ZOOM_FACTOR);
+    }
+
+    fn zoom(&mut self, f: f64) {
+        self.camera_offset_x = (self.camera_offset_x as f64 * f) as isize;
+        self.camera_offset_y = (self.camera_offset_y as f64 * f) as isize;
+        self.zoom_factor *= f;
+    }
+
+    pub fn move_camera_up(&mut self) {
+        self.move_camera(0, MOVE_CAMERA_OFFSET);
+    }
+
+    pub fn move_camera_down(&mut self) {
+        self.move_camera(0, -MOVE_CAMERA_OFFSET);
+    }
+
+    pub fn move_camera_left(&mut self) {
+        self.move_camera(MOVE_CAMERA_OFFSET, 0);
+    }
+
+    pub fn move_camera_right(&mut self) {
+        self.move_camera(-MOVE_CAMERA_OFFSET, 0);
+    }
+
+    fn move_camera(&mut self, offset_x: isize, offset_y: isize) {
+        self.camera_offset_x += offset_x;
+        self.camera_offset_y += offset_y;
     }
 
     pub fn draw(&self, ecs: &mut Ecs, pixels: &mut [u8]) {
@@ -210,10 +251,14 @@ impl Display {
         let m1 = dy / dx;
         let m2 = dx / dy;
 
-        let x_min = ax + (self.window_width as f64) / 2.0;
-        let x_max = bx + (self.window_width as f64) / 2.0;
-        let y_min = ay + (self.window_height as f64) / 2.0;
-        let y_max = by + (self.window_height as f64) / 2.0;
+        let x_min =
+            ax * self.zoom_factor + (self.window_width as f64) / 2.0 + self.camera_offset_x as f64;
+        let x_max =
+            bx * self.zoom_factor + (self.window_width as f64) / 2.0 + self.camera_offset_x as f64;
+        let y_min =
+            ay * self.zoom_factor + (self.window_height as f64) / 2.0 + self.camera_offset_y as f64;
+        let y_max =
+            by * self.zoom_factor + (self.window_height as f64) / 2.0 + self.camera_offset_y as f64;
 
         let thickness = GRAPH_EDGE_THICKNESS as isize;
         let mut x = x_min;
@@ -261,22 +306,26 @@ impl Display {
         &self,
         (x, y): (f64, f64),
         color: &[u8],
-        (width, height): (u32, u32),
+        (rec_width, rec_height): (u32, u32),
         pixels: &mut [u8],
     ) {
-        let pos_in_window = (
-            x + (self.window_width as f64) / 2.0,
-            y + (self.window_height as f64) / 2.0,
+        // The simulation coordinates origin should be in the center of the window
+        let rec_center_pos = (
+            (x * self.zoom_factor + (self.window_width as f64) / 2.0) as isize
+                + self.camera_offset_x,
+            (y * self.zoom_factor + (self.window_height as f64) / 2.0) as isize
+                + self.camera_offset_y,
         );
-        let w = width as i64 / 2;
-        let h = height as i64 / 2;
+
+        let w = (rec_width as f64 * self.zoom_factor / 2.0) as isize;
+        let h = (rec_height as f64 * self.zoom_factor / 2.0) as isize;
         for i in -w..w {
             for j in -h..h {
-                let pixel_pos = (pos_in_window.0 as i64 + i, pos_in_window.1 as i64 + j);
+                let pixel_pos = (rec_center_pos.0 + i, rec_center_pos.1 + j);
                 if pixel_pos.0 >= 0
-                    && pixel_pos.0 < self.window_width as i64
+                    && pixel_pos.0 < self.window_width as isize
                     && pixel_pos.1 >= 0
-                    && pixel_pos.1 < self.window_height as i64
+                    && pixel_pos.1 < self.window_height as isize
                 {
                     let index = ((pixel_pos.1 as usize) * (self.window_width as usize)
                         + (pixel_pos.0 as usize))

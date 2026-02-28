@@ -31,9 +31,9 @@ use systems::reproduction_system::ReproductionSystem;
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
-    event::{ElementState, WindowEvent},
+    event::{ElementState, MouseScrollDelta, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
-    keyboard::Key,
+    keyboard::{Key, NamedKey},
     window::{Window, WindowId},
 };
 
@@ -244,9 +244,40 @@ impl ApplicationHandler for App<'_> {
                     && !event.repeat
                 {
                     self.world.force_iterate();
+                } else if event.logical_key == Key::Named(NamedKey::ArrowUp)
+                    && event.state == ElementState::Pressed
+                    && !event.repeat
+                {
+                    self.display.move_camera_up();
+                } else if event.logical_key == Key::Named(NamedKey::ArrowDown)
+                    && event.state == ElementState::Pressed
+                    && !event.repeat
+                {
+                    self.display.move_camera_down();
+                } else if event.logical_key == Key::Named(NamedKey::ArrowLeft)
+                    && event.state == ElementState::Pressed
+                    && !event.repeat
+                {
+                    self.display.move_camera_left();
+                } else if event.logical_key == Key::Named(NamedKey::ArrowRight)
+                    && event.state == ElementState::Pressed
+                    && !event.repeat
+                {
+                    self.display.move_camera_right();
                 }
             }
-            _ => (),
+            WindowEvent::MouseWheel {
+                device_id: _,
+                delta: MouseScrollDelta::LineDelta(_x, y),
+                ..
+            } => {
+                if y > 0.0 {
+                    self.display.zoom_in();
+                } else {
+                    self.display.zoom_out();
+                }
+            }
+            _ => {}
         }
     }
 }
