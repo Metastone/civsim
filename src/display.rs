@@ -14,7 +14,7 @@ pub struct Display {
     window_height: u32,
     camera_offset_x: isize,
     camera_offset_y: isize,
-    zoom_factor: f64,
+    zoom: f64,
 }
 
 impl Display {
@@ -26,7 +26,7 @@ impl Display {
             window_height: 0,
             camera_offset_x: 0,
             camera_offset_y: 0,
-            zoom_factor: 1.0,
+            zoom: INITIAL_ZOOM,
         }
     }
 
@@ -48,10 +48,10 @@ impl Display {
         self.zoom(1.0 / ZOOM_FACTOR);
     }
 
-    fn zoom(&mut self, f: f64) {
-        self.camera_offset_x = (self.camera_offset_x as f64 * f) as isize;
-        self.camera_offset_y = (self.camera_offset_y as f64 * f) as isize;
-        self.zoom_factor *= f;
+    fn zoom(&mut self, zoom_factor: f64) {
+        self.camera_offset_x = (self.camera_offset_x as f64 * zoom_factor) as isize;
+        self.camera_offset_y = (self.camera_offset_y as f64 * zoom_factor) as isize;
+        self.zoom *= zoom_factor;
     }
 
     pub fn move_camera_up(&mut self) {
@@ -251,14 +251,12 @@ impl Display {
         let m1 = dy / dx;
         let m2 = dx / dy;
 
-        let x_min =
-            ax * self.zoom_factor + (self.window_width as f64) / 2.0 + self.camera_offset_x as f64;
-        let x_max =
-            bx * self.zoom_factor + (self.window_width as f64) / 2.0 + self.camera_offset_x as f64;
+        let x_min = ax * self.zoom + (self.window_width as f64) / 2.0 + self.camera_offset_x as f64;
+        let x_max = bx * self.zoom + (self.window_width as f64) / 2.0 + self.camera_offset_x as f64;
         let y_min =
-            ay * self.zoom_factor + (self.window_height as f64) / 2.0 + self.camera_offset_y as f64;
+            ay * self.zoom + (self.window_height as f64) / 2.0 + self.camera_offset_y as f64;
         let y_max =
-            by * self.zoom_factor + (self.window_height as f64) / 2.0 + self.camera_offset_y as f64;
+            by * self.zoom + (self.window_height as f64) / 2.0 + self.camera_offset_y as f64;
 
         let thickness = GRAPH_EDGE_THICKNESS as isize;
         let mut x = x_min;
@@ -311,14 +309,12 @@ impl Display {
     ) {
         // The simulation coordinates origin should be in the center of the window
         let rec_center_pos = (
-            (x * self.zoom_factor + (self.window_width as f64) / 2.0) as isize
-                + self.camera_offset_x,
-            (y * self.zoom_factor + (self.window_height as f64) / 2.0) as isize
-                + self.camera_offset_y,
+            (x * self.zoom + (self.window_width as f64) / 2.0) as isize + self.camera_offset_x,
+            (y * self.zoom + (self.window_height as f64) / 2.0) as isize + self.camera_offset_y,
         );
 
-        let w = (rec_width as f64 * self.zoom_factor / 2.0) as isize;
-        let h = (rec_height as f64 * self.zoom_factor / 2.0) as isize;
+        let w = (rec_width as f64 * self.zoom / 2.0) as isize;
+        let h = (rec_height as f64 * self.zoom / 2.0) as isize;
         for i in -w..w {
             for j in -h..h {
                 let pixel_pos = (rec_center_pos.0 + i, rec_center_pos.1 + j);

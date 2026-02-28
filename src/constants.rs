@@ -3,8 +3,12 @@ pub const RNG_SEED: u64 = 1; // 0 means not seeded
 pub const SCREEN_WIDTH: u32 = 2560;
 pub const SCREEN_HEIGHT: u32 = 1440;
 
+pub const INITIAL_ZOOM: f64 = 0.5;
 pub const ZOOM_FACTOR: f64 = 1.2;
 pub const MOVE_CAMERA_OFFSET: isize = 100;
+
+pub const BODY_DOMAIN_INITIAL_WIDTH: f64 = 5000.0;
+pub const BODY_DOMAIN_INITIAL_HEIGHT: f64 = 3000.0;
 
 pub const HUNGER_RATE: f32 = 0.1;
 pub const EXHAUSTION_RATE: f32 = 1.0;

@@ -25,8 +25,14 @@ impl Component for BodyComponent {
         // Generate a random position that does not collides with any already existing body
         if self.init_with_random_pos {
             loop {
-                let x = rng::random_range(SCREEN_WIDTH as f64 / -2.0, SCREEN_WIDTH as f64 / 2.0);
-                let y = rng::random_range(SCREEN_HEIGHT as f64 / -2.0, SCREEN_HEIGHT as f64 / 2.0);
+                let x = rng::random_range(
+                    BODY_DOMAIN_INITIAL_WIDTH as f64 / -2.0,
+                    BODY_DOMAIN_INITIAL_WIDTH as f64 / 2.0,
+                );
+                let y = rng::random_range(
+                    BODY_DOMAIN_INITIAL_HEIGHT as f64 / -2.0,
+                    BODY_DOMAIN_INITIAL_HEIGHT as f64 / 2.0,
+                );
                 self.x = x;
                 self.y = y;
                 if !body_grid::collides(entity, self) {
