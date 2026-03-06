@@ -244,6 +244,16 @@ impl ApplicationHandler for App<'_> {
                     && !event.repeat
                 {
                     self.world.force_iterate();
+                } else if event.logical_key == Key::Named(NamedKey::PageUp)
+                    && event.state == ElementState::Pressed
+                    && !event.repeat
+                {
+                    self.display.zoom_in();
+                } else if event.logical_key == Key::Named(NamedKey::PageDown)
+                    && event.state == ElementState::Pressed
+                    && !event.repeat
+                {
+                    self.display.zoom_out();
                 } else if event.logical_key == Key::Named(NamedKey::ArrowUp)
                     && event.state == ElementState::Pressed
                     && !event.repeat
