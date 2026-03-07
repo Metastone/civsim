@@ -10,6 +10,8 @@ mod systems;
 use display::Display;
 use ecs::{Component, Ecs, System, Update};
 use pixels::{Pixels, SurfaceTexture};
+use shared_data::biome::humidity;
+use std::any::TypeId;
 use std::{sync::Arc, thread, time};
 
 use components::all::*;
@@ -54,7 +56,7 @@ impl World {
         Self {
             ecs: Ecs::new(),
             systems: Vec::new(),
-            pause: true,
+            pause: false,
         }
     }
 
@@ -93,17 +95,19 @@ fn create_world() -> World {
     for _ in 0..FOOD_NB {
         world.create_entity_with(&[
             &FoodComponent::new(),
-            &BodyComponent::new_rand_pos_traversable(FOOD_SIZE.into(), FOOD_SIZE.into()),
+            &BodyComponent::new_rand_pos_traversable(FOOD_INITIAL_SIZE, FOOD_INITIAL_SIZE),
         ]);
+    }
+    // Humidity must be initialized later, because we need the position which is only generated
+    // after the entity creation
+    for (food, body, _) in iter_components!(world.ecs, (), (FoodComponent, BodyComponent)) {
+        food.init_growth_factor(humidity(body.x(), body.y()));
     }
 
     for _ in 0..HERBIVOROUS_NB {
         world.create_entity_with(&[
             &CreatureComponent::new(),
-            &BodyComponent::new_rand_pos_not_traversable(
-                CREATURE_SIZE.into(),
-                CREATURE_SIZE.into(),
-            ),
+            &BodyComponent::new_rand_pos_not_traversable(CREATURE_SIZE, CREATURE_SIZE),
             &HerbivorousComponent::new(),
             &InactiveComponent::new(),
         ]);
@@ -112,10 +116,7 @@ fn create_world() -> World {
     for _ in 0..CARNIVOROUS_NB {
         world.create_entity_with(&[
             &CreatureComponent::new(),
-            &BodyComponent::new_rand_pos_not_traversable(
-                CREATURE_SIZE.into(),
-                CREATURE_SIZE.into(),
-            ),
+            &BodyComponent::new_rand_pos_not_traversable(CREATURE_SIZE, CREATURE_SIZE),
             &CarnivorousComponent::new(),
             &InactiveComponent::new(),
         ]);
@@ -125,20 +126,14 @@ fn create_world() -> World {
     for _ in 0..CORPSE_NB {
         world.create_entity_with(&[
             &CorpseComponent::new(),
-            &BodyComponent::new_rand_pos_not_traversable(
-                CREATURE_SIZE.into(),
-                CREATURE_SIZE.into(),
-            ),
+            &BodyComponent::new_rand_pos_not_traversable(CREATURE_SIZE, CREATURE_SIZE),
         ]);
     }
 
     for _ in 0..OBSTACLES_NB {
         world.create_entity_with(&[
             &ObstacleComponent::new(),
-            &BodyComponent::new_rand_pos_not_traversable(
-                OBSTACLE_SIZE.into(),
-                OBSTACLE_SIZE.into(),
-            ),
+            &BodyComponent::new_rand_pos_not_traversable(OBSTACLE_SIZE, OBSTACLE_SIZE),
         ]);
     }
 

@@ -1,10 +1,10 @@
-use crate::algorithms::perlin_noise::perlin_noise;
 use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
 use crate::components::move_to_target_component::MoveToTargetComponent;
 use crate::constants::*;
 use crate::ecs::Ecs;
 use crate::ecs::EntityInfo;
+use crate::shared_data::biome::humidity;
 use crate::shared_data::body_grid;
 use std::any::TypeId;
 
@@ -104,11 +104,17 @@ impl Display {
                         let index =
                             ((p_y as usize) * (self.window_width as usize) + (p_x as usize)) * 4;
 
-                        let n = perlin_noise(x, y, 0.001, 1.0)
-                            + perlin_noise(x, y, 0.004, 0.5)
-                            + perlin_noise(x, y, 0.008, 0.25);
-                        let perlin_max = 1.75;
-                        let l = ((n + perlin_max) * 255.0 / (perlin_max * 2.0)) as u8;
+                        /*
+                                                let n = perlin_noise(x, y, 0.001, 1.0)
+                                                    + perlin_noise(x, y, 0.004, 0.5)
+                                                    + perlin_noise(x, y, 0.008, 0.25);
+                                                let perlin_max = 1.75;
+                                                let l = ((n + perlin_max) * 255.0 / (perlin_max * 2.0)) as u8;
+                        */
+
+                        let h = humidity(x, y);
+                        let l = (h * 255.0) as u8;
+
                         pixels[index..(index + 4)].copy_from_slice(&[l, l, l, 0xff]);
                     }
                 }
@@ -154,11 +160,11 @@ impl Display {
                 self.draw_rec(
                     (
                         pos.x(),
-                        pos.y() - CREATURE_SIZE as f64 / 2.0 - BAR_HEIGHT as f64 / 2.0 - 5.0,
+                        pos.y() - CREATURE_SIZE / 2.0 - BAR_HEIGHT / 2.0 - 5.0,
                     ),
                     HEALTH_COLOR,
                     (
-                        (BAR_WIDTH as f32 * creature.health / MAX_HEALTH) as u32,
+                        BAR_WIDTH * creature.health as f64 / MAX_HEALTH as f64,
                         BAR_HEIGHT,
                     ),
                     pixels,
@@ -168,11 +174,11 @@ impl Display {
                 self.draw_rec(
                     (
                         pos.x(),
-                        pos.y() - CREATURE_SIZE as f64 / 2.0 - BAR_HEIGHT as f64 * 1.5 - 5.0 * 2.0,
+                        pos.y() - CREATURE_SIZE / 2.0 - BAR_HEIGHT * 1.5 - 5.0 * 2.0,
                     ),
                     ENERGY_COLOR,
                     (
-                        (BAR_WIDTH as f32 * creature.energy / MAX_ENERGY) as u32,
+                        BAR_WIDTH * creature.energy as f64 / MAX_ENERGY as f64,
                         BAR_HEIGHT,
                     ),
                     pixels,
@@ -188,10 +194,8 @@ impl Display {
         }
 
         // Draw food
-        for info in iter_entities!(ecs, FoodComponent, BodyComponent) {
-            if let Some(body) = ecs.component::<BodyComponent>(&info) {
-                self.draw_square(body, FOOD_COLOR, FOOD_SIZE, pixels);
-            }
+        for (food, body, _) in iter_components!(ecs, (), (FoodComponent, BodyComponent)) {
+            self.draw_square(body, FOOD_COLOR, food.size, pixels);
         }
     }
 
@@ -201,13 +205,13 @@ impl Display {
         let mut j = 0;
         loop {
             let y = g_y + g_cell_size * (j as f64);
-            if y - GRID_LINE_WIDENESS as f64 / 2.0 > g_y + g_h {
+            if y - GRID_LINE_WIDENESS / 2.0 > g_y + g_h {
                 break;
             }
             self.draw_rec(
                 (g_x + g_w / 2.0, y),
                 GRID_COLOR,
-                (g_w as u32, GRID_LINE_WIDENESS),
+                (g_w, GRID_LINE_WIDENESS),
                 pixels,
             );
             j += 1;
@@ -217,13 +221,13 @@ impl Display {
         let mut i = 0;
         loop {
             let x = g_x + g_cell_size * (i as f64);
-            if x - GRID_LINE_WIDENESS as f64 / 2.0 > g_x + g_w {
+            if x - GRID_LINE_WIDENESS / 2.0 > g_x + g_w {
                 break;
             }
             self.draw_rec(
                 (x, g_y + g_h / 2.0),
                 GRID_COLOR,
-                (GRID_LINE_WIDENESS, g_h as u32),
+                (GRID_LINE_WIDENESS, g_h),
                 pixels,
             );
             i += 1;
@@ -264,7 +268,7 @@ impl Display {
         }
     }
 
-    fn draw_square(&self, body: &BodyComponent, color: &[u8], size: u32, pixels: &mut [u8]) {
+    fn draw_square(&self, body: &BodyComponent, color: &[u8], size: f64, pixels: &mut [u8]) {
         self.draw_rec((body.x(), body.y()), color, (size, size), pixels);
     }
 
@@ -334,7 +338,7 @@ impl Display {
         &self,
         (x, y): (f64, f64),
         color: &[u8],
-        (rec_width, rec_height): (u32, u32),
+        (rec_width, rec_height): (f64, f64),
         pixels: &mut [u8],
     ) {
         // The simulation coordinates origin should be in the center of the window
@@ -343,8 +347,8 @@ impl Display {
             (y * self.zoom + (self.window_height as f64) / 2.0) as isize + self.camera_offset_y,
         );
 
-        let w = (rec_width as f64 * self.zoom / 2.0) as isize;
-        let h = (rec_height as f64 * self.zoom / 2.0) as isize;
+        let w = (rec_width * self.zoom / 2.0) as isize;
+        let h = (rec_height * self.zoom / 2.0) as isize;
         for i in -w..w {
             for j in -h..h {
                 let pixel_pos = (rec_center_pos.0 + i, rec_center_pos.1 + j);
