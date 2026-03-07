@@ -95,7 +95,7 @@ fn create_world() -> World {
     for _ in 0..PLANT_NB {
         world.create_entity_with(&[
             &PlantComponent::new(),
-            &BodyComponent::new_rand_pos_traversable(PLANT_INITIAL_SIZE, PLANT_INITIAL_SIZE),
+            &BodyComponent::new_rand_pos_not_traversable(PLANT_INITIAL_SIZE, PLANT_INITIAL_SIZE),
         ]);
     }
     // Humidity must be initialized later, because we need the position which is only generated

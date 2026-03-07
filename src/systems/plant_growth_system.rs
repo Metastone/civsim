@@ -1,29 +1,24 @@
 use crate::components::all::*;
+use crate::components::body_component::BodyComponent;
 use crate::ecs::{Ecs, System};
 use std::any::TypeId;
 
 pub struct PlantGrowthSystem;
 impl System for PlantGrowthSystem {
     fn run(&self, ecs: &mut Ecs) {
-        for (plant, _) in iter_components!(ecs, (), (PlantComponent)) {
-            plant.size += plant.growth_per_tick;
-            if plant.size > plant.max_size {
-                plant.size = plant.max_size;
+        for (plant, body, info) in iter_components!(ecs, (), (PlantComponent, BodyComponent)) {
+            // Grow plant, if there is enough space
+            let new_size = (plant.size + plant.growth_per_tick).min(plant.max_size);
+            if new_size != plant.size && body.try_update_size(info.entity, new_size, new_size) {
+                plant.size = new_size;
             }
-        }
 
-        /*
-        let mut updates: Vec<Update> = Vec::new();
-        for _ in 0..NEW_plant_PER_TICK {
-            updates.push(Update::Create(vec![
-                Box::new(plantComponent::new()),
-                Box::new(BodyComponent::new_rand_pos_traversable(
-                    plant_SIZE.into(),
-                    plant_SIZE.into(),
-                )),
-            ]));
+            // Grow new seeds
+            if plant.count_ticks_to_seed >= plant.ticks_per_seed {
+                plant.count_ticks_to_seed = 0;
+                plant.nb_seeds = (plant.nb_seeds + 1).min(plant.max_nb_seeds);
+            }
+            plant.count_ticks_to_seed += 1;
         }
-        ecs.apply(updates);
-        */
     }
 }
