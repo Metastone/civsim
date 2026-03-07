@@ -13,7 +13,7 @@ pub const BODY_DOMAIN_INITIAL_HEIGHT: f64 = 3000.0;
 pub const HUNGER_RATE: f32 = 0.1;
 pub const EXHAUSTION_RATE: f32 = 1.0;
 
-pub const FOOD_ENERGY: f32 = 10.0;
+pub const PLANT_ENERGY: f32 = 10.0;
 pub const CORPSE_ENERGY: f32 = 20.0;
 pub const CARNIVOROUS_ATTACK: f32 = 20.0;
 pub const REPROD_ENERGY_THRESHOLD: f32 = 90.0;
@@ -28,9 +28,9 @@ pub const CELL_SIZE_FACTOR: f64 = 3.0;
 pub const CONTACT_CENTER_2_CENTER_FACTOR: f64 = 1.01;
 pub const MAX_SEARCH_DISTANCE: f64 = 500.0;
 
-pub const FOOD_INITIAL_SIZE: f64 = 1.0;
-pub const FOOD_MAX_SIZE: f64 = 100.0;
-pub const FOOD_SIZE_GROWTH_PER_TICK: f64 = 0.1;
+pub const PLANT_INITIAL_SIZE: f64 = 1.0;
+pub const PLANT_MAX_SIZE: f64 = 100.0;
+pub const PLANT_SIZE_GROWTH_PER_TICK: f64 = 0.1;
 pub const REPROD_X_OFFSET: f64 = 10.0;
 
 pub const BAR_WIDTH: f64 = 30.0;
@@ -40,7 +40,7 @@ pub const GRAPH_EDGE_THICKNESS: f64 = 5.0;
 
 pub const HERBIVOROUS_COLOR: &[u8] = &[0xff, 0x99, 0x11, 0xff];
 pub const CARNIVOROUS_COLOR: &[u8] = &[0xff, 0x22, 0x11, 0xff];
-pub const FOOD_COLOR: &[u8] = &[0x22, 0xbb, 0x11, 0xff];
+pub const PLANT_COLOR: &[u8] = &[0x22, 0xbb, 0x11, 0xff];
 pub const ENERGY_COLOR: &[u8] = &[0x11, 0xff, 0x88, 0xff];
 pub const HEALTH_COLOR: &[u8] = &[0xff, 0x11, 0x11, 0xff];
 pub const CORPSE_COLOR: &[u8] = &[0x44, 0x11, 0x11, 0xff];
@@ -57,10 +57,10 @@ pub const MS_PER_ITERATION: u64 = 16;
 
 pub const HERBIVOROUS_NB: usize = 0;
 pub const CARNIVOROUS_NB: usize = 0;
-pub const FOOD_NB: usize = 1000;
+pub const PLANT_NB: usize = 1000;
 pub const CORPSE_NB: usize = 0;
 pub const OBSTACLES_NB: usize = 0;
 
-pub const NEW_FOOD_PER_TICK: usize = 0;
+pub const NEW_PLANT_PER_TICK: usize = 0;
 
 pub const NB_PRM_POSITIONS_GENERATED: usize = 100;

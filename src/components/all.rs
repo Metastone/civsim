@@ -17,36 +17,36 @@ impl CreatureComponent {
 }
 
 #[derive(Clone, Copy)]
-pub struct FoodComponent {
+pub struct PlantComponent {
     pub growth_per_tick: f64,
     pub size: f64,
     pub max_size: f64,
 }
-impl Component for FoodComponent {}
-impl FoodComponent {
+impl Component for PlantComponent {}
+impl PlantComponent {
     pub fn new() -> Self {
         Self {
             growth_per_tick: 1.0,
-            size: FOOD_INITIAL_SIZE,
-            max_size: FOOD_MAX_SIZE,
+            size: PLANT_INITIAL_SIZE,
+            max_size: PLANT_MAX_SIZE,
         }
     }
 
     pub fn init_growth_factor(&mut self, h: f64) {
         // humidity is in [0; 1]
-        self.growth_per_tick = FOOD_SIZE_GROWTH_PER_TICK * h.powi(2);
+        self.growth_per_tick = PLANT_SIZE_GROWTH_PER_TICK * h.powi(2);
         self.max_size *= h.powi(2);
     }
 }
 
 #[derive(Clone, Copy)]
-pub struct EatingFoodComponent {
-    pub food_entity: EntityId,
+pub struct EatingPlantComponent {
+    pub plant_entity: EntityId,
 }
-impl Component for EatingFoodComponent {}
-impl EatingFoodComponent {
-    pub fn new(food_entity: EntityId) -> Self {
-        Self { food_entity }
+impl Component for EatingPlantComponent {}
+impl EatingPlantComponent {
+    pub fn new(plant_entity: EntityId) -> Self {
+        Self { plant_entity }
     }
 }
 

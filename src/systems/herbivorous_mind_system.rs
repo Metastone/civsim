@@ -23,7 +23,7 @@ impl System for HerbivorousMindSystem {
             herbivorous_bodies.insert(info, *body);
         }
 
-        // For each body, find the closest food
+        // For each body, find the closest plant
         let mut found: HashMap<EntityInfo, bool> = HashMap::new();
         let mut closest_target_of: HashMap<EntityInfo, (EntityId, BodyComponent, Vec<WayPoint>)> =
             HashMap::new();
@@ -31,7 +31,7 @@ impl System for HerbivorousMindSystem {
             found.insert(*info, false);
 
             if let Some((_, closest_entity, closest_body, closest_path)) =
-                utils::find_closest_reachable::<FoodComponent>(ecs, info.entity, body)
+                utils::find_closest_reachable::<PlantComponent>(ecs, info.entity, body)
             {
                 found.insert(*info, true);
                 closest_target_of.insert(*info, (closest_entity, closest_body, closest_path));
@@ -43,7 +43,7 @@ impl System for HerbivorousMindSystem {
             if found {
                 let (found_entity, found_body, found_path) =
                     closest_target_of.get(&herbivorous_info).unwrap();
-                let on_target_reached = Box::new(EatingFoodComponent::new(*found_entity));
+                let on_target_reached = Box::new(EatingPlantComponent::new(*found_entity));
                 let on_failure = Box::new(InactiveComponent::new());
                 updates.push(Update::Add {
                     info: herbivorous_info,
