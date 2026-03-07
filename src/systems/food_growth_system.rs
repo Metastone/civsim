@@ -1,11 +1,18 @@
 use crate::components::all::*;
-use crate::components::body_component::BodyComponent;
-use crate::constants::*;
-use crate::ecs::{Ecs, System, Update};
+use crate::ecs::{Ecs, System};
+use std::any::TypeId;
 
 pub struct FoodGrowthSystem;
 impl System for FoodGrowthSystem {
     fn run(&self, ecs: &mut Ecs) {
+        for (food, _) in iter_components!(ecs, (), (FoodComponent)) {
+            food.size += food.growth_per_tick;
+            if food.size > food.max_size {
+                food.size = food.max_size;
+            }
+        }
+
+        /*
         let mut updates: Vec<Update> = Vec::new();
         for _ in 0..NEW_FOOD_PER_TICK {
             updates.push(Update::Create(vec![
@@ -17,5 +24,6 @@ impl System for FoodGrowthSystem {
             ]));
         }
         ecs.apply(updates);
+        */
     }
 }
