@@ -22,12 +22,12 @@ use systems::attack_herbivorous_system::AttackHerbivorousSystem;
 use systems::carnivorous_mind_system::CarnivorousMindSystem;
 use systems::death_system::DeathSystem;
 use systems::eat_corpse_system::EatCorpseSystem;
-use systems::eat_food_system::EatFoodSystem;
+use systems::eat_plant_system::EatPlantSystem;
 use systems::exhaustion_system::ExhaustionSystem;
-use systems::food_growth_system::FoodGrowthSystem;
 use systems::herbivorous_mind_system::HerbivorousMindSystem;
 use systems::hunger_system::HungerSystem;
 use systems::move_to_target_system::MoveToTargetSystem;
+use systems::plant_growth_system::PlantGrowthSystem;
 use systems::reproduction_system::ReproductionSystem;
 
 use winit::{
@@ -92,16 +92,16 @@ impl World {
 fn create_world() -> World {
     let mut world = World::new();
 
-    for _ in 0..FOOD_NB {
+    for _ in 0..PLANT_NB {
         world.create_entity_with(&[
-            &FoodComponent::new(),
-            &BodyComponent::new_rand_pos_traversable(FOOD_INITIAL_SIZE, FOOD_INITIAL_SIZE),
+            &PlantComponent::new(),
+            &BodyComponent::new_rand_pos_traversable(PLANT_INITIAL_SIZE, PLANT_INITIAL_SIZE),
         ]);
     }
     // Humidity must be initialized later, because we need the position which is only generated
     // after the entity creation
-    for (food, body, _) in iter_components!(world.ecs, (), (FoodComponent, BodyComponent)) {
-        food.init_growth_factor(humidity(body.x(), body.y()));
+    for (plant, body, _) in iter_components!(world.ecs, (), (PlantComponent, BodyComponent)) {
+        plant.init_growth_factor(humidity(body.x(), body.y()));
     }
 
     for _ in 0..HERBIVOROUS_NB {
@@ -137,10 +137,10 @@ fn create_world() -> World {
         ]);
     }
 
-    world.add_system(Box::new(FoodGrowthSystem));
+    world.add_system(Box::new(PlantGrowthSystem));
     world.add_system(Box::new(ReproductionSystem));
     world.add_system(Box::new(HerbivorousMindSystem));
-    world.add_system(Box::new(EatFoodSystem));
+    world.add_system(Box::new(EatPlantSystem));
     world.add_system(Box::new(CarnivorousMindSystem));
     world.add_system(Box::new(EatCorpseSystem));
     world.add_system(Box::new(AttackHerbivorousSystem));

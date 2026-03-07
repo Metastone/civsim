@@ -193,9 +193,9 @@ impl Display {
             }
         }
 
-        // Draw food
-        for (food, body, _) in iter_components!(ecs, (), (FoodComponent, BodyComponent)) {
-            self.draw_square(body, FOOD_COLOR, food.size, pixels);
+        // Draw plant
+        for (plant, body, _) in iter_components!(ecs, (), (PlantComponent, BodyComponent)) {
+            self.draw_square(body, PLANT_COLOR, plant.size, pixels);
         }
     }
 
