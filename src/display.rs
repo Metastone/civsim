@@ -10,7 +10,7 @@ use std::any::TypeId;
 
 pub struct Display {
     is_initialized: bool,
-    debug_mode: bool,
+    debug_mode: usize,
     window_width: u32,
     window_height: u32,
     camera_offset_x: isize,
@@ -22,7 +22,7 @@ impl Display {
     pub fn new() -> Self {
         Display {
             is_initialized: false,
-            debug_mode: false,
+            debug_mode: 0,
             window_width: 0,
             window_height: 0,
             camera_offset_x: 0,
@@ -38,7 +38,8 @@ impl Display {
     }
 
     pub fn toogle_debug_mode(&mut self) {
-        self.debug_mode = !self.debug_mode;
+        self.debug_mode += 1;
+        self.debug_mode %= 3;
     }
 
     pub fn zoom_in(&mut self) {
@@ -81,39 +82,43 @@ impl Display {
             return;
         }
 
-        if self.debug_mode {
-            // Background
-            for p_x in 0..self.window_width {
-                for p_y in 0..self.window_height {
-                    let x = (p_x as f64
-                        - (self.window_width as f64) / 2.0
-                        - self.camera_offset_x as f64)
-                        / self.zoom;
-                    let y = (p_y as f64
-                        - (self.window_height as f64) / 2.0
-                        - self.camera_offset_y as f64)
-                        / self.zoom;
+        // Default background
+        for pixel in pixels.chunks_exact_mut(4) {
+            pixel.copy_from_slice(&[0xcc, 0xcc, 0xcc, 0xff]);
+        }
 
-                    let index =
-                        ((p_y as usize) * (self.window_width as usize) + (p_x as usize)) * 4;
+        match self.debug_mode {
+            1 => {
+                // Perlin noise visualisation for tests
+                for p_x in 0..self.window_width {
+                    for p_y in 0..self.window_height {
+                        let x = (p_x as f64
+                            - (self.window_width as f64) / 2.0
+                            - self.camera_offset_x as f64)
+                            / self.zoom;
+                        let y = (p_y as f64
+                            - (self.window_height as f64) / 2.0
+                            - self.camera_offset_y as f64)
+                            / self.zoom;
 
-                    let n = perlin_noise(x, y, 0.001, 1.0)
-                        + perlin_noise(x, y, 0.004, 0.5)
-                        + perlin_noise(x, y, 0.008, 0.25);
-                    let perlin_max = 1.75;
-                    let l = ((n + perlin_max) * 255.0 / (perlin_max * 2.0)) as u8;
-                    pixels[index..(index + 4)].copy_from_slice(&[l, l, l, 0xff]);
+                        let index =
+                            ((p_y as usize) * (self.window_width as usize) + (p_x as usize)) * 4;
+
+                        let n = perlin_noise(x, y, 0.001, 1.0)
+                            + perlin_noise(x, y, 0.004, 0.5)
+                            + perlin_noise(x, y, 0.008, 0.25);
+                        let perlin_max = 1.75;
+                        let l = ((n + perlin_max) * 255.0 / (perlin_max * 2.0)) as u8;
+                        pixels[index..(index + 4)].copy_from_slice(&[l, l, l, 0xff]);
+                    }
                 }
             }
-
-            self.draw_body_grid(pixels);
-            self.draw_graph(ecs, pixels);
-            self.draw_path(ecs, pixels);
-        } else {
-            // Background
-            for pixel in pixels.chunks_exact_mut(4) {
-                pixel.copy_from_slice(&[0xcc, 0xcc, 0xcc, 0xff]);
+            2 => {
+                self.draw_body_grid(pixels);
+                self.draw_graph(ecs, pixels);
+                self.draw_path(ecs, pixels);
             }
+            _ => {}
         }
 
         // Draw corpses
