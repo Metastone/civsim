@@ -31,8 +31,12 @@ pub const MAX_SEARCH_DISTANCE: f64 = 500.0;
 pub const PLANT_INITIAL_SIZE: f64 = 1.0;
 pub const PLANT_MAX_SIZE: f64 = 100.0;
 pub const PLANT_SIZE_GROWTH_PER_TICK: f64 = 0.1;
+pub const PLANT_MAX_SEEDS: usize = 10;
+pub const PLANT_TICKS_PER_SEED: usize = 100;
+
 pub const REPROD_X_OFFSET: f64 = 10.0;
 
+pub const SEED_DISPLAY_SIZE: f64 = 10.0;
 pub const BAR_WIDTH: f64 = 30.0;
 pub const BAR_HEIGHT: f64 = 5.0;
 pub const GRID_LINE_WIDENESS: f64 = 5.0;
@@ -49,6 +53,7 @@ pub const WAYPOINT_COLOR: &[u8] = &[0x22, 0x33, 0xff, 0xff];
 pub const WAYPOINT_REACHED_COLOR: &[u8] = &[0x55, 0xaa, 0xff, 0xff];
 pub const GRID_COLOR: &[u8] = &[0xff, 0x00, 0x00, 0xff];
 pub const GRAPH_COLOR: &[u8] = &[0xc9, 0x00, 0xff, 0xff];
+pub const SEED_COLOR: &[u8] = &[0x84, 0x34, 0x0b, 0xff];
 
 pub const HERBIVOROUS_SPEED: f64 = 1.5; // Pixels per iteration
 pub const CARNIVOROUS_SPEED: f64 = 2.0; // Pixels per iteration
@@ -57,10 +62,8 @@ pub const MS_PER_ITERATION: u64 = 16;
 
 pub const HERBIVOROUS_NB: usize = 0;
 pub const CARNIVOROUS_NB: usize = 0;
-pub const PLANT_NB: usize = 1000;
+pub const PLANT_NB: usize = 10000;
 pub const CORPSE_NB: usize = 0;
 pub const OBSTACLES_NB: usize = 0;
-
-pub const NEW_PLANT_PER_TICK: usize = 0;
 
 pub const NB_PRM_POSITIONS_GENERATED: usize = 100;

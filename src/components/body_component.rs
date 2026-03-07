@@ -26,12 +26,12 @@ impl Component for BodyComponent {
         if self.init_with_random_pos {
             loop {
                 let x = rng::random_range(
-                    BODY_DOMAIN_INITIAL_WIDTH as f64 / -2.0,
-                    BODY_DOMAIN_INITIAL_WIDTH as f64 / 2.0,
+                    BODY_DOMAIN_INITIAL_WIDTH / -2.0,
+                    BODY_DOMAIN_INITIAL_WIDTH / 2.0,
                 );
                 let y = rng::random_range(
-                    BODY_DOMAIN_INITIAL_HEIGHT as f64 / -2.0,
-                    BODY_DOMAIN_INITIAL_HEIGHT as f64 / 2.0,
+                    BODY_DOMAIN_INITIAL_HEIGHT / -2.0,
+                    BODY_DOMAIN_INITIAL_HEIGHT / 2.0,
                 );
                 self.x = x;
                 self.y = y;
@@ -60,17 +60,6 @@ impl BodyComponent {
         }
     }
 
-    pub fn new_rand_pos_traversable(w: f64, h: f64) -> Self {
-        Self {
-            x: 0.0, // Temp x,y -> will be updated in on_create
-            y: 0.0,
-            w,
-            h,
-            is_traversable: true,
-            init_with_random_pos: true,
-        }
-    }
-
     pub fn new_not_traversable(x: f64, y: f64, w: f64, h: f64) -> Self {
         Self {
             x,
@@ -91,6 +80,20 @@ impl BodyComponent {
             is_traversable: true,
             init_with_random_pos: false,
         }
+    }
+
+    pub fn clone_translated(&self, offset_x: f64, offset_y: f64) -> Self {
+        let mut translated = *self;
+        translated.x += offset_x;
+        translated.y += offset_y;
+        translated
+    }
+
+    pub fn clone_resized(&self, width: f64, height: f64) -> Self {
+        let mut resized = *self;
+        resized.w = width;
+        resized.h = height;
+        resized
     }
 
     pub fn x(&self) -> f64 {
@@ -128,9 +131,13 @@ impl BodyComponent {
         false
     }
 
-    pub fn translate(&mut self, offset_x: f64, offset_y: f64) {
-        self.x += offset_x;
-        self.y += offset_y;
+    pub fn try_update_size(&mut self, entity: EntityId, new_width: f64, new_height: f64) -> bool {
+        if body_grid::try_update_size(entity, self, new_width, new_height) {
+            self.w = new_width;
+            self.h = new_height;
+            return true;
+        }
+        false
     }
 
     pub fn collides(&self, other: &BodyComponent) -> bool {

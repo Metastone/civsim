@@ -21,6 +21,12 @@ pub struct PlantComponent {
     pub growth_per_tick: f64,
     pub size: f64,
     pub max_size: f64,
+
+    pub nb_seeds: usize,
+    pub max_nb_seeds: usize,
+
+    pub count_ticks_to_seed: usize,
+    pub ticks_per_seed: usize,
 }
 impl Component for PlantComponent {}
 impl PlantComponent {
@@ -29,13 +35,25 @@ impl PlantComponent {
             growth_per_tick: 1.0,
             size: PLANT_INITIAL_SIZE,
             max_size: PLANT_MAX_SIZE,
+            nb_seeds: 0,
+            max_nb_seeds: PLANT_MAX_SEEDS,
+            count_ticks_to_seed: 0,
+            ticks_per_seed: PLANT_TICKS_PER_SEED,
         }
     }
 
     pub fn init_growth_factor(&mut self, h: f64) {
         // humidity is in [0; 1]
-        self.growth_per_tick = PLANT_SIZE_GROWTH_PER_TICK * h.powi(2);
-        self.max_size *= h.powi(2);
+
+        let h_2 = h.powi(2);
+        self.growth_per_tick = PLANT_SIZE_GROWTH_PER_TICK * h_2;
+        self.max_size = PLANT_MAX_SIZE * h_2;
+
+        // Minimum 1 seed to allow reproduction even in deserts
+        self.max_nb_seeds = ((PLANT_MAX_SEEDS as f64 * h_2) as usize).max(1);
+
+        // Low humidity makes generating new seeds longer
+        self.ticks_per_seed = (PLANT_TICKS_PER_SEED as f64 * (1.0 / h)) as usize;
     }
 }
 

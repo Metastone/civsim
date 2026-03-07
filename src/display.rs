@@ -7,6 +7,7 @@ use crate::ecs::EntityInfo;
 use crate::shared_data::biome::humidity;
 use crate::shared_data::body_grid;
 use std::any::TypeId;
+use std::f64::consts::PI;
 
 pub struct Display {
     is_initialized: bool,
@@ -193,9 +194,21 @@ impl Display {
             }
         }
 
-        // Draw plant
+        // Draw plants
         for (plant, body, _) in iter_components!(ecs, (), (PlantComponent, BodyComponent)) {
             self.draw_square(body, PLANT_COLOR, plant.size, pixels);
+
+            // Draw the plant's seeds
+            let arc = 2.0 * PI / (plant.nb_seeds as f64);
+            let mut a: f64 = 0.0;
+            for _ in 0..plant.nb_seeds {
+                let x = a.cos() * plant.size / 2.0;
+                let y = a.sin() * plant.size / 2.0;
+                let seed_body =
+                    BodyComponent::new_traversable(body.x() + x, body.y() + y, 0.0, 0.0);
+                self.draw_square(&seed_body, SEED_COLOR, SEED_DISPLAY_SIZE, pixels);
+                a += arc;
+            }
         }
     }
 

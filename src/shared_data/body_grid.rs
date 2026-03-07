@@ -23,7 +23,7 @@ thread_local! {
             SCREEN_WIDTH as f64 / 2.0,
             - (SCREEN_HEIGHT as f64) / 2.0,
             SCREEN_HEIGHT as f64 / 2.0,
-            CREATURE_SIZE as f64
+            CREATURE_SIZE
         )
     )
 }
@@ -214,7 +214,7 @@ impl BodyGrid {
         max_x += max_entity_size / 2.0;
         min_y -= max_entity_size / 2.0;
         max_y += max_entity_size / 2.0;
-        let max_entity_size = CREATURE_SIZE as f64;
+        let max_entity_size = CREATURE_SIZE;
         let cell_size = max_entity_size * CELL_SIZE_FACTOR;
 
         // Compute the minimal size for the grid (float)
@@ -340,11 +340,30 @@ impl BodyGrid {
         offset_x: f64,
         offset_y: f64,
     ) -> bool {
-        let mut translated_body = *body;
-        translated_body.translate(offset_x, offset_y);
-
+        let translated_body = body.clone_translated(offset_x, offset_y);
         if !self.collides_except_target(entity, target_entity, &translated_body) {
             self.translate(entity, body, translated_body);
+            return true;
+        }
+        false
+    }
+
+    /// Return true if the body size was changed successfully (no collision).
+    /// otherwise, return false and do nothing.
+    pub fn try_update_size(
+        &mut self,
+        entity: EntityId,
+        body: &BodyComponent,
+        new_width: f64,
+        new_height: f64,
+    ) -> bool {
+        let resized_body = body.clone_resized(new_width, new_height);
+        if !self.collides(entity, &resized_body) {
+            let (cell_x, cell_y) = match self.get_cell_coords_impl(body.x(), body.y()) {
+                GetCoordsResult::Ok(x, y) => (x, y),
+                GetCoordsResult::GridResized(x, y) => (x, y),
+            };
+            self.update(entity, resized_body, cell_x, cell_y);
             return true;
         }
         false
@@ -494,16 +513,12 @@ impl BodyGrid {
         }
     }
 
-    fn update(
-        &mut self,
-        entity: EntityId,
-        translated_body: BodyComponent,
-        cell_x: usize,
-        cell_y: usize,
-    ) {
+    /// Replace, in a particular cell, the body corresponding to the entity by the given body.
+    /// Does not check collisions.
+    fn update(&mut self, entity: EntityId, new_body: BodyComponent, cell_x: usize, cell_y: usize) {
         for (e, b) in self.grid[cell_y * self.nb_cells_x + cell_x].iter_mut() {
             if *e == entity {
-                *b = translated_body;
+                *b = new_body;
                 break;
             }
         }
@@ -616,6 +631,10 @@ pub fn try_translate(
 ) -> bool {
     BODY_GRID
         .with_borrow_mut(|grid| grid.try_translate(entity, target_entity, body, offset_x, offset_y))
+}
+
+pub fn try_update_size(entity: EntityId, body: &BodyComponent, width: f64, height: f64) -> bool {
+    BODY_GRID.with_borrow_mut(|grid| grid.try_update_size(entity, body, width, height))
 }
 
 pub fn collides(entity: EntityId, body: &BodyComponent) -> bool {
