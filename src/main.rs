@@ -21,6 +21,7 @@ use shared_data::body_grid;
 use systems::attack_herbivorous_system::AttackHerbivorousSystem;
 use systems::carnivorous_mind_system::CarnivorousMindSystem;
 use systems::death_system::DeathSystem;
+use systems::digestion_system::DigestionSystem;
 use systems::eat_corpse_system::EatCorpseSystem;
 use systems::eat_plant_system::EatPlantSystem;
 use systems::exhaustion_system::ExhaustionSystem;
@@ -93,15 +94,11 @@ fn create_world() -> World {
     let mut world = World::new();
 
     for _ in 0..PLANT_NB {
+        // Plants start as seed, which have no collision. They gain collision later on.
         world.create_entity_with(&[
             &PlantComponent::new(),
-            &BodyComponent::new_rand_pos_not_traversable(PLANT_INITIAL_SIZE, PLANT_INITIAL_SIZE),
+            &BodyComponent::new_rand_pos_traversable(SEED_SIZE, SEED_SIZE),
         ]);
-    }
-    // Humidity must be initialized later, because we need the position which is only generated
-    // after the entity creation
-    for (plant, body, _) in iter_components!(world.ecs, (), (PlantComponent, BodyComponent)) {
-        plant.init_growth_factor(humidity(body.x(), body.y()));
     }
 
     for _ in 0..HERBIVOROUS_NB {
@@ -148,6 +145,7 @@ fn create_world() -> World {
     world.add_system(Box::new(ExhaustionSystem));
     world.add_system(Box::new(DeathSystem));
     world.add_system(Box::new(MoveToTargetSystem));
+    world.add_system(Box::new(DigestionSystem));
 
     world
 }

@@ -194,8 +194,13 @@ impl Display {
             }
         }
 
-        // Draw plants
+        // Draw seeds & plants
         for (plant, body, _) in iter_components!(ecs, (), (PlantComponent, BodyComponent)) {
+            if plant.is_seed {
+                self.draw_square(body, SEED_COLOR, SEED_DISPLAY_SIZE, pixels);
+                continue;
+            }
+
             self.draw_square(body, PLANT_COLOR, plant.size, pixels);
 
             // Draw the plant's seeds
