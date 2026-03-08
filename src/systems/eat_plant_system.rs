@@ -10,10 +10,10 @@ impl System for EatPlantSystem {
         let mut updates: Vec<Update> = Vec::new();
 
         // Make sure that a plant is not eaten by more than one creature
-        let mut plant_to_creature: HashMap<EntityId, EntityInfo> = HashMap::new();
+        let mut plant_to_creature: HashMap<EntityId, (f64, usize, EntityInfo)> = HashMap::new();
         for info in iter_entities!(ecs, EatingPlantComponent) {
-            if let Some(eating_plant) = ecs.component::<EatingPlantComponent>(&info) {
-                plant_to_creature.insert(eating_plant.plant_entity, info);
+            if let Some(eating_plant) = ecs.component::<EatingPlantComponent>(&info) && let Some(plant) = ecs.component_from_entity::<PlantComponent>(eating_plant.plant_entity) {
+                plant_to_creature.insert(eating_plant.plant_entity, (plant.size, plant.nb_seeds, info));
             }
             updates.push(Update::Delete {
                 info,
@@ -26,12 +26,15 @@ impl System for EatPlantSystem {
         }
 
         // Increase energy of creatures that ate a plant
-        for info in plant_to_creature.values() {
+        for (plant_size, plant_nb_seeds, info) in plant_to_creature.values() {
             if let Some(creature) = ecs.component_mut::<CreatureComponent>(info) {
-                creature.energy += PLANT_ENERGY;
+                creature.energy += (*plant_size as f32) * PLANT_ENERGY_PER_SIZE_UNIT;
                 if creature.energy > MAX_ENERGY {
                     creature.energy = MAX_ENERGY;
                 }
+            }
+            if let Some(herbivorous) = ecs.component_mut::<HerbivorousComponent>(info) {
+                herbivorous.seeds.push_back((*plant_nb_seeds, HERBIVOROUS_TICKS_TO_DIGEST));
             }
         }
 

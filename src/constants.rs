@@ -10,10 +10,9 @@ pub const MOVE_CAMERA_OFFSET: isize = 100;
 pub const BODY_DOMAIN_INITIAL_WIDTH: f64 = 5000.0;
 pub const BODY_DOMAIN_INITIAL_HEIGHT: f64 = 3000.0;
 
-pub const HUNGER_RATE: f32 = 0.1;
-pub const EXHAUSTION_RATE: f32 = 1.0;
+pub const HUNGER_RATE: f32 = 0.025;
+pub const EXHAUSTION_RATE: f32 = 0.025;
 
-pub const PLANT_ENERGY: f32 = 10.0;
 pub const CORPSE_ENERGY: f32 = 20.0;
 pub const CARNIVOROUS_ATTACK: f32 = 20.0;
 pub const REPROD_ENERGY_THRESHOLD: f32 = 90.0;
@@ -26,17 +25,24 @@ pub const CREATURE_SIZE: f64 = 30.0;
 pub const OBSTACLE_SIZE: f64 = 85.0;
 pub const CELL_SIZE_FACTOR: f64 = 3.0;
 pub const CONTACT_CENTER_2_CENTER_FACTOR: f64 = 1.01;
-pub const MAX_SEARCH_DISTANCE: f64 = 500.0;
+pub const MAX_SEARCH_DISTANCE: f64 = 2000.0;
 
+// Seed display size different to make it more visible
+pub const SEED_SIZE: f64 = 1.0;
+pub const SEED_DISPLAY_SIZE: f64 = 10.0;
+
+pub const PLANT_TICKS_AS_SEED: usize = 400;
 pub const PLANT_INITIAL_SIZE: f64 = 1.0;
 pub const PLANT_MAX_SIZE: f64 = 100.0;
 pub const PLANT_SIZE_GROWTH_PER_TICK: f64 = 0.1;
 pub const PLANT_MAX_SEEDS: usize = 10;
 pub const PLANT_TICKS_PER_SEED: usize = 100;
+pub const PLANT_ENERGY_PER_SIZE_UNIT: f32 = 1.0;
+
+pub const HERBIVOROUS_TICKS_TO_DIGEST: usize = 100;
 
 pub const REPROD_X_OFFSET: f64 = 10.0;
 
-pub const SEED_DISPLAY_SIZE: f64 = 10.0;
 pub const BAR_WIDTH: f64 = 30.0;
 pub const BAR_HEIGHT: f64 = 5.0;
 pub const GRID_LINE_WIDENESS: f64 = 5.0;
@@ -60,9 +66,9 @@ pub const CARNIVOROUS_SPEED: f64 = 2.0; // Pixels per iteration
 
 pub const MS_PER_ITERATION: u64 = 16;
 
-pub const HERBIVOROUS_NB: usize = 0;
+pub const HERBIVOROUS_NB: usize = 1;
 pub const CARNIVOROUS_NB: usize = 0;
-pub const PLANT_NB: usize = 10000;
+pub const PLANT_NB: usize = 100;
 pub const CORPSE_NB: usize = 0;
 pub const OBSTACLES_NB: usize = 0;
 

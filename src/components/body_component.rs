@@ -60,6 +60,17 @@ impl BodyComponent {
         }
     }
 
+    pub fn new_rand_pos_traversable(w: f64, h: f64) -> Self {
+        Self {
+            x: 0.0, // Temp x,y -> will be updated in on_create
+            y: 0.0,
+            w,
+            h,
+            is_traversable: true,
+            init_with_random_pos: true,
+        }
+    }
+
     pub fn new_not_traversable(x: f64, y: f64, w: f64, h: f64) -> Self {
         Self {
             x,
@@ -114,6 +125,10 @@ impl BodyComponent {
 
     pub fn is_traversable(&self) -> bool {
         self.is_traversable
+    }
+
+    pub fn set_traversable(&mut self, traversable: bool) {
+        self.is_traversable = traversable;
     }
 
     pub fn try_translate(

@@ -372,6 +372,19 @@ impl BodyGrid {
         false
     }
 
+    pub fn set_traversable(&mut self, entity: EntityId, body: &BodyComponent, traversable: bool) {
+        let (cell_x, cell_y) = match self.get_cell_coords_impl(body.x(), body.y()) {
+            GetCoordsResult::Ok(x, y) => (x, y),
+            GetCoordsResult::GridResized(x, y) => (x, y),
+        };
+        for (e, b) in self.grid[cell_y * self.nb_cells_x + cell_x].iter_mut() {
+            if *e == entity {
+                b.set_traversable(traversable);
+                break;
+            }
+        }
+    }
+
     fn collides(&mut self, entity: EntityId, body: &BodyComponent) -> bool {
         self.collides_impl(entity, RESERVED_ENTITY_ID, body)
     }
@@ -623,6 +636,10 @@ fn edge_collides_edge(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64)
     (0.0..=1.0).contains(&u1) && (0.0..=1.0).contains(&u2)
 }
 
+/******************************************************************************
+ *                          PUBLIC FUNCTIONS
+ *****************************************************************************/
+
 pub fn try_translate(
     entity: EntityId,
     target_entity: EntityId,
@@ -636,6 +653,10 @@ pub fn try_translate(
 
 pub fn try_update_size(entity: EntityId, body: &BodyComponent, width: f64, height: f64) -> bool {
     BODY_GRID.with_borrow_mut(|grid| grid.try_update_size(entity, body, width, height))
+}
+
+pub fn set_traversable(entity: EntityId, body: &BodyComponent, traversable: bool) {
+    BODY_GRID.with_borrow_mut(|grid| grid.set_traversable(entity, body, traversable));
 }
 
 pub fn collides(entity: EntityId, body: &BodyComponent) -> bool {
