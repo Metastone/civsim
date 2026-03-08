@@ -43,7 +43,7 @@ pub struct ClosestEntityIterator {
     start_cell_y: isize,
     cell_x: isize,
     cell_y: isize,
-    max_taxicab_distance: f64,
+    max_search_distance: f64,
 
     // nt-th closest in current body-grid cell (from 0)
     nth_closest: usize,
@@ -60,7 +60,7 @@ impl ClosestEntityIterator {
         body_grid: &mut BodyGrid,
         entity: EntityId,
         body: &BodyComponent,
-        max_taxicab_distance: f64,
+        max_search_distance: f64,
     ) -> Self {
         let (start_cell_x, start_cell_y) = body_grid.get_cell_coords(body.x(), body.y());
         ClosestEntityIterator {
@@ -70,7 +70,7 @@ impl ClosestEntityIterator {
             start_cell_y: start_cell_y as isize,
             cell_x: start_cell_x as isize,
             cell_y: start_cell_y as isize,
-            max_taxicab_distance,
+            max_search_distance,
             nth_closest: 0,
             direction: Direction::Up,
             countdown_next_turn: 0,
@@ -116,11 +116,14 @@ impl BodyGrid {
         let mut squared_euclidian_distance = f64::MAX;
 
         while found_entity == RESERVED_ENTITY_ID {
-            // If we got too far away from the starting cell, stop the search, end iterator
-            let taxicab_distance = ((it.cell_x - it.start_cell_x).abs()
-                + (it.cell_y - it.start_cell_y).abs()) as f64
+            // If we got too far away from the starting cell, stop the search, end iterator.
+            // The search zone has the form of a square, to correspond with the search method
+            // (square spiral)
+            let search_distance = (it.cell_x - it.start_cell_x)
+                .abs()
+                .max((it.cell_y - it.start_cell_y).abs()) as f64
                 * self.cell_size;
-            if taxicab_distance > it.max_taxicab_distance {
+            if search_distance > it.max_search_distance {
                 return None;
             }
 
@@ -549,11 +552,9 @@ impl BodyGrid {
         &mut self,
         entity: EntityId,
         body: &BodyComponent,
-        max_taxicab_distance: f64,
+        max_search_distance: f64,
     ) -> ClosestEntityIterator {
-        // I use taxical distance because it's faster to compute than euclidian distance,
-        // and an approximation is enough for now.
-        ClosestEntityIterator::new(self, entity, body, max_taxicab_distance)
+        ClosestEntityIterator::new(self, entity, body, max_search_distance)
     }
 }
 
@@ -675,7 +676,7 @@ pub fn get_cell_coords(x: f64, y: f64) -> (usize, usize) {
 pub fn iter_closest(
     entity: EntityId,
     body: &BodyComponent,
-    max_taxicab_distance: f64,
+    max_search_distance: f64,
 ) -> ClosestEntityIterator {
-    BODY_GRID.with_borrow_mut(|grid| grid.iter_closest(entity, body, max_taxicab_distance))
+    BODY_GRID.with_borrow_mut(|grid| grid.iter_closest(entity, body, max_search_distance))
 }
