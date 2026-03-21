@@ -31,7 +31,7 @@ impl System for HerbivorousMindSystem {
             found.insert(*info, false);
 
             if let Some((_, closest_entity, closest_body, closest_path)) =
-                utils::find_closest_reachable_plant(ecs, info.entity, body)
+                utils::find_closest_reachable::<PlantComponent>(ecs, info.entity, body)
             {
                 found.insert(*info, true);
                 closest_target_of.insert(*info, (closest_entity, closest_body, closest_path));

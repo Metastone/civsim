@@ -79,33 +79,16 @@ fn try_move(
     }
     *move_to_target.target_body_mut() = target_body;
 
-    /* Idea for performance :
-     *
-     * If on a previous run of this system for the same creature entity, no path was found,
-     * (so Stopped -> Component MoveToTarget deleted)
-     * AND in this new run, the target is the same as before AND has not moved
-     *
-     * Then its probable that the path resolution will still fail this time
-     * (not certain because maybe some obstacles moved).
-     * Maybe I can do something to try avoid infinite loop of useless trying of path computation ?
-     *
-     * Not sure if this case will be frequent and / or an issue.
-     */
-
-    // Compute a new path if necessary
-    if move_to_target.next_waypoint().is_none() && !move_to_target.compute_path(info.entity, body) {
-        return MoveToTargetResult::Stopped;
-    }
-
-    let (waypoint_x, waypoint_y) = move_to_target.next_waypoint().unwrap();
-
-    // Check if the target is reached (no need to go though all waypoints if it's already reached)
+    // Check if the target is already reached (in which case there is no need to go through the path)
     if body.almost_collides(move_to_target.target_body(), CONTACT_CENTER_2_CENTER_FACTOR) {
         move_to_target.waypoint_reached();
         return MoveToTargetResult::Reached;
     }
+
+    let (waypoint_x, waypoint_y) = move_to_target.next_waypoint().unwrap();
+
     // Check if the next waypoint is reached
-    else if body.almost_at_position(waypoint_x, waypoint_y, move_to_target.speed()) {
+    if body.almost_at_position(waypoint_x, waypoint_y, move_to_target.speed()) {
         move_to_target.waypoint_reached();
         if move_to_target.is_last_waypoint_reached() {
             return MoveToTargetResult::Stopped;

@@ -2,43 +2,14 @@ use crate::algorithms::path_finding::compute_path;
 use crate::algorithms::path_finding::WayPoint;
 use crate::components::all::PlantComponent;
 use crate::components::body_component::BodyComponent;
+use crate::constants::CONTACT_CENTER_2_CENTER_FACTOR;
 use crate::ecs::{Component, Ecs, EntityId};
 use crate::shared_data::body_grid;
 use crate::MAX_SEARCH_DISTANCE;
 use std::any::TypeId;
 use std::collections::HashSet;
 
-// TODO refactor find_closest X ?
-
-pub fn find_closest_reachable_plant(
-    ecs: &mut Ecs,
-    entity: EntityId,
-    body: &BodyComponent,
-) -> Option<(f64, EntityId, BodyComponent, Vec<WayPoint>)>
-{
-    for (target_entity, distance_squared) in
-        body_grid::iter_closest(entity, body, MAX_SEARCH_DISTANCE)
-    {
-        if let Some(info) = ecs.get_entity_info(target_entity) && ecs.has_components(
-                info.arch_index,
-                &HashSet::from([to_ctype!(PlantComponent), to_ctype!(BodyComponent)]),
-            ) {
-                // Check if the plant is eatable
-                let target_plant = ecs.component::<PlantComponent>(&info).unwrap();
-                if !target_plant.is_eatable() {
-                    continue;
-                }
-
-                // Check if the plant's body is reachable
-                let target_body = ecs.component::<BodyComponent>(&info).unwrap();
-                if let Some((path, _)) = compute_path(entity, body, target_entity, target_body) {
-                    return Some((distance_squared, target_entity, *target_body, path));
-                }
-            }
-    }
-    None
-}
-
+// If an empty path is returned, it means that the target is already reached
 pub fn find_closest_reachable<C>(
     ecs: &mut Ecs,
     entity: EntityId,
@@ -54,8 +25,19 @@ where
                 info.arch_index,
                 &HashSet::from([to_ctype!(C), to_ctype!(BodyComponent)]),
             ) {
+                // If the target is a plant, check if it is eatable
+                if let Some(target_plant) = ecs.component::<PlantComponent>(&info) && !target_plant.is_eatable() {
+                    continue;
+                }
+
                 let target_body = ecs.component::<BodyComponent>(&info).unwrap();
-                if let Some((path, _)) = compute_path(entity, body, target_entity, target_body) {
+
+                // Check if the target is already reached
+                if body.almost_collides(target_body, CONTACT_CENTER_2_CENTER_FACTOR) {
+                    return Some((distance_squared, target_entity, *target_body, Vec::new()))
+                }
+                // If not, try to find a path to the target
+                else if let Some((path, _)) = compute_path(entity, body, target_entity, target_body) {
                     return Some((distance_squared, target_entity, *target_body, path));
                 }
             }
