@@ -41,6 +41,8 @@ pub const PLANT_ENERGY_PER_SIZE_UNIT: f32 = 1.0;
 
 pub const HERBIVOROUS_TICKS_TO_DIGEST: usize = 100;
 
+pub const TOTAL_TICKS_IDLE: usize = 100;
+
 pub const REPROD_X_OFFSET: f64 = 10.0;
 
 pub const BAR_WIDTH: f64 = 30.0;

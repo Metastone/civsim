@@ -151,11 +151,17 @@ impl CarnivorousComponent {
 }
 
 #[derive(Clone)]
-pub struct InactiveComponent {}
+pub struct InactiveComponent {
+    pub idle: bool,
+    pub idle_ticks_count: usize,
+}
 impl Component for InactiveComponent {}
 impl InactiveComponent {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            idle: false,
+            idle_ticks_count: 0,
+        }
     }
 }
 
