@@ -11,7 +11,9 @@ pub const BODY_DOMAIN_INITIAL_WIDTH: f64 = 5000.0;
 pub const BODY_DOMAIN_INITIAL_HEIGHT: f64 = 3000.0;
 
 pub const HUNGER_RATE: f32 = 0.025;
-pub const EXHAUSTION_RATE: f32 = 0.025;
+pub const EXHAUSTION_RATE: f32 = 0.1;
+//pub const RECOVERY_RATE: f32 = 0.025;
+pub const RECOVERY_RATE: f32 = 2.5;
 
 pub const CORPSE_ENERGY: f32 = 80.0;
 pub const CARNIVOROUS_ATTACK: f32 = 20.0;

@@ -4,7 +4,7 @@ pub mod death_system;
 pub mod digestion_system;
 pub mod eat_corpse_system;
 pub mod eat_plant_system;
-pub mod exhaustion_system;
+pub mod health_system;
 pub mod herbivorous_mind_system;
 pub mod hunger_system;
 pub mod move_to_target_system;

@@ -24,7 +24,7 @@ use systems::death_system::DeathSystem;
 use systems::digestion_system::DigestionSystem;
 use systems::eat_corpse_system::EatCorpseSystem;
 use systems::eat_plant_system::EatPlantSystem;
-use systems::exhaustion_system::ExhaustionSystem;
+use systems::health_system::HealthSystem;
 use systems::herbivorous_mind_system::HerbivorousMindSystem;
 use systems::hunger_system::HungerSystem;
 use systems::move_to_target_system::MoveToTargetSystem;
@@ -134,6 +134,8 @@ fn create_world() -> World {
         ]);
     }
 
+    world.add_system(Box::new(DeathSystem));
+    world.add_system(Box::new(HealthSystem));
     world.add_system(Box::new(PlantGrowthSystem));
     world.add_system(Box::new(ReproductionSystem));
     world.add_system(Box::new(HerbivorousMindSystem));
@@ -142,8 +144,6 @@ fn create_world() -> World {
     world.add_system(Box::new(EatCorpseSystem));
     world.add_system(Box::new(AttackHerbivorousSystem));
     world.add_system(Box::new(HungerSystem));
-    world.add_system(Box::new(ExhaustionSystem));
-    world.add_system(Box::new(DeathSystem));
     world.add_system(Box::new(MoveToTargetSystem));
     world.add_system(Box::new(DigestionSystem));
 
