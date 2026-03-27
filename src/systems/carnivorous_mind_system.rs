@@ -1,3 +1,4 @@
+use crate::configuration::Config;
 use crate::algorithms::path_finding::WayPoint;
 use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
@@ -6,11 +7,10 @@ use crate::ecs::{Component, Ecs, System, Update, RESERVED_ENTITY_ID};
 use crate::systems::utils;
 use std::any::TypeId;
 use std::collections::HashMap;
-use crate::constants::{CARNIVOROUS_SPEED, TOTAL_TICKS_IDLE};
 
 pub struct CarnivorousMindSystem;
 impl System for CarnivorousMindSystem {
-    fn run(&self, ecs: &mut Ecs) {
+    fn run(&self, ecs: &mut Ecs, config: &Config) {
         let mut updates: Vec<Update> = Vec::new();
 
         // Get the bodies of all inactive carnivorous entities that are ready to act
@@ -25,7 +25,7 @@ impl System for CarnivorousMindSystem {
             }
             else {
                 inactive.idle_ticks_count += 1;
-                if inactive.idle_ticks_count >= TOTAL_TICKS_IDLE {
+                if inactive.idle_ticks_count >= config.creature.total_ticks_idle {
                     inactive.idle = false;
                     inactive.idle_ticks_count = 0;
 
@@ -44,7 +44,7 @@ impl System for CarnivorousMindSystem {
 
             // Check corpses
             if let Some((distance_squared, closest_entity, closest_body, closest_path)) =
-                utils::find_closest_reachable::<CorpseComponent>(ecs, info.entity, body)
+                utils::find_closest_reachable::<CorpseComponent>(ecs, config, info.entity, body)
             {
                 closest_distance_squared = distance_squared;
                 target_found = true;
@@ -56,7 +56,7 @@ impl System for CarnivorousMindSystem {
 
             // Check herbivorous
             if let Some((distance_squared, closest_entity, closest_body, closest_path)) =
-                utils::find_closest_reachable::<HerbivorousComponent>(ecs, info.entity, body)
+                utils::find_closest_reachable::<HerbivorousComponent>(ecs, config, info.entity, body)
                 && distance_squared < closest_distance_squared
             {
                 target_found = true;
@@ -79,7 +79,7 @@ impl System for CarnivorousMindSystem {
                         target_entity,
                         target_body.unwrap(),
                         path_to_target.unwrap(),
-                        CARNIVOROUS_SPEED,
+                        config.creature.carnivorous_speed,
                         on_target_reached,
                         on_failure,
                     )),

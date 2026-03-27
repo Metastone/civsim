@@ -1,7 +1,7 @@
 use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
 use crate::components::move_to_target_component::MoveToTargetComponent;
-use crate::constants::*;
+use crate::configuration::Config;
 use crate::ecs::Ecs;
 use crate::ecs::EntityInfo;
 use crate::shared_data::biome::humidity;
@@ -17,10 +17,11 @@ pub struct Display {
     camera_offset_x: isize,
     camera_offset_y: isize,
     zoom: f64,
+    config: Config,
 }
 
 impl Display {
-    pub fn new() -> Self {
+    pub fn new(config: &Config) -> Self {
         Display {
             is_initialized: false,
             debug_mode: 0,
@@ -28,7 +29,8 @@ impl Display {
             window_height: 0,
             camera_offset_x: 0,
             camera_offset_y: 0,
-            zoom: INITIAL_ZOOM,
+            zoom: config.display.initial_zoom,
+            config: *config,
         }
     }
 
@@ -44,11 +46,11 @@ impl Display {
     }
 
     pub fn zoom_in(&mut self) {
-        self.zoom(ZOOM_FACTOR);
+        self.zoom(self.config.display.zoom_factor);
     }
 
     pub fn zoom_out(&mut self) {
-        self.zoom(1.0 / ZOOM_FACTOR);
+        self.zoom(1.0 / self.config.display.zoom_factor);
     }
 
     fn zoom(&mut self, zoom_factor: f64) {
@@ -58,19 +60,19 @@ impl Display {
     }
 
     pub fn move_camera_up(&mut self) {
-        self.move_camera(0, MOVE_CAMERA_OFFSET);
+        self.move_camera(0, self.config.display.move_camera_offset);
     }
 
     pub fn move_camera_down(&mut self) {
-        self.move_camera(0, -MOVE_CAMERA_OFFSET);
+        self.move_camera(0, -self.config.display.move_camera_offset);
     }
 
     pub fn move_camera_left(&mut self) {
-        self.move_camera(MOVE_CAMERA_OFFSET, 0);
+        self.move_camera(self.config.display.move_camera_offset, 0);
     }
 
     pub fn move_camera_right(&mut self) {
-        self.move_camera(-MOVE_CAMERA_OFFSET, 0);
+        self.move_camera(-self.config.display.move_camera_offset, 0);
     }
 
     fn move_camera(&mut self, offset_x: isize, offset_y: isize) {
@@ -128,9 +130,16 @@ impl Display {
             _ => {}
         }
 
+        let colors = &self.config.display.color;
+
         // Draw corpses
         for (body, _) in iter_components!(ecs, (CorpseComponent, BodyComponent), (BodyComponent)) {
-            self.draw_square(body, CORPSE_COLOR, CREATURE_SIZE, pixels);
+            self.draw_square(
+                body,
+                &colors.corpse_color,
+                self.config.creature.size,
+                pixels,
+            );
         }
 
         // Get all creatures in the order of their entity ID.
@@ -144,14 +153,14 @@ impl Display {
         for info in creature_infos {
             // Check what kind of creature this is
             let color = if ecs.has_component(info.arch_index, &to_ctype!(HerbivorousComponent)) {
-                HERBIVOROUS_COLOR
+                &colors.herbivorous_color
             } else {
-                CARNIVOROUS_COLOR
+                &colors.carnivorous_color
             };
             let pos;
             if let Some(body) = ecs.component::<BodyComponent>(&info) {
                 pos = *body;
-                self.draw_square(body, color, CREATURE_SIZE, pixels);
+                self.draw_square(body, color, self.config.creature.size, pixels);
             } else {
                 continue;
             }
@@ -161,12 +170,16 @@ impl Display {
                 self.draw_rec(
                     (
                         pos.x(),
-                        pos.y() - CREATURE_SIZE / 2.0 - BAR_HEIGHT / 2.0 - 5.0,
+                        pos.y()
+                            - self.config.creature.size / 2.0
+                            - self.config.display.bar_height / 2.0
+                            - 5.0,
                     ),
-                    HEALTH_COLOR,
+                    &colors.health_color,
                     (
-                        BAR_WIDTH * creature.health as f64 / MAX_HEALTH as f64,
-                        BAR_HEIGHT,
+                        self.config.display.bar_width * creature.health as f64
+                            / self.config.creature.max_health as f64,
+                        self.config.display.bar_height,
                     ),
                     pixels,
                 );
@@ -175,12 +188,16 @@ impl Display {
                 self.draw_rec(
                     (
                         pos.x(),
-                        pos.y() - CREATURE_SIZE / 2.0 - BAR_HEIGHT * 1.5 - 5.0 * 2.0,
+                        pos.y()
+                            - self.config.creature.size / 2.0
+                            - self.config.display.bar_height * 1.5
+                            - 5.0 * 2.0,
                     ),
-                    ENERGY_COLOR,
+                    &colors.energy_color,
                     (
-                        BAR_WIDTH * creature.energy as f64 / MAX_ENERGY as f64,
-                        BAR_HEIGHT,
+                        self.config.display.bar_width * creature.energy as f64
+                            / self.config.creature.max_energy as f64,
+                        self.config.display.bar_height,
                     ),
                     pixels,
                 );
@@ -190,18 +207,28 @@ impl Display {
         // Draw obstacles
         for info in iter_entities!(ecs, ObstacleComponent, BodyComponent) {
             if let Some(body) = ecs.component::<BodyComponent>(&info) {
-                self.draw_square(body, OBSTACLE_COLOR, OBSTACLE_SIZE, pixels);
+                self.draw_square(
+                    body,
+                    &colors.obstacle_color,
+                    self.config.obstacle_size,
+                    pixels,
+                );
             }
         }
 
         // Draw seeds & plants
         for (plant, body, _) in iter_components!(ecs, (), (PlantComponent, BodyComponent)) {
             if plant.is_seed {
-                self.draw_square(body, SEED_COLOR, SEED_DISPLAY_SIZE, pixels);
+                self.draw_square(
+                    body,
+                    &colors.seed_color,
+                    self.config.seed.display_size,
+                    pixels,
+                );
                 continue;
             }
 
-            self.draw_square(body, PLANT_COLOR, plant.size, pixels);
+            self.draw_square(body, &colors.plant_color, plant.size, pixels);
 
             // Draw the plant's seeds
             let arc = 2.0 * PI / (plant.nb_seeds as f64);
@@ -211,7 +238,12 @@ impl Display {
                 let y = a.sin() * plant.size / 2.0;
                 let seed_body =
                     BodyComponent::new_traversable(body.x() + x, body.y() + y, 0.0, 0.0);
-                self.draw_square(&seed_body, SEED_COLOR, SEED_DISPLAY_SIZE, pixels);
+                self.draw_square(
+                    &seed_body,
+                    &colors.seed_color,
+                    self.config.seed.display_size,
+                    pixels,
+                );
                 a += arc;
             }
         }
@@ -223,13 +255,13 @@ impl Display {
         let mut j = 0;
         loop {
             let y = g_y + g_cell_size * (j as f64);
-            if y - GRID_LINE_WIDENESS / 2.0 > g_y + g_h {
+            if y - self.config.display.grid_line_wideness / 2.0 > g_y + g_h {
                 break;
             }
             self.draw_rec(
                 (g_x + g_w / 2.0, y),
-                GRID_COLOR,
-                (g_w, GRID_LINE_WIDENESS),
+                &self.config.display.color.grid_color,
+                (g_w, self.config.display.grid_line_wideness),
                 pixels,
             );
             j += 1;
@@ -239,13 +271,13 @@ impl Display {
         let mut i = 0;
         loop {
             let x = g_x + g_cell_size * (i as f64);
-            if x - GRID_LINE_WIDENESS / 2.0 > g_x + g_w {
+            if x - self.config.display.grid_line_wideness / 2.0 > g_x + g_w {
                 break;
             }
             self.draw_rec(
                 (x, g_y + g_h / 2.0),
-                GRID_COLOR,
-                (GRID_LINE_WIDENESS, g_h),
+                &self.config.display.color.grid_color,
+                (self.config.display.grid_line_wideness, g_h),
                 pixels,
             );
             i += 1;
@@ -261,9 +293,9 @@ impl Display {
                     (waypoint.x(), waypoint.y()),
                     (next_waypoint.x(), next_waypoint.y()),
                     if waypoint.reached() {
-                        WAYPOINT_REACHED_COLOR
+                        &self.config.display.color.waypoint_reached_color
                     } else {
-                        WAYPOINT_COLOR
+                        &self.config.display.color.waypoint_color
                     },
                     pixels,
                 );
@@ -278,7 +310,7 @@ impl Display {
                     self.draw_edge(
                         (node.x(), node.y()),
                         (nb_node.x(), nb_node.y()),
-                        GRAPH_COLOR,
+                        &self.config.display.color.graph_color,
                         pixels,
                     );
                 }
@@ -310,7 +342,7 @@ impl Display {
         let y_max =
             by * self.zoom + (self.window_height as f64) / 2.0 + self.camera_offset_y as f64;
 
-        let thickness = GRAPH_EDGE_THICKNESS as isize;
+        let thickness = self.config.display.graph_edge_thickness as isize;
         let mut x = x_min;
         while x <= x_max {
             let pix_x = x as isize;

@@ -10,3 +10,5 @@ pixels = "0.15.0"
 rand = "0.9.1"
 winit = "0.30.9"
 ordered-float = "5.1.0"
+serde = { version = "1.0", features = ["derive"] }
+toml = "1.0"

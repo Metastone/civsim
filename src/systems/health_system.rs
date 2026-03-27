@@ -1,18 +1,18 @@
 use crate::components::all::*;
-use crate::constants::*;
+use crate::configuration::Config;
 use crate::ecs::{Ecs, System};
 use std::any::TypeId;
 
 pub struct HealthSystem;
 impl System for HealthSystem {
-    fn run(&self, ecs: &mut Ecs) {
+    fn run(&self, ecs: &mut Ecs, config: &Config) {
         for (creature, _) in iter_components!(ecs, (), (CreatureComponent)) {
             creature.health += if creature.energy > 0.0 {
-                RECOVERY_RATE
+                config.creature.recovery_rate
             } else {
-                -EXHAUSTION_RATE
+                -config.creature.exhaustion_rate
             };
-            creature.health = creature.health.clamp(0.0, MAX_HEALTH);
+            creature.health = creature.health.clamp(0.0, config.creature.max_health);
         }
     }
 }

@@ -1,5 +1,4 @@
 use crate::algorithms::rng;
-use crate::constants::*;
 use crate::ecs::Component;
 use crate::ecs::EntityId;
 use crate::shared_data::body_grid;
@@ -18,6 +17,9 @@ pub struct BodyComponent {
     is_traversable: bool,
 
     init_with_random_pos: bool,
+
+    body_domain_initial_width: f64,
+    body_domain_initial_height: f64,
 }
 
 impl Component for BodyComponent {
@@ -26,12 +28,12 @@ impl Component for BodyComponent {
         if self.init_with_random_pos {
             loop {
                 let x = rng::random_range(
-                    BODY_DOMAIN_INITIAL_WIDTH / -2.0,
-                    BODY_DOMAIN_INITIAL_WIDTH / 2.0,
+                    self.body_domain_initial_width / -2.0,
+                    self.body_domain_initial_width / 2.0,
                 );
                 let y = rng::random_range(
-                    BODY_DOMAIN_INITIAL_HEIGHT / -2.0,
-                    BODY_DOMAIN_INITIAL_HEIGHT / 2.0,
+                    self.body_domain_initial_height / -2.0,
+                    self.body_domain_initial_height / 2.0,
                 );
                 self.x = x;
                 self.y = y;
@@ -49,7 +51,12 @@ impl Component for BodyComponent {
 }
 
 impl BodyComponent {
-    pub fn new_rand_pos_not_traversable(w: f64, h: f64) -> Self {
+    pub fn new_rand_pos_not_traversable(
+        body_domain_initial_width: f64,
+        body_domain_initial_height: f64,
+        w: f64,
+        h: f64,
+    ) -> Self {
         Self {
             x: 0.0, // Temp x,y -> will be updated in on_create
             y: 0.0,
@@ -57,10 +64,17 @@ impl BodyComponent {
             h,
             is_traversable: false,
             init_with_random_pos: true,
+            body_domain_initial_width,
+            body_domain_initial_height,
         }
     }
 
-    pub fn new_rand_pos_traversable(w: f64, h: f64) -> Self {
+    pub fn new_rand_pos_traversable(
+        body_domain_initial_width: f64,
+        body_domain_initial_height: f64,
+        w: f64,
+        h: f64,
+    ) -> Self {
         Self {
             x: 0.0, // Temp x,y -> will be updated in on_create
             y: 0.0,
@@ -68,6 +82,8 @@ impl BodyComponent {
             h,
             is_traversable: true,
             init_with_random_pos: true,
+            body_domain_initial_width,
+            body_domain_initial_height,
         }
     }
 
@@ -79,6 +95,8 @@ impl BodyComponent {
             h,
             is_traversable: false,
             init_with_random_pos: false,
+            body_domain_initial_width: 0.0,  // not used
+            body_domain_initial_height: 0.0, // not used
         }
     }
 
@@ -90,6 +108,8 @@ impl BodyComponent {
             h,
             is_traversable: true,
             init_with_random_pos: false,
+            body_domain_initial_width: 0.0,  // not used
+            body_domain_initial_height: 0.0, // not used
         }
     }
 

@@ -1,5 +1,5 @@
 use crate::components::body_component::BodyComponent;
-use crate::constants::*;
+use crate::configuration::Config;
 use crate::ecs::{EntityId, RESERVED_ENTITY_ID};
 use std::cell::RefCell;
 
@@ -17,15 +17,11 @@ use std::cell::RefCell;
  */
 
 thread_local! {
-    static BODY_GRID: RefCell<BodyGrid> = RefCell::new(
-        BodyGrid::new(
-            - (SCREEN_WIDTH as f64) / 2.0,
-            SCREEN_WIDTH as f64 / 2.0,
-            - (SCREEN_HEIGHT as f64) / 2.0,
-            SCREEN_HEIGHT as f64 / 2.0,
-            CREATURE_SIZE
-        )
-    )
+    static BODY_GRID: RefCell<Option<BodyGrid>> = RefCell::new(None)
+}
+
+pub fn init(config: &Config) {
+    BODY_GRID.with_borrow_mut(|grid| *grid = Some(BodyGrid::new(config)));
 }
 
 enum Direction {
@@ -85,7 +81,7 @@ impl Iterator for ClosestEntityIterator {
     type Item = (EntityId, f64);
 
     fn next(&mut self) -> Option<Self::Item> {
-        BODY_GRID.with_borrow(|grid| grid.next_closest_entity(self))
+        BODY_GRID.with_borrow(|grid| grid.as_ref().unwrap().next_closest_entity(self))
     }
 }
 
@@ -206,19 +202,13 @@ impl BodyGrid {
         None
     }
 
-    pub fn new(
-        mut min_x: f64,
-        mut max_x: f64,
-        mut min_y: f64,
-        mut max_y: f64,
-        max_entity_size: f64,
-    ) -> Self {
-        min_x -= max_entity_size / 2.0;
-        max_x += max_entity_size / 2.0;
-        min_y -= max_entity_size / 2.0;
-        max_y += max_entity_size / 2.0;
-        let max_entity_size = CREATURE_SIZE;
-        let cell_size = max_entity_size * CELL_SIZE_FACTOR;
+    pub fn new(config: &Config) -> Self {
+        let max_entity_size = config.creature.size;
+        let min_x = (-(config.display.screen_width as f64) - max_entity_size) / 2.0;
+        let max_x = (config.display.screen_width as f64 + max_entity_size) / 2.0;
+        let min_y = (-(config.display.screen_height as f64) - max_entity_size) / 2.0;
+        let max_y = (config.display.screen_height as f64 + max_entity_size) / 2.0;
+        let cell_size = max_entity_size * config.collision.cell_size_factor;
 
         // Compute the minimal size for the grid (float)
         let mut w = (max_x - min_x).abs();
@@ -647,20 +637,31 @@ pub fn try_translate(
     offset_x: f64,
     offset_y: f64,
 ) -> bool {
-    BODY_GRID
-        .with_borrow_mut(|grid| grid.try_translate(entity, target_entity, body, offset_x, offset_y))
+    BODY_GRID.with_borrow_mut(|grid| {
+        grid.as_mut()
+            .unwrap()
+            .try_translate(entity, target_entity, body, offset_x, offset_y)
+    })
 }
 
 pub fn try_update_size(entity: EntityId, body: &BodyComponent, width: f64, height: f64) -> bool {
-    BODY_GRID.with_borrow_mut(|grid| grid.try_update_size(entity, body, width, height))
+    BODY_GRID.with_borrow_mut(|grid| {
+        grid.as_mut()
+            .unwrap()
+            .try_update_size(entity, body, width, height)
+    })
 }
 
 pub fn set_traversable(entity: EntityId, body: &BodyComponent, traversable: bool) {
-    BODY_GRID.with_borrow_mut(|grid| grid.set_traversable(entity, body, traversable));
+    BODY_GRID.with_borrow_mut(|grid| {
+        grid.as_mut()
+            .unwrap()
+            .set_traversable(entity, body, traversable)
+    });
 }
 
 pub fn collides(entity: EntityId, body: &BodyComponent) -> bool {
-    BODY_GRID.with_borrow_mut(|grid| grid.collides(entity, body))
+    BODY_GRID.with_borrow_mut(|grid| grid.as_mut().unwrap().collides(entity, body))
 }
 
 pub fn collides_except_target(
@@ -668,7 +669,11 @@ pub fn collides_except_target(
     target_entity: EntityId,
     body: &BodyComponent,
 ) -> bool {
-    BODY_GRID.with_borrow_mut(|grid| grid.collides_except_target(entity, target_entity, body))
+    BODY_GRID.with_borrow_mut(|grid| {
+        grid.as_mut()
+            .unwrap()
+            .collides_except_target(entity, target_entity, body)
+    })
 }
 
 pub fn edge_collides(
@@ -679,38 +684,33 @@ pub fn edge_collides(
     margin: (f64, f64),
 ) -> bool {
     BODY_GRID.with_borrow_mut(|grid| {
-        grid.edge_collides(position_a, position_b, entity, target_entity, margin)
+        grid.as_mut()
+            .unwrap()
+            .edge_collides(position_a, position_b, entity, target_entity, margin)
     })
 }
 
 pub fn add(entity: EntityId, body: &BodyComponent) {
-    BODY_GRID.with_borrow_mut(|grid| grid.add(entity, body));
+    BODY_GRID.with_borrow_mut(|grid| grid.as_mut().unwrap().add(entity, body));
 }
 
 pub fn delete(entity: EntityId, body: &BodyComponent) {
-    BODY_GRID.with_borrow_mut(|grid| grid.delete(entity, body));
+    BODY_GRID.with_borrow_mut(|grid| grid.as_mut().unwrap().delete(entity, body));
 }
 
 pub fn purge_deleted_bodies() {
-    BODY_GRID.with_borrow_mut(|grid| grid.purge_deleted_bodies());
+    BODY_GRID.with_borrow_mut(|grid| grid.as_mut().unwrap().purge_deleted_bodies());
 }
 
 pub fn coords() -> (f64, f64, f64, f64, f64, usize, usize) {
     BODY_GRID.with_borrow(|grid| {
-        (
-            grid.x,
-            grid.y,
-            grid.w,
-            grid.h,
-            grid.cell_size,
-            grid.nb_cells_x,
-            grid.nb_cells_y,
-        )
+        let g = grid.as_ref().unwrap();
+        (g.x, g.y, g.w, g.h, g.cell_size, g.nb_cells_x, g.nb_cells_y)
     })
 }
 
 pub fn get_cell_coords(x: f64, y: f64) -> (usize, usize) {
-    BODY_GRID.with_borrow_mut(|grid| grid.get_cell_coords(x, y))
+    BODY_GRID.with_borrow_mut(|grid| grid.as_mut().unwrap().get_cell_coords(x, y))
 }
 
 pub fn iter_closest(
@@ -718,5 +718,9 @@ pub fn iter_closest(
     body: &BodyComponent,
     max_search_distance: f64,
 ) -> ClosestEntityIterator {
-    BODY_GRID.with_borrow_mut(|grid| grid.iter_closest(entity, body, max_search_distance))
+    BODY_GRID.with_borrow_mut(|grid| {
+        grid.as_mut()
+            .unwrap()
+            .iter_closest(entity, body, max_search_distance)
+    })
 }

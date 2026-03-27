@@ -1,6 +1,6 @@
 mod algorithms;
 mod components;
-mod constants;
+mod configuration;
 #[macro_use]
 mod ecs;
 mod display;
@@ -16,7 +16,7 @@ use std::{sync::Arc, thread, time};
 
 use components::all::*;
 use components::body_component::BodyComponent;
-use constants::*;
+use configuration::load_config;
 use shared_data::body_grid;
 use systems::attack_herbivorous_system::AttackHerbivorousSystem;
 use systems::carnivorous_mind_system::CarnivorousMindSystem;
@@ -39,6 +39,9 @@ use winit::{
     keyboard::{Key, NamedKey},
     window::{Window, WindowId},
 };
+
+use crate::algorithms::rng;
+use crate::configuration::Config;
 
 pub struct World {
     ecs: Ecs,
@@ -72,15 +75,15 @@ impl World {
         )]);
     }
 
-    fn iterate(&mut self) {
+    fn iterate(&mut self, config: &Config) {
         if !self.pause {
-            self.force_iterate();
+            self.force_iterate(config);
         }
     }
 
-    fn force_iterate(&mut self) {
+    fn force_iterate(&mut self, config: &Config) {
         for s in &self.systems {
-            s.run(&mut self.ecs);
+            s.run(&mut self.ecs, config);
         }
         body_grid::purge_deleted_bodies();
     }
@@ -90,47 +93,72 @@ impl World {
     }
 }
 
-fn create_world() -> World {
+fn create_world(config: &Config) -> World {
     let mut world = World::new();
 
-    for _ in 0..PLANT_NB {
+    for _ in 0..config.plant_nb {
         // Plants start as seed, which have no collision. They gain collision later on.
         world.create_entity_with(&[
-            &PlantComponent::new(),
-            &BodyComponent::new_rand_pos_traversable(SEED_SIZE, SEED_SIZE),
+            &PlantComponent::new(config),
+            &BodyComponent::new_rand_pos_traversable(
+                config.body_domain_initial_width,
+                config.body_domain_initial_height,
+                config.seed.size,
+                config.seed.size,
+            ),
         ]);
     }
 
-    for _ in 0..HERBIVOROUS_NB {
+    for _ in 0..config.herbivorous_nb {
         world.create_entity_with(&[
-            &CreatureComponent::new(),
-            &BodyComponent::new_rand_pos_not_traversable(CREATURE_SIZE, CREATURE_SIZE),
+            &CreatureComponent::new(&config.creature),
+            &BodyComponent::new_rand_pos_not_traversable(
+                config.body_domain_initial_width,
+                config.body_domain_initial_height,
+                config.creature.size,
+                config.creature.size,
+            ),
             &HerbivorousComponent::new(),
             &InactiveComponent::new(),
         ]);
     }
 
-    for _ in 0..CARNIVOROUS_NB {
+    for _ in 0..config.carnivorous_nb {
         world.create_entity_with(&[
-            &CreatureComponent::new(),
-            &BodyComponent::new_rand_pos_not_traversable(CREATURE_SIZE, CREATURE_SIZE),
+            &CreatureComponent::new(&config.creature),
+            &BodyComponent::new_rand_pos_not_traversable(
+                config.body_domain_initial_width,
+                config.body_domain_initial_height,
+                config.creature.size,
+                config.creature.size,
+            ),
             &CarnivorousComponent::new(),
             &InactiveComponent::new(),
         ]);
     }
 
     #[allow(clippy::reversed_empty_ranges)]
-    for _ in 0..CORPSE_NB {
+    for _ in 0..config.corpse_nb {
         world.create_entity_with(&[
             &CorpseComponent::new(),
-            &BodyComponent::new_rand_pos_not_traversable(CREATURE_SIZE, CREATURE_SIZE),
+            &BodyComponent::new_rand_pos_not_traversable(
+                config.body_domain_initial_width,
+                config.body_domain_initial_height,
+                config.creature.size,
+                config.creature.size,
+            ),
         ]);
     }
 
-    for _ in 0..OBSTACLES_NB {
+    for _ in 0..config.obstacle_nb {
         world.create_entity_with(&[
             &ObstacleComponent::new(),
-            &BodyComponent::new_rand_pos_not_traversable(OBSTACLE_SIZE, OBSTACLE_SIZE),
+            &BodyComponent::new_rand_pos_not_traversable(
+                config.body_domain_initial_width,
+                config.body_domain_initial_height,
+                config.obstacle_size,
+                config.obstacle_size,
+            ),
         ]);
     }
 
@@ -155,14 +183,19 @@ struct App<'window> {
     pixels: Option<Pixels<'window>>,
     world: World,
     display: Display,
+    config: Config,
 }
 impl Default for App<'_> {
     fn default() -> Self {
+        let config = load_config("config.toml");
+        rng::init(&config);
+        body_grid::init(&config);
         Self {
             window: Default::default(),
             pixels: Default::default(),
-            world: create_world(),
-            display: Display::new(),
+            world: create_world(&config),
+            display: Display::new(&config),
+            config,
         }
     }
 }
@@ -174,8 +207,8 @@ impl ApplicationHandler for App<'_> {
                     Window::default_attributes()
                         .with_title("Civsim")
                         .with_inner_size(LogicalSize::new(
-                            SCREEN_WIDTH as f64,
-                            SCREEN_HEIGHT as f64,
+                            self.config.display.screen_width as f64,
+                            self.config.display.screen_height as f64,
                         )),
                 )
                 .unwrap(),
@@ -183,7 +216,12 @@ impl ApplicationHandler for App<'_> {
         let size = window.inner_size();
         let pixels = {
             let surface_texture = SurfaceTexture::new(size.width, size.height, window.clone());
-            Pixels::new(SCREEN_WIDTH, SCREEN_HEIGHT, surface_texture).unwrap()
+            Pixels::new(
+                self.config.display.screen_width,
+                self.config.display.screen_height,
+                surface_texture,
+            )
+            .unwrap()
         };
 
         self.window = Some(window);
@@ -210,7 +248,7 @@ impl ApplicationHandler for App<'_> {
                 self.display.resize(size.width, size.height);
             }
             WindowEvent::RedrawRequested => {
-                self.world.iterate();
+                self.world.iterate(&self.config);
 
                 self.display.draw(
                     &mut self.world.ecs,
@@ -218,7 +256,7 @@ impl ApplicationHandler for App<'_> {
                 );
                 self.pixels.as_mut().unwrap().render().unwrap();
 
-                thread::sleep(time::Duration::from_millis(MS_PER_ITERATION));
+                thread::sleep(time::Duration::from_millis(self.config.ms_per_iteration));
                 self.window.as_ref().unwrap().request_redraw();
             }
             WindowEvent::KeyboardInput { event, .. } => {
@@ -236,7 +274,7 @@ impl ApplicationHandler for App<'_> {
                     && event.state == ElementState::Pressed
                     && !event.repeat
                 {
-                    self.world.force_iterate();
+                    self.world.force_iterate(&self.config);
                 } else if event.logical_key == Key::Named(NamedKey::PageUp)
                     && event.state == ElementState::Pressed
                     && !event.repeat

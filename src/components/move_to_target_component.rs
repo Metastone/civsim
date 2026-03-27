@@ -1,5 +1,6 @@
 use crate::algorithms::path_finding::{compute_path, Graph, WayPoint};
 use crate::components::body_component::BodyComponent;
+use crate::configuration::Config;
 use crate::ecs::{Component, EntityId};
 
 #[derive(Clone)]
@@ -36,12 +37,17 @@ impl MoveToTargetComponent {
     }
 
     // TODO maybe refactor this and call compute_path in caller only ? or maybe not
-    pub fn compute_path(&mut self, entity: EntityId, body: &BodyComponent) -> bool {
+    pub fn compute_path(
+        &mut self,
+        config: &Config,
+        entity: EntityId,
+        body: &BodyComponent,
+    ) -> bool {
         self.graph.clear();
         self.path_to_target.clear();
 
         if let Some((path, graph)) =
-            compute_path(entity, body, self.target_entity, &self.target_body)
+            compute_path(config, entity, body, self.target_entity, &self.target_body)
         {
             self.path_to_target = path;
             self.graph = graph;

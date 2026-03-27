@@ -2,16 +2,16 @@ use crate::algorithms::path_finding::compute_path;
 use crate::algorithms::path_finding::WayPoint;
 use crate::components::all::PlantComponent;
 use crate::components::body_component::BodyComponent;
-use crate::constants::CONTACT_CENTER_2_CENTER_FACTOR;
 use crate::ecs::{Component, Ecs, EntityId};
 use crate::shared_data::body_grid;
-use crate::MAX_SEARCH_DISTANCE;
 use std::any::TypeId;
 use std::collections::HashSet;
+use crate::configuration::Config;
 
 // If an empty path is returned, it means that the target is already reached
 pub fn find_closest_reachable<C>(
     ecs: &mut Ecs,
+    config: &Config,
     entity: EntityId,
     body: &BodyComponent,
 ) -> Option<(f64, EntityId, BodyComponent, Vec<WayPoint>)>
@@ -19,7 +19,7 @@ where
     C: Component,
 {
     for (target_entity, distance_squared) in
-        body_grid::iter_closest(entity, body, MAX_SEARCH_DISTANCE)
+        body_grid::iter_closest(entity, body, config.path.max_search_distance)
     {
         if let Some(info) = ecs.get_entity_info(target_entity) && ecs.has_components(
                 info.arch_index,
@@ -33,11 +33,11 @@ where
                 let target_body = ecs.component::<BodyComponent>(&info).unwrap();
 
                 // Check if the target is already reached
-                if body.almost_collides(target_body, CONTACT_CENTER_2_CENTER_FACTOR) {
+                if body.almost_collides(target_body, config.collision.contact_center_2_center_factor) {
                     return Some((distance_squared, target_entity, *target_body, Vec::new()))
                 }
                 // If not, try to find a path to the target
-                else if let Some((path, _)) = compute_path(entity, body, target_entity, target_body) {
+                else if let Some((path, _)) = compute_path(config, entity, body, target_entity, target_body) {
                     return Some((distance_squared, target_entity, *target_body, path));
                 }
             }

@@ -1,6 +1,6 @@
 use crate::algorithms::rng;
 use crate::components::body_component::BodyComponent;
-use crate::constants::NB_PRM_POSITIONS_GENERATED;
+use crate::configuration::Config;
 use crate::ecs::EntityId;
 use crate::shared_data::body_grid;
 use ordered_float::OrderedFloat;
@@ -244,6 +244,7 @@ impl Graph {
     // safely navigate without colliding anything.
     pub fn add_prm_nodes(
         &mut self,
+        config: &Config,
         entity: EntityId,
         target_entity: EntityId,
         body: &BodyComponent,
@@ -262,7 +263,7 @@ impl Graph {
 
         // In a radius (squared) around the target, randomly generate positions
         let r = graph_connection_radius();
-        for _ in 0..NB_PRM_POSITIONS_GENERATED {
+        for _ in 0..config.path.nb_prm_positions_generated {
             let x = rng::random_range(center_x - r, center_x + r);
             let y = rng::random_range(center_y - r, center_y + r);
             let node = Node::new(x, y);
@@ -276,6 +277,7 @@ impl Graph {
     // (to check this, inflate the bodies size by size of the entity to move)
     pub fn connect_nodes(
         &mut self,
+        config: &Config,
         entity: EntityId,
         target_entity: EntityId,
         body: &BodyComponent,
@@ -283,7 +285,7 @@ impl Graph {
         let mut at_least_one_edge = false;
 
         let r = graph_connection_radius();
-        let max_d = max_distance_for_connected_dots(r, NB_PRM_POSITIONS_GENERATED);
+        let max_d = max_distance_for_connected_dots(r, config.path.nb_prm_positions_generated);
         let max_d2 = max_d.powi(2);
         let nodes: Vec<Node> = self.neighbours.keys().cloned().collect();
 
@@ -443,6 +445,7 @@ fn reconstruct_path(came_from: &HashMap<Node, Node>, node: &Node) -> Vec<Node> {
 ///
 /// Finally, use A* algorithm on this constructed graph to find a path to the target.
 pub fn compute_path(
+    config: &Config,
     entity: EntityId,
     body: &BodyComponent,
     target_entity: EntityId,
@@ -459,11 +462,12 @@ pub fn compute_path(
         target_body.y(),
     );
 
-    if !graph.add_prm_nodes(entity, target_entity, body, body.x(), body.y()) {
+    if !graph.add_prm_nodes(config, entity, target_entity, body, body.x(), body.y()) {
         return None;
     }
 
     if !graph.add_prm_nodes(
+        config,
         entity,
         target_entity,
         body,
@@ -473,7 +477,7 @@ pub fn compute_path(
         return None;
     }
 
-    if !graph.connect_nodes(entity, target_entity, body) {
+    if !graph.connect_nodes(config, entity, target_entity, body) {
         return None;
     }
 

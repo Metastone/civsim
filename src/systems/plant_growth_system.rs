@@ -1,6 +1,6 @@
 use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
-use crate::constants::PLANT_INITIAL_SIZE;
+use crate::configuration::Config;
 use crate::ecs::{Ecs, System};
 use crate::humidity;
 use crate::shared_data::body_grid;
@@ -8,11 +8,11 @@ use std::any::TypeId;
 
 pub struct PlantGrowthSystem;
 impl System for PlantGrowthSystem {
-    fn run(&self, ecs: &mut Ecs) {
+    fn run(&self, ecs: &mut Ecs, config: &Config) {
         for (plant, body, info) in iter_components!(ecs, (), (PlantComponent, BodyComponent)) {
             // Initialize seeds with humidity level
             if !plant.is_seed_initialized {
-                plant.init_seed(humidity(body.x(), body.y()));
+                plant.init_seed(config, humidity(body.x(), body.y()));
             }
 
             // Grow from seed to plant
@@ -21,10 +21,10 @@ impl System for PlantGrowthSystem {
                     if body_grid::try_update_size(
                         info.entity,
                         body,
-                        PLANT_INITIAL_SIZE,
-                        PLANT_INITIAL_SIZE,
+                        config.plant.initial_size,
+                        config.plant.initial_size,
                     ) {
-                        plant.become_plant(humidity(body.x(), body.y()));
+                        plant.become_plant(config, humidity(body.x(), body.y()));
 
                         // Add collision to the plant
                         // TODO not great to have to do this both in ECS and in body grid...

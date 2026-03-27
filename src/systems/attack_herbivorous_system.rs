@@ -1,12 +1,12 @@
 use crate::components::all::*;
-use crate::constants::*;
+use crate::configuration::Config;
 use crate::ecs::{Ecs, EntityId, System, Update};
 use std::any::TypeId;
 use std::collections::HashSet;
 
 pub struct AttackHerbivorousSystem;
 impl System for AttackHerbivorousSystem {
-    fn run(&self, ecs: &mut Ecs) {
+    fn run(&self, ecs: &mut Ecs, config: &Config) {
         let mut updates: Vec<Update> = Vec::new();
 
         // Make sure that a herbivorous is not attacked by more than one creature
@@ -31,7 +31,7 @@ impl System for AttackHerbivorousSystem {
         // Decrease life of attacked herbivorous entities
         for h_entity in attacked_herbivorous.iter() {
             if let Some(creature) = ecs.component_mut_from_entity::<CreatureComponent>(*h_entity) {
-                creature.health -= CARNIVOROUS_ATTACK;
+                creature.health -= config.creature.carnivorous_attack;
                 if creature.health < 0.0 {
                     creature.health = 0.0;
                 }

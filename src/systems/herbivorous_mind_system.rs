@@ -2,7 +2,7 @@ use crate::algorithms::path_finding::WayPoint;
 use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
 use crate::components::move_to_target_component::MoveToTargetComponent;
-use crate::constants::{HERBIVOROUS_SPEED, TOTAL_TICKS_IDLE};
+use crate::configuration::Config;
 use crate::ecs::{Ecs, System, Update, RESERVED_ENTITY_ID};
 use crate::systems::utils;
 use std::any::TypeId;
@@ -10,7 +10,7 @@ use std::collections::HashMap;
 
 pub struct HerbivorousMindSystem;
 impl System for HerbivorousMindSystem {
-    fn run(&self, ecs: &mut Ecs) {
+    fn run(&self, ecs: &mut Ecs, config: &Config) {
         let mut updates: Vec<Update> = Vec::new();
 
         // Get the bodies of all inactive herbivorous entities
@@ -24,7 +24,7 @@ impl System for HerbivorousMindSystem {
                 herbivorous_bodies.insert(info, *body);
             } else {
                 inactive.idle_ticks_count += 1;
-                if inactive.idle_ticks_count >= TOTAL_TICKS_IDLE {
+                if inactive.idle_ticks_count >= config.creature.total_ticks_idle {
                     inactive.idle = false;
                     inactive.idle_ticks_count = 0;
                 }
@@ -39,7 +39,7 @@ impl System for HerbivorousMindSystem {
             let mut target_found = false;
 
             if let Some((_, closest_entity, closest_body, closest_path)) =
-                utils::find_closest_reachable::<PlantComponent>(ecs, info.entity, body)
+                utils::find_closest_reachable::<PlantComponent>(ecs, config, info.entity, body)
             {
                 target_found = true;
                 target_entity = closest_entity;
@@ -57,7 +57,7 @@ impl System for HerbivorousMindSystem {
                         target_entity,
                         target_body.unwrap(),
                         path_to_target.unwrap(),
-                        HERBIVOROUS_SPEED,
+                        config.creature.herbivorous_speed,
                         on_target_reached,
                         on_failure,
                     )),

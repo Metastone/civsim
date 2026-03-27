@@ -4,6 +4,8 @@ use std::{
     collections::{HashMap, HashSet},
 };
 
+use crate::configuration::Config;
+
 pub const MAX_OBSOLETE_ENTRIES: usize = 10000;
 
 pub type ComponentType = TypeId;
@@ -301,7 +303,7 @@ impl<'a> Iterator for ComponentIteratorN<'a> {
 }
 
 pub trait System {
-    fn run(&self, ecs: &mut Ecs);
+    fn run(&self, ecs: &mut Ecs, config: &Config);
 }
 
 pub enum Update {

@@ -1,12 +1,12 @@
 use crate::components::all::*;
-use crate::constants::*;
+use crate::configuration::Config;
 use crate::ecs::{Ecs, EntityId, EntityInfo, System, Update};
 use std::any::TypeId;
 use std::collections::HashMap;
 
 pub struct EatPlantSystem;
 impl System for EatPlantSystem {
-    fn run(&self, ecs: &mut Ecs) {
+    fn run(&self, ecs: &mut Ecs, config: &Config) {
         let mut updates: Vec<Update> = Vec::new();
 
         // Make sure that a plant is not eaten by more than one creature
@@ -28,13 +28,13 @@ impl System for EatPlantSystem {
         // Increase energy of creatures that ate a plant
         for (plant_size, plant_nb_seeds, info) in plant_to_creature.values() {
             if let Some(creature) = ecs.component_mut::<CreatureComponent>(info) {
-                creature.energy += (*plant_size as f32) * PLANT_ENERGY_PER_SIZE_UNIT;
-                if creature.energy > MAX_ENERGY {
-                    creature.energy = MAX_ENERGY;
+                creature.energy += (*plant_size as f32) * config.plant.energy_per_size_unit;
+                if creature.energy > config.creature.max_energy {
+                    creature.energy = config.creature.max_energy;
                 }
             }
             if let Some(herbivorous) = ecs.component_mut::<HerbivorousComponent>(info) {
-                herbivorous.seeds.push_back((*plant_nb_seeds, HERBIVOROUS_TICKS_TO_DIGEST));
+                herbivorous.seeds.push_back((*plant_nb_seeds, config.creature.herbivorous_ticks_to_digest));
             }
         }
 

@@ -1,12 +1,12 @@
 use crate::components::all::*;
-use crate::constants::*;
+use crate::configuration::Config;
 use crate::ecs::{Ecs, EntityId, EntityInfo, System, Update};
 use std::any::TypeId;
 use std::collections::HashMap;
 
 pub struct EatCorpseSystem;
 impl System for EatCorpseSystem {
-    fn run(&self, ecs: &mut Ecs) {
+    fn run(&self, ecs: &mut Ecs, config: &Config) {
         let mut updates: Vec<Update> = Vec::new();
 
         // Make sure that a corpse is not eaten by more than one creature
@@ -28,9 +28,9 @@ impl System for EatCorpseSystem {
         // Increase energy of creatures that ate a corpse
         for info in corpse_to_creature.values() {
             if let Some(creature) = ecs.component_mut::<CreatureComponent>(info) {
-                creature.energy += CORPSE_ENERGY;
-                if creature.energy > MAX_ENERGY {
-                    creature.energy = MAX_ENERGY;
+                creature.energy += config.creature.corpse_energy;
+                if creature.energy > config.creature.max_energy {
+                    creature.energy = config.creature.max_energy;
                 }
             }
         }

@@ -1,4 +1,4 @@
-use crate::constants::*;
+use crate::configuration::{Config, CreatureConfig};
 use crate::ecs::{Component, EntityId};
 use std::collections::VecDeque;
 
@@ -9,10 +9,10 @@ pub struct CreatureComponent {
 }
 impl Component for CreatureComponent {}
 impl CreatureComponent {
-    pub fn new() -> Self {
+    pub fn new(config: &CreatureConfig) -> Self {
         Self {
-            energy: START_ENERGY,
-            health: MAX_HEALTH,
+            energy: config.start_energy,
+            health: config.max_health,
         }
     }
 }
@@ -35,20 +35,20 @@ pub struct PlantComponent {
 }
 impl Component for PlantComponent {}
 impl PlantComponent {
-    pub fn new() -> Self {
+    pub fn new(config: &Config) -> Self {
         // Temporary values. The plant will be properly initialiazed taking into account the
         // humidity level, when the plant position is known (body component added to the ECS)
         Self {
             is_seed_initialized: false,
             is_seed: true,
-            countdown_ticks_as_seed: PLANT_TICKS_AS_SEED,
+            countdown_ticks_as_seed: config.plant.ticks_as_seed,
             growth_per_tick: 1.0,
-            size: SEED_SIZE,
-            max_size: PLANT_MAX_SIZE,
+            size: config.seed.size,
+            max_size: config.plant.max_size,
             nb_seeds: 0,
-            max_nb_seeds: PLANT_MAX_SEEDS,
+            max_nb_seeds: config.plant.max_seeds,
             count_ticks_to_seed: 0,
-            ticks_per_seed: PLANT_TICKS_PER_SEED,
+            ticks_per_seed: config.plant.ticks_per_seed,
         }
     }
 
@@ -56,32 +56,32 @@ impl PlantComponent {
         !self.is_seed
     }
 
-    pub fn init_seed(&mut self, h: f64) {
+    pub fn init_seed(&mut self, config: &Config, h: f64) {
         // Low humidity makes growing from seed to plant longer
-        self.countdown_ticks_as_seed = (PLANT_TICKS_AS_SEED as f64 * (1.0 / h)) as usize;
+        self.countdown_ticks_as_seed = (config.plant.ticks_as_seed as f64 * (1.0 / h)) as usize;
 
         self.is_seed_initialized = true;
     }
 
-    pub fn become_plant(&mut self, h: f64) {
+    pub fn become_plant(&mut self, config: &Config, h: f64) {
         // humidity is in [0; 1]
 
         self.is_seed = false;
 
         // Low humidity makes growing from seed to plant longer
-        self.countdown_ticks_as_seed = (PLANT_TICKS_AS_SEED as f64 * (1.0 / h)) as usize;
+        self.countdown_ticks_as_seed = (config.plant.ticks_as_seed as f64 * (1.0 / h)) as usize;
 
-        self.size = PLANT_INITIAL_SIZE;
+        self.size = config.plant.initial_size;
 
         let h_2 = h.powi(2);
-        self.growth_per_tick = PLANT_SIZE_GROWTH_PER_TICK * h_2;
-        self.max_size = PLANT_MAX_SIZE * h_2;
+        self.growth_per_tick = config.plant.size_growth_per_tick * h_2;
+        self.max_size = config.plant.max_size * h_2;
 
         // Minimum 1 seed to allow reproduction even in deserts
-        self.max_nb_seeds = ((PLANT_MAX_SEEDS as f64 * h_2) as usize).max(1);
+        self.max_nb_seeds = ((config.plant.max_seeds as f64 * h_2) as usize).max(1);
 
         // Low humidity makes generating new seeds longer
-        self.ticks_per_seed = (PLANT_TICKS_PER_SEED as f64 * (1.0 / h)) as usize;
+        self.ticks_per_seed = (config.plant.ticks_per_seed as f64 * (1.0 / h)) as usize;
     }
 }
 

@@ -1,6 +1,6 @@
 use crate::components::body_component::BodyComponent;
 use crate::components::move_to_target_component::MoveToTargetComponent;
-use crate::constants::CONTACT_CENTER_2_CENTER_FACTOR;
+use crate::configuration::Config;
 use crate::ecs::{Ecs, EntityId, EntityInfo, System, Update};
 use std::any::TypeId;
 use std::collections::HashMap;
@@ -17,7 +17,7 @@ enum MoveToTargetResult {
  */
 pub struct MoveToTargetSystem;
 impl System for MoveToTargetSystem {
-    fn run(&self, ecs: &mut Ecs) {
+    fn run(&self, ecs: &mut Ecs, config: &Config) {
         let mut updates: Vec<Update> = Vec::new();
 
         // Get the positions (bodies) of all targets
@@ -33,7 +33,7 @@ impl System for MoveToTargetSystem {
         for (body, move_to_target, info) in
             iter_components!(ecs, (), (BodyComponent, MoveToTargetComponent))
         {
-            match try_move(body, move_to_target, &info, &target_bodies) {
+            match try_move(config, body, move_to_target, &info, &target_bodies) {
                 MoveToTargetResult::Stopped => {
                     // Go into motionless state
                     updates.push(Update::Delete {
@@ -65,6 +65,7 @@ impl System for MoveToTargetSystem {
 }
 
 fn try_move(
+    config: &Config,
     body: &mut BodyComponent,
     move_to_target: &mut MoveToTargetComponent,
     info: &EntityInfo,
@@ -80,7 +81,10 @@ fn try_move(
     *move_to_target.target_body_mut() = target_body;
 
     // Check if the target is already reached (in which case there is no need to go through the path)
-    if body.almost_collides(move_to_target.target_body(), CONTACT_CENTER_2_CENTER_FACTOR) {
+    if body.almost_collides(
+        move_to_target.target_body(),
+        config.collision.contact_center_2_center_factor,
+    ) {
         move_to_target.waypoint_reached();
         return MoveToTargetResult::Reached;
     }
@@ -109,7 +113,7 @@ fn try_move(
             return MoveToTargetResult::Moved;
         } else {
             // Move failed: try to re-compute a new path
-            if !move_to_target.compute_path(info.entity, body) {
+            if !move_to_target.compute_path(config, info.entity, body) {
                 return MoveToTargetResult::Stopped;
             }
         }

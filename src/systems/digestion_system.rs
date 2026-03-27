@@ -1,6 +1,6 @@
 use crate::components::all::{HerbivorousComponent, PlantComponent};
 use crate::components::body_component::BodyComponent;
-use crate::constants::SEED_SIZE;
+use crate::configuration::Config;
 use crate::ecs::{Ecs, System, Update, RESERVED_ENTITY_ID};
 use crate::shared_data::body_grid;
 use crate::TypeId;
@@ -8,7 +8,7 @@ use std::f64::consts::PI;
 
 pub struct DigestionSystem;
 impl System for DigestionSystem {
-    fn run(&self, ecs: &mut Ecs) {
+    fn run(&self, ecs: &mut Ecs, config: &Config) {
         let mut updates: Vec<Update> = Vec::new();
 
         for (herbivorous, body, _) in
@@ -39,14 +39,14 @@ impl System for DigestionSystem {
                 let seed_body = BodyComponent::new_traversable(
                     body.x() + x,
                     body.y() + y,
-                    SEED_SIZE,
-                    SEED_SIZE,
+                    config.seed.size,
+                    config.seed.size,
                 );
 
                 if !body_grid::collides(RESERVED_ENTITY_ID, &seed_body) {
                     updates.push(Update::Create(vec![
                         Box::new(seed_body),
-                        Box::new(PlantComponent::new()),
+                        Box::new(PlantComponent::new(config)),
                     ]));
                 }
             }
