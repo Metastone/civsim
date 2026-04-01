@@ -12,6 +12,8 @@ use ecs::{Component, Ecs, System, Update};
 use pixels::{Pixels, SurfaceTexture};
 use shared_data::biome::humidity;
 use std::any::TypeId;
+use std::time::Duration;
+use std::time::Instant;
 use std::{sync::Arc, thread, time};
 
 use components::all::*;
@@ -185,6 +187,8 @@ struct App<'window> {
     display: Display,
     config: Config,
     default_ms_per_iteration: u64,
+    iterate_elapsed: Duration,
+    draw_elapsed: Duration,
 }
 impl Default for App<'_> {
     fn default() -> Self {
@@ -198,6 +202,8 @@ impl Default for App<'_> {
             display: Display::new(&config),
             config,
             default_ms_per_iteration: config.ms_per_iteration,
+            iterate_elapsed: Duration::from_millis(0),
+            draw_elapsed: Duration::from_millis(0),
         }
     }
 }
@@ -234,6 +240,8 @@ impl ApplicationHandler for App<'_> {
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
         match event {
             WindowEvent::CloseRequested => {
+                println!("iterate {:?}", self.iterate_elapsed);
+                println!("draw    {:?}", self.draw_elapsed);
                 event_loop.exit();
             }
             WindowEvent::Resized(size) => {
@@ -250,13 +258,17 @@ impl ApplicationHandler for App<'_> {
                 self.display.resize(size.width, size.height);
             }
             WindowEvent::RedrawRequested => {
+                let mut now = Instant::now();
                 self.world.iterate(&self.config);
+                self.iterate_elapsed += now.elapsed();
 
+                now = Instant::now();
                 self.display.draw(
                     &mut self.world.ecs,
                     self.pixels.as_mut().unwrap().frame_mut(),
                 );
                 self.pixels.as_mut().unwrap().render().unwrap();
+                self.draw_elapsed += now.elapsed();
 
                 thread::sleep(time::Duration::from_millis(self.config.ms_per_iteration));
                 self.window.as_ref().unwrap().request_redraw();
