@@ -6,7 +6,7 @@ carnivorous_nb = 1
 obstacle_nb = 1
 corpse_nb = 0
 plant_nb = 100
-ms_per_iteration = 0
+ms_per_iteration = 16
 obstacle_size = 85.0
 
 [seed]

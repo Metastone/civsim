@@ -184,6 +184,7 @@ struct App<'window> {
     world: World,
     display: Display,
     config: Config,
+    default_ms_per_iteration: u64,
 }
 impl Default for App<'_> {
     fn default() -> Self {
@@ -196,6 +197,7 @@ impl Default for App<'_> {
             world: create_world(&config),
             display: Display::new(&config),
             config,
+            default_ms_per_iteration: config.ms_per_iteration,
         }
     }
 }
@@ -275,6 +277,15 @@ impl ApplicationHandler for App<'_> {
                     && !event.repeat
                 {
                     self.world.force_iterate(&self.config);
+                } else if event.logical_key == Key::Character("t".into())
+                    && event.state == ElementState::Pressed
+                    && !event.repeat
+                {
+                    self.config.ms_per_iteration = if self.config.ms_per_iteration == 0 {
+                        self.default_ms_per_iteration
+                    } else {
+                        0
+                    };
                 } else if event.logical_key == Key::Named(NamedKey::PageUp)
                     && event.state == ElementState::Pressed
                     && !event.repeat
