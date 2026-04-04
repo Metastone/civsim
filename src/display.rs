@@ -1,3 +1,8 @@
+use sdl2::pixels::{Color, PixelFormatEnum};
+use sdl2::rect::{Point, Rect};
+use sdl2::render::Canvas;
+use sdl2::video::Window;
+
 use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
 use crate::components::move_to_target_component::MoveToTargetComponent;
@@ -10,7 +15,6 @@ use std::any::TypeId;
 use std::f64::consts::PI;
 
 pub struct Display {
-    is_initialized: bool,
     debug_mode: usize,
     window_width: u32,
     window_height: u32,
@@ -23,10 +27,9 @@ pub struct Display {
 impl Display {
     pub fn new(config: &Config) -> Self {
         Display {
-            is_initialized: false,
             debug_mode: 0,
-            window_width: 0,
-            window_height: 0,
+            window_width: config.display.screen_width,
+            window_height: config.display.screen_height,
             camera_offset_x: 0,
             camera_offset_y: 0,
             zoom: config.display.initial_zoom,
@@ -37,7 +40,6 @@ impl Display {
     pub fn resize(&mut self, window_width: u32, window_height: u32) {
         self.window_width = window_width;
         self.window_height = window_height;
-        self.is_initialized = true;
     }
 
     pub fn toogle_debug_mode(&mut self) {
@@ -80,52 +82,23 @@ impl Display {
         self.camera_offset_y += offset_y;
     }
 
-    pub fn draw(&self, ecs: &mut Ecs, pixels: &mut [u8]) {
-        if !self.is_initialized {
-            return;
-        }
+    fn to_color(c: &[u8]) -> Color {
+        Color::RGBA(c[0], c[1], c[2], c[3])
+    }
 
+    pub fn draw(&self, ecs: &mut Ecs, canvas: &mut Canvas<Window>) {
         // Default background
-        for pixel in pixels.chunks_exact_mut(4) {
-            pixel.copy_from_slice(&[0xcc, 0xcc, 0xcc, 0xff]);
-        }
+        canvas.set_draw_color(Self::to_color(&self.config.display.color.background_color));
+        canvas.clear();
 
         match self.debug_mode {
             1 => {
-                // Perlin noise visualisation for tests
-                for p_x in 0..self.window_width {
-                    for p_y in 0..self.window_height {
-                        let x = (p_x as f64
-                            - (self.window_width as f64) / 2.0
-                            - self.camera_offset_x as f64)
-                            / self.zoom;
-                        let y = (p_y as f64
-                            - (self.window_height as f64) / 2.0
-                            - self.camera_offset_y as f64)
-                            / self.zoom;
-
-                        let index =
-                            ((p_y as usize) * (self.window_width as usize) + (p_x as usize)) * 4;
-
-                        /*
-                                                let n = perlin_noise(x, y, 0.001, 1.0)
-                                                    + perlin_noise(x, y, 0.004, 0.5)
-                                                    + perlin_noise(x, y, 0.008, 0.25);
-                                                let perlin_max = 1.75;
-                                                let l = ((n + perlin_max) * 255.0 / (perlin_max * 2.0)) as u8;
-                        */
-
-                        let h = humidity(x, y);
-                        let l = (h * 255.0) as u8;
-
-                        pixels[index..(index + 4)].copy_from_slice(&[l, l, l, 0xff]);
-                    }
-                }
+                self.draw_perlin_noise(canvas);
             }
             2 => {
-                self.draw_body_grid(pixels);
-                self.draw_graph(ecs, pixels);
-                self.draw_path(ecs, pixels);
+                self.draw_body_grid(canvas);
+                self.draw_graph(ecs, canvas);
+                self.draw_path(ecs, canvas);
             }
             _ => {}
         }
@@ -138,7 +111,7 @@ impl Display {
                 body,
                 &colors.corpse_color,
                 self.config.creature.size,
-                pixels,
+                canvas,
             );
         }
 
@@ -160,7 +133,7 @@ impl Display {
             let pos;
             if let Some(body) = ecs.component::<BodyComponent>(&info) {
                 pos = *body;
-                self.draw_square(body, color, self.config.creature.size, pixels);
+                self.draw_square(body, color, self.config.creature.size, canvas);
             } else {
                 continue;
             }
@@ -181,7 +154,7 @@ impl Display {
                             / self.config.creature.max_health as f64,
                         self.config.display.bar_height,
                     ),
-                    pixels,
+                    canvas,
                 );
 
                 // Draw energy bar
@@ -199,7 +172,7 @@ impl Display {
                             / self.config.creature.max_energy as f64,
                         self.config.display.bar_height,
                     ),
-                    pixels,
+                    canvas,
                 );
             }
         }
@@ -211,7 +184,7 @@ impl Display {
                     body,
                     &colors.obstacle_color,
                     self.config.obstacle_size,
-                    pixels,
+                    canvas,
                 );
             }
         }
@@ -223,12 +196,12 @@ impl Display {
                     body,
                     &colors.seed_color,
                     self.config.seed.display_size,
-                    pixels,
+                    canvas,
                 );
                 continue;
             }
 
-            self.draw_square(body, &colors.plant_color, plant.size, pixels);
+            self.draw_square(body, &colors.plant_color, plant.size, canvas);
 
             // Draw the plant's seeds
             let arc = 2.0 * PI / (plant.nb_seeds as f64);
@@ -242,14 +215,52 @@ impl Display {
                     &seed_body,
                     &colors.seed_color,
                     self.config.seed.display_size,
-                    pixels,
+                    canvas,
                 );
                 a += arc;
             }
         }
     }
 
-    fn draw_body_grid(&self, pixels: &mut [u8]) {
+    fn draw_perlin_noise(&self, canvas: &mut Canvas<Window>) {
+        // Perlin noise visualisation for tests
+        let texture_creator = canvas.texture_creator();
+        let mut texture = texture_creator
+            .create_texture_streaming(
+                PixelFormatEnum::RGB24,
+                self.window_width,
+                self.window_height,
+            )
+            .unwrap();
+        texture
+            .with_lock(None, |buffer: &mut [u8], pitch: usize| {
+                for p_x in 0..self.window_width {
+                    for p_y in 0..self.window_height {
+                        let offset = p_y as usize * pitch + p_x as usize * 3;
+
+                        let x = (p_x as f64
+                            - (self.window_width as f64) / 2.0
+                            - self.camera_offset_x as f64)
+                            / self.zoom;
+                        let y = (p_y as f64
+                            - (self.window_height as f64) / 2.0
+                            - self.camera_offset_y as f64)
+                            / self.zoom;
+
+                        let h = humidity(x, y);
+                        let l = (h * 255.0) as u8;
+
+                        buffer[offset] = l;
+                        buffer[offset + 1] = l;
+                        buffer[offset + 2] = l;
+                    }
+                }
+            })
+            .unwrap();
+        canvas.copy(&texture, None, None).unwrap();
+    }
+
+    fn draw_body_grid(&self, canvas: &mut Canvas<Window>) {
         let (g_x, g_y, g_w, g_h, g_cell_size, _, _) = body_grid::coords();
 
         let mut j = 0;
@@ -262,7 +273,7 @@ impl Display {
                 (g_x + g_w / 2.0, y),
                 &self.config.display.color.grid_color,
                 (g_w, self.config.display.grid_line_wideness),
-                pixels,
+                canvas,
             );
             j += 1;
         }
@@ -278,18 +289,18 @@ impl Display {
                 (x, g_y + g_h / 2.0),
                 &self.config.display.color.grid_color,
                 (self.config.display.grid_line_wideness, g_h),
-                pixels,
+                canvas,
             );
             i += 1;
         }
     }
 
-    fn draw_path(&self, ecs: &mut Ecs, pixels: &mut [u8]) {
+    fn draw_path(&self, ecs: &mut Ecs, canvas: &mut Canvas<Window>) {
         for (move_to_target_component, ..) in iter_components!(ecs, (), (MoveToTargetComponent)) {
             for i in 0..(move_to_target_component.path().len() - 1) {
                 let waypoint = move_to_target_component.path()[i].clone();
                 let next_waypoint = move_to_target_component.path()[i + 1].clone();
-                self.draw_edge(
+                self.draw_line(
                     (waypoint.x(), waypoint.y()),
                     (next_waypoint.x(), next_waypoint.y()),
                     if waypoint.reached() {
@@ -297,122 +308,74 @@ impl Display {
                     } else {
                         &self.config.display.color.waypoint_color
                     },
-                    pixels,
+                    canvas,
                 );
             }
         }
     }
 
-    fn draw_graph(&self, ecs: &mut Ecs, pixels: &mut [u8]) {
+    fn draw_graph(&self, ecs: &mut Ecs, canvas: &mut Canvas<Window>) {
         for (move_to_target_component, ..) in iter_components!(ecs, (), (MoveToTargetComponent)) {
             for (node, neighbours) in move_to_target_component.graph().neighbours().iter() {
                 for nb_node in neighbours {
-                    self.draw_edge(
+                    self.draw_line(
                         (node.x(), node.y()),
                         (nb_node.x(), nb_node.y()),
                         &self.config.display.color.graph_color,
-                        pixels,
+                        canvas,
                     );
                 }
             }
         }
     }
 
-    fn draw_square(&self, body: &BodyComponent, color: &[u8], size: f64, pixels: &mut [u8]) {
-        self.draw_rec((body.x(), body.y()), color, (size, size), pixels);
+    fn draw_square(
+        &self,
+        body: &BodyComponent,
+        color: &[u8],
+        size: f64,
+        canvas: &mut Canvas<Window>,
+    ) {
+        self.draw_rec((body.x(), body.y()), color, (size, size), canvas);
     }
 
-    // This is probably horribly inefficient, just use it for debugging display
-    fn draw_edge(
+    fn draw_line(
         &self,
         (ax, ay): (f64, f64),
         (bx, by): (f64, f64),
         color: &[u8],
-        pixels: &mut [u8],
+        canvas: &mut Canvas<Window>,
     ) {
-        let dx = bx - ax;
-        let dy = by - ay;
-        let m1 = dy / dx;
-        let m2 = dx / dy;
-
-        let x_min = ax * self.zoom + (self.window_width as f64) / 2.0 + self.camera_offset_x as f64;
-        let x_max = bx * self.zoom + (self.window_width as f64) / 2.0 + self.camera_offset_x as f64;
-        let y_min =
-            ay * self.zoom + (self.window_height as f64) / 2.0 + self.camera_offset_y as f64;
-        let y_max =
-            by * self.zoom + (self.window_height as f64) / 2.0 + self.camera_offset_y as f64;
-
-        let thickness = self.config.display.graph_edge_thickness as isize;
-        let mut x = x_min;
-        while x <= x_max {
-            let pix_x = x as isize;
-            for j in (-thickness / 2)..(thickness / 2) {
-                let pix_y = (m1 * (x - x_min) + y_min) as isize + j;
-                if pix_x >= 0
-                    && pix_x < self.window_width as isize
-                    && pix_y >= 0
-                    && pix_y < self.window_height as isize
-                {
-                    let index =
-                        ((pix_y as usize) * (self.window_width as usize) + (pix_x as usize)) * 4;
-                    pixels[index..(index + 4)].copy_from_slice(color);
-                }
-            }
-
-            x += 1.0;
-        }
-
-        // Now do the same thing with inverted axis.
-        // Otherwise the edges with slopes too steep do not appear continuous
-        let mut y = y_min;
-        while y <= y_max {
-            let pix_y = y as isize;
-            for i in (-thickness / 2)..(thickness / 2) {
-                let pix_x = (m2 * (y - y_min) + x_min) as isize + i;
-                if pix_x >= 0
-                    && pix_x < self.window_width as isize
-                    && pix_y >= 0
-                    && pix_y < self.window_height as isize
-                {
-                    let index =
-                        ((pix_y as usize) * (self.window_width as usize) + (pix_x as usize)) * 4;
-                    pixels[index..(index + 4)].copy_from_slice(color);
-                }
-            }
-
-            y += 1.0;
-        }
+        let (p_ax, p_ay) = self.simu_to_pixel_coords(ax, ay);
+        let (p_bx, p_by) = self.simu_to_pixel_coords(bx, by);
+        let start = Point::new(p_ax, p_ay);
+        let end = Point::new(p_bx, p_by);
+        canvas.set_draw_color(Self::to_color(color));
+        let _ = canvas.draw_line(start, end);
     }
 
-    fn draw_rec(
+    pub fn draw_rec(
         &self,
         (x, y): (f64, f64),
         color: &[u8],
-        (rec_width, rec_height): (f64, f64),
-        pixels: &mut [u8],
+        (w, h): (f64, f64),
+        canvas: &mut Canvas<Window>,
     ) {
-        // The simulation coordinates origin should be in the center of the window
-        let rec_center_pos = (
-            (x * self.zoom + (self.window_width as f64) / 2.0) as isize + self.camera_offset_x,
-            (y * self.zoom + (self.window_height as f64) / 2.0) as isize + self.camera_offset_y,
-        );
+        let p_w = if w == 0.0 { 0 } else { (w * self.zoom) as u32 };
+        let p_h = if h == 0.0 { 0 } else { (h * self.zoom) as u32 };
+        let (mut p_x, mut p_y) = self.simu_to_pixel_coords(x, y);
+        p_x -= (p_w / 2) as i32;
+        p_y -= (p_h / 2) as i32;
+        canvas.set_draw_color(Self::to_color(color));
+        let _ = canvas.fill_rect(Rect::new(p_x, p_y, p_w, p_h));
+    }
 
-        let w = (rec_width * self.zoom / 2.0) as isize;
-        let h = (rec_height * self.zoom / 2.0) as isize;
-        for i in -w..w {
-            for j in -h..h {
-                let pixel_pos = (rec_center_pos.0 + i, rec_center_pos.1 + j);
-                if pixel_pos.0 >= 0
-                    && pixel_pos.0 < self.window_width as isize
-                    && pixel_pos.1 >= 0
-                    && pixel_pos.1 < self.window_height as isize
-                {
-                    let index = ((pixel_pos.1 as usize) * (self.window_width as usize)
-                        + (pixel_pos.0 as usize))
-                        * 4;
-                    pixels[index..(index + 4)].copy_from_slice(color);
-                }
-            }
-        }
+    fn simu_to_pixel_coords(&self, x: f64, y: f64) -> (i32, i32) {
+        // The simulation coordinates origin should be in the center of the window
+        let p_x =
+            (x * self.zoom + (self.window_width as f64) / 2.0) as i32 + self.camera_offset_x as i32;
+        let p_y = (y * self.zoom + (self.window_height as f64) / 2.0) as i32
+            + self.camera_offset_y as i32;
+        (p_x, p_y)
     }
 }

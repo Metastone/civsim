@@ -9,10 +9,11 @@ mod systems;
 
 use display::Display;
 use ecs::{Component, Ecs, System, Update};
-use pixels::{Pixels, SurfaceTexture};
+use sdl2::event::{Event, WindowEvent};
+use sdl2::keyboard::Keycode;
 use shared_data::biome::humidity;
 use std::any::TypeId;
-use std::{sync::Arc, thread, time};
+use std::{thread, time};
 
 use components::all::*;
 use components::body_component::BodyComponent;
@@ -30,15 +31,6 @@ use systems::hunger_system::HungerSystem;
 use systems::move_to_target_system::MoveToTargetSystem;
 use systems::plant_growth_system::PlantGrowthSystem;
 use systems::reproduction_system::ReproductionSystem;
-
-use winit::{
-    application::ApplicationHandler,
-    dpi::LogicalSize,
-    event::{ElementState, MouseScrollDelta, WindowEvent},
-    event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
-    keyboard::{Key, NamedKey},
-    window::{Window, WindowId},
-};
 
 use crate::algorithms::rng;
 use crate::configuration::Config;
@@ -69,7 +61,6 @@ impl World {
     }
 
     pub fn create_entity_with(&mut self, components: &[&dyn Component]) {
-        // Probably slow to apply updates one by one, but okay for world initialization ?
         self.ecs.apply(vec![Update::Create(
             components.iter().map(|c| c.clone_box()).collect(),
         )]);
@@ -178,166 +169,99 @@ fn create_world(config: &Config) -> World {
     world
 }
 
-struct App<'window> {
-    window: Option<Arc<Window>>,
-    pixels: Option<Pixels<'window>>,
-    world: World,
-    display: Display,
-    config: Config,
-    default_ms_per_iteration: u64,
-}
-impl Default for App<'_> {
-    fn default() -> Self {
-        let config = load_config("config.toml");
-        rng::init(&config);
-        body_grid::init(&config);
-        Self {
-            window: Default::default(),
-            pixels: Default::default(),
-            world: create_world(&config),
-            display: Display::new(&config),
-            config,
-            default_ms_per_iteration: config.ms_per_iteration,
-        }
-    }
-}
-impl ApplicationHandler for App<'_> {
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        let window = Arc::new(
-            event_loop
-                .create_window(
-                    Window::default_attributes()
-                        .with_title("Civsim")
-                        .with_inner_size(LogicalSize::new(
-                            self.config.display.screen_width as f64,
-                            self.config.display.screen_height as f64,
-                        )),
-                )
-                .unwrap(),
-        );
-        let size = window.inner_size();
-        let pixels = {
-            let surface_texture = SurfaceTexture::new(size.width, size.height, window.clone());
-            Pixels::new(
-                self.config.display.screen_width,
-                self.config.display.screen_height,
-                surface_texture,
-            )
-            .unwrap()
-        };
-
-        self.window = Some(window);
-        self.pixels = Some(pixels);
-        self.display.resize(size.width, size.height);
-    }
-
-    fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
-        match event {
-            WindowEvent::CloseRequested => {
-                event_loop.exit();
-            }
-            WindowEvent::Resized(size) => {
-                self.pixels
-                    .as_mut()
-                    .unwrap()
-                    .resize_buffer(size.width, size.height)
-                    .unwrap();
-                self.pixels
-                    .as_mut()
-                    .unwrap()
-                    .resize_surface(size.width, size.height)
-                    .unwrap();
-                self.display.resize(size.width, size.height);
-            }
-            WindowEvent::RedrawRequested => {
-                self.world.iterate(&self.config);
-
-                self.display.draw(
-                    &mut self.world.ecs,
-                    self.pixels.as_mut().unwrap().frame_mut(),
-                );
-                self.pixels.as_mut().unwrap().render().unwrap();
-
-                thread::sleep(time::Duration::from_millis(self.config.ms_per_iteration));
-                self.window.as_ref().unwrap().request_redraw();
-            }
-            WindowEvent::KeyboardInput { event, .. } => {
-                if event.logical_key == Key::Character("d".into())
-                    && event.state == ElementState::Pressed
-                    && !event.repeat
-                {
-                    self.display.toogle_debug_mode();
-                } else if event.logical_key == Key::Character("p".into())
-                    && event.state == ElementState::Pressed
-                    && !event.repeat
-                {
-                    self.world.toogle_pause();
-                } else if event.logical_key == Key::Character("i".into())
-                    && event.state == ElementState::Pressed
-                    && !event.repeat
-                {
-                    self.world.force_iterate(&self.config);
-                } else if event.logical_key == Key::Character("t".into())
-                    && event.state == ElementState::Pressed
-                    && !event.repeat
-                {
-                    self.config.ms_per_iteration = if self.config.ms_per_iteration == 0 {
-                        self.default_ms_per_iteration
-                    } else {
-                        0
-                    };
-                } else if event.logical_key == Key::Named(NamedKey::PageUp)
-                    && event.state == ElementState::Pressed
-                    && !event.repeat
-                {
-                    self.display.zoom_in();
-                } else if event.logical_key == Key::Named(NamedKey::PageDown)
-                    && event.state == ElementState::Pressed
-                    && !event.repeat
-                {
-                    self.display.zoom_out();
-                } else if event.logical_key == Key::Named(NamedKey::ArrowUp)
-                    && event.state == ElementState::Pressed
-                    && !event.repeat
-                {
-                    self.display.move_camera_up();
-                } else if event.logical_key == Key::Named(NamedKey::ArrowDown)
-                    && event.state == ElementState::Pressed
-                    && !event.repeat
-                {
-                    self.display.move_camera_down();
-                } else if event.logical_key == Key::Named(NamedKey::ArrowLeft)
-                    && event.state == ElementState::Pressed
-                    && !event.repeat
-                {
-                    self.display.move_camera_left();
-                } else if event.logical_key == Key::Named(NamedKey::ArrowRight)
-                    && event.state == ElementState::Pressed
-                    && !event.repeat
-                {
-                    self.display.move_camera_right();
-                }
-            }
-            WindowEvent::MouseWheel {
-                device_id: _,
-                delta: MouseScrollDelta::LineDelta(_x, y),
-                ..
-            } => {
-                if y > 0.0 {
-                    self.display.zoom_in();
-                } else {
-                    self.display.zoom_out();
-                }
-            }
-            _ => {}
-        }
-    }
-}
-
 fn main() {
     env_logger::init();
 
-    let event_loop = EventLoop::new().unwrap();
-    event_loop.set_control_flow(ControlFlow::Wait);
-    event_loop.run_app(&mut App::default()).unwrap();
+    let mut config = load_config("config.toml");
+    rng::init(&config);
+    body_grid::init(&config);
+    let mut world = create_world(&config);
+    let mut display = Display::new(&config);
+    let default_ms_per_iteration = config.ms_per_iteration;
+
+    let sdl_context = sdl2::init().unwrap();
+    let video_subsystem = sdl_context.video().unwrap();
+    let window = video_subsystem
+        .window(
+            "civsim",
+            config.display.screen_width,
+            config.display.screen_height,
+        )
+        .resizable()
+        .position_centered()
+        .build()
+        .unwrap();
+
+    let mut canvas = window.into_canvas().build().unwrap();
+    let mut event_pump = sdl_context.event_pump().unwrap();
+    'running: loop {
+        for event in event_pump.poll_iter() {
+            match event {
+                Event::Window {
+                    win_event: WindowEvent::Resized(w, h),
+                    ..
+                } => {
+                    display.resize(w as u32, h as u32);
+                }
+                Event::Quit { .. } => break 'running,
+                Event::KeyDown {
+                    keycode: Some(Keycode::Escape),
+                    ..
+                } => break 'running,
+                Event::KeyDown {
+                    keycode: Some(key),
+                    repeat: false,
+                    ..
+                } => match key {
+                    Keycode::D => {
+                        display.toogle_debug_mode();
+                    }
+                    Keycode::P => {
+                        world.toogle_pause();
+                    }
+                    Keycode::I => {
+                        world.force_iterate(&config);
+                    }
+                    Keycode::T => {
+                        config.ms_per_iteration = if config.ms_per_iteration == 0 {
+                            default_ms_per_iteration
+                        } else {
+                            0
+                        };
+                    }
+                    Keycode::PageUp => {
+                        display.zoom_in();
+                    }
+                    Keycode::PageDown => {
+                        display.zoom_out();
+                    }
+                    Keycode::Up => {
+                        display.move_camera_up();
+                    }
+                    Keycode::Down => {
+                        display.move_camera_down();
+                    }
+                    Keycode::Left => {
+                        display.move_camera_left();
+                    }
+                    Keycode::Right => {
+                        display.move_camera_right();
+                    }
+                    _ => {}
+                },
+                Event::MouseWheel { y, .. } => {
+                    if y > 0 {
+                        display.zoom_in();
+                    } else {
+                        display.zoom_out();
+                    }
+                }
+                _ => {}
+            }
+        }
+        world.iterate(&config);
+        display.draw(&mut world.ecs, &mut canvas);
+        canvas.present();
+        thread::sleep(time::Duration::from_millis(config.ms_per_iteration));
+    }
 }

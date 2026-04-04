@@ -87,6 +87,7 @@ pub struct DisplayConfig {
 
 #[derive(Deserialize, Clone, Copy)]
 pub struct DisplayColorConfig {
+    pub background_color: [u8; 4],
     pub herbivorous_color: [u8; 4],
     pub carnivorous_color: [u8; 4],
     pub plant_color: [u8; 4],
