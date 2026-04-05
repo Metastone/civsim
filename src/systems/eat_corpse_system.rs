@@ -15,10 +15,7 @@ impl System for EatCorpseSystem {
             if let Some(eating_corpse) = ecs.component::<EatingCorpseComponent>(&info) {
                 corpse_to_creature.insert(eating_corpse.corpse_entity, info);
             }
-            updates.push(Update::Delete {
-                info,
-                c_type: to_ctype!(EatingCorpseComponent),
-            });
+            Ecs::push_delete::<EatingCorpseComponent>(info, &mut updates);
             updates.push(Update::Add {
                 info,
                 comp: Box::new(InactiveComponent::new()),

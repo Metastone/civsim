@@ -15,10 +15,7 @@ impl System for EatPlantSystem {
             if let Some(eating_plant) = ecs.component::<EatingPlantComponent>(&info) && let Some(plant) = ecs.component_from_entity::<PlantComponent>(eating_plant.plant_entity) {
                 plant_to_creature.insert(eating_plant.plant_entity, (plant.size, plant.nb_seeds, info));
             }
-            updates.push(Update::Delete {
-                info,
-                c_type: to_ctype!(EatingPlantComponent),
-            });
+            Ecs::push_delete::<EatingPlantComponent>(info, &mut updates);
             updates.push(Update::Add {
                 info,
                 comp: Box::new(InactiveComponent::new()),

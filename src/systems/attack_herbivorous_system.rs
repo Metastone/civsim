@@ -16,10 +16,7 @@ impl System for AttackHerbivorousSystem {
             iter_components!(ecs, (), (AttackingHerbivorousComponent))
         {
             attacked_herbivorous.insert(attacking_herbivorous.herbivorous_entity);
-            updates.push(Update::Delete {
-                info,
-                c_type: to_ctype!(AttackingHerbivorousComponent),
-            });
+            Ecs::push_delete::<AttackingHerbivorousComponent>(info, &mut updates);
             updates.push(Update::Add {
                 info,
                 comp: Box::new(InactiveComponent::new()),

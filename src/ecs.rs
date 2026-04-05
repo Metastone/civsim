@@ -497,6 +497,17 @@ impl Ecs {
         new_archetype.entities.push(entity);
     }
 
+    // Just a helper function for convenience
+    pub fn push_delete<C>(info: EntityInfo, updates: &mut Vec<Update>)
+    where
+        C: Component,
+    {
+        updates.push(Update::Delete {
+            info,
+            c_type: to_ctype!(C),
+        });
+    }
+
     pub fn apply(&mut self, updates: Vec<Update>) {
         let mut pending_info: HashMap<EntityId, EntityInfo> = HashMap::new();
         for update in updates.iter() {

@@ -36,10 +36,7 @@ impl System for MoveToTargetSystem {
             match try_move(config, body, move_to_target, &info, &target_bodies) {
                 MoveToTargetResult::Stopped => {
                     // Go into motionless state
-                    updates.push(Update::Delete {
-                        info,
-                        c_type: to_ctype!(MoveToTargetComponent),
-                    });
+                    Ecs::push_delete::<MoveToTargetComponent>(info, &mut updates);
                     updates.push(Update::Add {
                         info,
                         comp: move_to_target.on_failure().clone_box(),
@@ -47,10 +44,7 @@ impl System for MoveToTargetSystem {
                 }
                 MoveToTargetResult::Reached => {
                     // Go into motionless state
-                    updates.push(Update::Delete {
-                        info,
-                        c_type: to_ctype!(MoveToTargetComponent),
-                    });
+                    Ecs::push_delete::<MoveToTargetComponent>(info, &mut updates);
                     updates.push(Update::Add {
                         info,
                         comp: move_to_target.on_target_reached().clone_box(),

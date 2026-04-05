@@ -62,10 +62,7 @@ impl System for HerbivorousMindSystem {
                         on_failure,
                     )),
                 });
-                updates.push(Update::Delete {
-                    info: *info,
-                    c_type: to_ctype!(InactiveComponent),
-                });
+                Ecs::push_delete::<InactiveComponent>(*info, &mut updates);
             }
             // If no reachable target is found, go into idle state for a while to avoid doing a
             // heavy path computation at each iteration
