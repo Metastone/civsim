@@ -13,6 +13,7 @@ use sdl2::event::{Event, WindowEvent};
 use sdl2::keyboard::Keycode;
 use shared_data::biome::humidity;
 use std::any::TypeId;
+use std::time::{Duration, Instant};
 use std::{thread, time};
 
 use components::all::*;
@@ -192,6 +193,9 @@ fn main() {
         .build()
         .unwrap();
 
+    let mut iterate_elapsed = Duration::from_millis(0);
+    let mut draw_elapsed = Duration::from_millis(0);
+
     let mut canvas = window.into_canvas().build().unwrap();
     let mut event_pump = sdl_context.event_pump().unwrap();
     'running: loop {
@@ -259,9 +263,19 @@ fn main() {
                 _ => {}
             }
         }
+
+        let now = Instant::now();
         world.iterate(&config);
+        iterate_elapsed += now.elapsed();
+
+        let now = Instant::now();
         display.draw(&mut world.ecs, &mut canvas);
+        draw_elapsed += now.elapsed();
+
         canvas.present();
         thread::sleep(time::Duration::from_millis(config.ms_per_iteration));
     }
+
+    println!("iterate {:?}", iterate_elapsed);
+    println!("draw    {:?}", draw_elapsed);
 }
