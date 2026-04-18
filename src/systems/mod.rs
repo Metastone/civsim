@@ -1,3 +1,4 @@
+pub mod agent_system;
 pub mod attack_herbivorous_system;
 pub mod carnivorous_mind_system;
 pub mod death_system;

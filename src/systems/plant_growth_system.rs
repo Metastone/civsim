@@ -8,7 +8,7 @@ use std::any::TypeId;
 
 pub struct PlantGrowthSystem;
 impl System for PlantGrowthSystem {
-    fn run(&self, ecs: &mut Ecs, config: &Config) {
+    fn run(&mut self, ecs: &mut Ecs, config: &Config) {
         for (plant, body, info) in iter_components!(ecs, (), (PlantComponent, BodyComponent)) {
             // Initialize seeds with humidity level
             if !plant.is_seed_initialized {

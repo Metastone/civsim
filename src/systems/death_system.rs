@@ -6,7 +6,7 @@ use std::any::TypeId;
 
 pub struct DeathSystem;
 impl System for DeathSystem {
-    fn run(&self, ecs: &mut Ecs, _config: &Config) {
+    fn run(&mut self, ecs: &mut Ecs, _config: &Config) {
         let mut updates: Vec<Update> = Vec::new();
 
         for info in iter_entities!(ecs, CreatureComponent, BodyComponent) {

@@ -10,7 +10,7 @@ use std::collections::HashMap;
 
 pub struct HerbivorousMindSystem;
 impl System for HerbivorousMindSystem {
-    fn run(&self, ecs: &mut Ecs, config: &Config) {
+    fn run(&mut self, ecs: &mut Ecs, config: &Config) {
         let mut updates: Vec<Update> = Vec::new();
 
         // Get the bodies of all inactive herbivorous entities

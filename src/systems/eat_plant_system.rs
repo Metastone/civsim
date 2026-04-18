@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 pub struct EatPlantSystem;
 impl System for EatPlantSystem {
-    fn run(&self, ecs: &mut Ecs, config: &Config) {
+    fn run(&mut self, ecs: &mut Ecs, config: &Config) {
         let mut updates: Vec<Update> = Vec::new();
 
         // Make sure that a plant is not eaten by more than one creature

@@ -6,7 +6,7 @@ use std::collections::HashSet;
 
 pub struct AttackHerbivorousSystem;
 impl System for AttackHerbivorousSystem {
-    fn run(&self, ecs: &mut Ecs, config: &Config) {
+    fn run(&mut self, ecs: &mut Ecs, config: &Config) {
         let mut updates: Vec<Update> = Vec::new();
 
         // Make sure that a herbivorous is not attacked by more than one creature

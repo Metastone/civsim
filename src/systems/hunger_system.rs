@@ -5,7 +5,7 @@ use std::any::TypeId;
 
 pub struct HungerSystem;
 impl System for HungerSystem {
-    fn run(&self, ecs: &mut Ecs, config: &Config) {
+    fn run(&mut self, ecs: &mut Ecs, config: &Config) {
         for (creature, _) in iter_components!(ecs, (), (CreatureComponent)) {
             creature.energy -= config.creature.hunger_rate;
             if creature.energy <= 0.0 {

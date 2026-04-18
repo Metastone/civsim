@@ -7,7 +7,7 @@ use std::any::TypeId;
 
 pub struct ReproductionSystem;
 impl System for ReproductionSystem {
-    fn run(&self, ecs: &mut Ecs, config: &Config) {
+    fn run(&mut self, ecs: &mut Ecs, config: &Config) {
         let mut updates: Vec<Update> = Vec::new();
 
         // Find creatures that can reproduce

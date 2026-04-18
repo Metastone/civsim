@@ -17,7 +17,7 @@ enum MoveToTargetResult {
  */
 pub struct MoveToTargetSystem;
 impl System for MoveToTargetSystem {
-    fn run(&self, ecs: &mut Ecs, config: &Config) {
+    fn run(&mut self, ecs: &mut Ecs, config: &Config) {
         let mut updates: Vec<Update> = Vec::new();
 
         // Get the positions (bodies) of all targets

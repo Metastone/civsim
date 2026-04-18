@@ -8,7 +8,7 @@ use std::f64::consts::PI;
 
 pub struct DigestionSystem;
 impl System for DigestionSystem {
-    fn run(&self, ecs: &mut Ecs, config: &Config) {
+    fn run(&mut self, ecs: &mut Ecs, config: &Config) {
         let mut updates: Vec<Update> = Vec::new();
 
         for (herbivorous, body, _) in

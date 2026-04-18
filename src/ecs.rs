@@ -303,7 +303,7 @@ impl<'a> Iterator for ComponentIteratorN<'a> {
 }
 
 pub trait System {
-    fn run(&self, ecs: &mut Ecs, config: &Config);
+    fn run(&mut self, ecs: &mut Ecs, config: &Config);
 }
 
 pub enum Update {
@@ -451,6 +451,10 @@ impl Ecs {
             arch_index: 0,
             component_index: 0,
         }
+    }
+
+    pub fn test(&mut self) -> Vec<&usize> {
+        vec![&self.nb_obsolete_entries]
     }
 
     pub fn get_entity_info(&self, entity: usize) -> Option<EntityInfo> {

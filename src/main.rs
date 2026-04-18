@@ -15,6 +15,7 @@ use shared_data::biome::humidity;
 use std::any::TypeId;
 use std::{thread, time};
 
+use components::agent_component::*;
 use components::all::*;
 use components::body_component::BodyComponent;
 use configuration::load_config;
@@ -34,6 +35,7 @@ use systems::reproduction_system::ReproductionSystem;
 
 use crate::algorithms::rng;
 use crate::configuration::Config;
+use crate::systems::agent_system::AgentSystem;
 
 pub struct World {
     ecs: Ecs,
@@ -73,8 +75,8 @@ impl World {
     }
 
     fn force_iterate(&mut self, config: &Config) {
-        for s in &self.systems {
-            s.run(&mut self.ecs, config);
+        for system in self.systems.iter_mut() {
+            system.run(&mut self.ecs, config);
         }
         body_grid::purge_deleted_bodies();
     }
@@ -85,6 +87,18 @@ impl World {
 }
 
 fn create_world(config: &Config) -> World {
+    let mut goal_set = GoalSet::new();
+    goal_set.add(Box::new(ReplenishEnergyGoal {}));
+
+    let mut action_set = ActionSet::new();
+    action_set.add(Box::new(MoveToNearestPlantAction {}));
+
+    let mut goap = Goap::new();
+    let herbivorous_goal_set = goap.add_goal_set(goal_set);
+    let herbivorous_action_set = goap.add_action_set(action_set);
+    let carnivorous_goal_set = herbivorous_goal_set;
+    let carnivorous_action_set = herbivorous_action_set;
+
     let mut world = World::new();
 
     for _ in 0..config.plant_nb {
@@ -111,6 +125,7 @@ fn create_world(config: &Config) -> World {
             ),
             &HerbivorousComponent::new(),
             &InactiveComponent::new(),
+            &AgentComponent::new(herbivorous_goal_set, herbivorous_action_set),
         ]);
     }
 
@@ -125,6 +140,7 @@ fn create_world(config: &Config) -> World {
             ),
             &CarnivorousComponent::new(),
             &InactiveComponent::new(),
+            &AgentComponent::new(carnivorous_goal_set, carnivorous_action_set),
         ]);
     }
 
@@ -165,6 +181,7 @@ fn create_world(config: &Config) -> World {
     world.add_system(Box::new(HungerSystem));
     world.add_system(Box::new(MoveToTargetSystem));
     world.add_system(Box::new(DigestionSystem));
+    world.add_system(Box::new(AgentSystem::new(goap)));
 
     world
 }
