@@ -1,9 +1,12 @@
+mod actions;
 mod algorithms;
 mod components;
 mod configuration;
 #[macro_use]
 mod ecs;
 mod display;
+mod goals;
+mod goap;
 mod shared_data;
 mod systems;
 
@@ -15,7 +18,7 @@ use shared_data::biome::humidity;
 use std::any::TypeId;
 use std::{thread, time};
 
-use components::agent_component::*;
+use components::agent_component::AgentComponent;
 use components::all::*;
 use components::body_component::BodyComponent;
 use configuration::load_config;
@@ -33,8 +36,11 @@ use systems::move_to_target_system::MoveToTargetSystem;
 use systems::plant_growth_system::PlantGrowthSystem;
 use systems::reproduction_system::ReproductionSystem;
 
+use crate::actions::move_to_actions::MoveToNearestPlantAction;
 use crate::algorithms::rng;
 use crate::configuration::Config;
+use crate::goals::all::ReplenishEnergyGoal;
+use crate::goap::{ActionSet, GoalSet, Goap};
 use crate::systems::agent_system::AgentSystem;
 
 pub struct World {
@@ -88,10 +94,10 @@ impl World {
 
 fn create_world(config: &Config) -> World {
     let mut goal_set = GoalSet::new();
-    goal_set.add(Box::new(ReplenishEnergyGoal {}));
+    goal_set.add(Box::new(ReplenishEnergyGoal::new(config)));
 
     let mut action_set = ActionSet::new();
-    action_set.add(Box::new(MoveToNearestPlantAction {}));
+    action_set.add(Box::new(MoveToNearestPlantAction::new()));
 
     let mut goap = Goap::new();
     let herbivorous_goal_set = goap.add_goal_set(goal_set);

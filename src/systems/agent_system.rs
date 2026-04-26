@@ -1,6 +1,7 @@
-use crate::components::agent_component::{ActionResult, AgentComponent, Goap, WorldState};
+use crate::components::agent_component::AgentComponent;
 use crate::configuration::Config;
 use crate::ecs::{Ecs, EntityInfo, System, Update};
+use crate::goap::{ActionResult, Goap, WorldState};
 use std::any::TypeId;
 
 pub struct AgentSystem {
@@ -44,10 +45,10 @@ impl System for AgentSystem {
     fn run(&mut self, ecs: &mut Ecs, config: &Config) {
         let mut updates: Vec<Update> = Vec::new();
 
-        // This is just stupid, a recuring problem, I have to copy all relevant info.
+        // TODO This is just stupid, a recuring problem, I have to copy all relevant info.
         // I can't work directly in the loop because that would required borrowing ECS twice
         // (to pass a reference to the GOAP)
-        // TODO is there a better way ?
+        // Is there a better way to do this ?
         self.agents.clear();
         self.agents = iter_components!(ecs, (), (AgentComponent))
             .map(|(agent, info)| AgentInfo::new(agent, &info))
@@ -56,9 +57,9 @@ impl System for AgentSystem {
         for agent in self.agents.iter_mut() {
             // Find a goal if necessary
             if agent.goal.is_none() {
-                if let Some(goal) =
-                    self.goap
-                        .find_goal(&*ecs, config, &agent.entity_info, agent.goal_set)
+                if let Some(goal) = self
+                    .goap
+                    .find_goal(&*ecs, &agent.entity_info, agent.goal_set)
                 {
                     let agent_component = ecs
                         .component_mut::<AgentComponent>(&agent.entity_info)
@@ -74,9 +75,7 @@ impl System for AgentSystem {
             // Compute a plan if necessary
             if !agent.has_plan {
                 if let Some(plan) = self.goap.compute_plan(
-                    &*ecs,
-                    &mut updates,
-                    config,
+                    &agent.world_state,
                     agent.goal.unwrap(),
                     agent.goal_set,
                     agent.action_set,
