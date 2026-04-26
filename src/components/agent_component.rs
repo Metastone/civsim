@@ -1,6 +1,10 @@
+
 use std::collections::HashMap;
 
-use crate::{configuration::Config, ecs::{Component, Ecs, EntityInfo, Update}};
+use crate::{
+    configuration::Config,
+    ecs::{Component, Ecs, EntityInfo, Update},
+};
 use log::error;
 
 #[derive(Clone, PartialEq, Eq)]
@@ -66,7 +70,14 @@ pub enum ActionResult {
 pub trait Action {
     fn get_precondition(&self) -> &'static [Precondition];
     fn get_effects(&self) -> &'static [Effect];
-    fn perform(&self, ecs: &Ecs, updates: &mut Vec<Update>, info: &EntityInfo, config: &Config, world_state: &mut WorldState) -> ActionResult;
+    fn perform(
+        &self,
+        ecs: &Ecs,
+        updates: &mut Vec<Update>,
+        info: &EntityInfo,
+        config: &Config,
+        world_state: &mut WorldState,
+    ) -> ActionResult;
 }
 
 pub struct MoveToNearestPlantAction;
@@ -84,7 +95,14 @@ impl Action for MoveToNearestPlantAction {
         &EFFECTS
     }
 
-    fn perform(&self, ecs: &Ecs, updates: &mut Vec<Update>, info: &EntityInfo, config: &Config, world_state: &mut WorldState) -> ActionResult {
+    fn perform(
+        &self,
+        ecs: &Ecs,
+        updates: &mut Vec<Update>,
+        info: &EntityInfo,
+        config: &Config,
+        world_state: &mut WorldState,
+    ) -> ActionResult {
         // TODO implement
         ActionResult::Success
     }
@@ -148,7 +166,13 @@ impl Goap {
         self.action_sets.len() - 1
     }
 
-    pub fn find_goal(&self, ecs: &Ecs, config: &Config, info: &EntityInfo, goal_set: usize) -> Option<usize> {
+    pub fn find_goal(
+        &self,
+        ecs: &Ecs,
+        config: &Config,
+        info: &EntityInfo,
+        goal_set: usize,
+    ) -> Option<usize> {
         // TODO
         None
     }
@@ -180,12 +204,16 @@ impl Goap {
             if effect.symbol == precond.symbol && effect.modifier == Modifier::SetValue {
                 match effect.value {
                     Value::Bool(e_b) => {
-                        if let Value::Bool(p_b) = precond.value && e_b == p_b {
+                        if let Value::Bool(p_b) = precond.value
+                            && e_b == p_b
+                        {
                             return true;
                         }
                     }
                     Value::F32(e_f) => {
-                        if let Value::F32(p_f) = precond.value && e_f == p_f {
+                        if let Value::F32(p_f) = precond.value
+                            && e_f == p_f
+                        {
                             return true;
                         }
                     }
@@ -216,7 +244,13 @@ impl Goap {
             );
             return ActionResult::Failure;
         }
-        self.action_sets[action_set].actions[action].perform(ecs, ecs_updates, info, config, world_state)
+        self.action_sets[action_set].actions[action].perform(
+            ecs,
+            ecs_updates,
+            info,
+            config,
+            world_state,
+        )
     }
 }
 
@@ -279,7 +313,7 @@ impl AgentComponent {
 
     pub fn action(&self) -> Option<usize> {
         if self.current_action_index_in_plan < self.plan.len() {
-            return Some(self.plan[self.current_action_index_in_plan])
+            return Some(self.plan[self.current_action_index_in_plan]);
         }
         None
     }
@@ -296,4 +330,3 @@ impl AgentComponent {
         &self.world_state
     }
 }
-

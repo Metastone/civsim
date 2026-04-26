@@ -1,7 +1,7 @@
 use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
 use crate::configuration::Config;
-use crate::ecs::{Component, Ecs, System, Update, RESERVED_ENTITY_ID};
+use crate::ecs::{Component, Ecs, RESERVED_ENTITY_ID, System, Update};
 use crate::shared_data::body_grid;
 use std::any::TypeId;
 

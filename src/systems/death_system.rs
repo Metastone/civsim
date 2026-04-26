@@ -1,6 +1,6 @@
 use crate::components::all::*;
-use crate::configuration::Config;
 use crate::components::body_component::BodyComponent;
+use crate::configuration::Config;
 use crate::ecs::{Ecs, System, Update};
 use std::any::TypeId;
 

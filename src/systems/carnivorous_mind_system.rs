@@ -1,9 +1,9 @@
-use crate::configuration::Config;
 use crate::algorithms::path_finding::WayPoint;
 use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
 use crate::components::move_to_target_component::MoveToTargetComponent;
-use crate::ecs::{Component, Ecs, System, Update, RESERVED_ENTITY_ID};
+use crate::configuration::Config;
+use crate::ecs::{Component, Ecs, RESERVED_ENTITY_ID, System, Update};
 use crate::systems::utils;
 use std::any::TypeId;
 use std::collections::HashMap;
@@ -22,13 +22,11 @@ impl System for CarnivorousMindSystem {
         ) {
             if !inactive.idle {
                 carnivorous_body.insert(info, *body);
-            }
-            else {
+            } else {
                 inactive.idle_ticks_count += 1;
                 if inactive.idle_ticks_count >= config.creature.total_ticks_idle {
                     inactive.idle = false;
                     inactive.idle_ticks_count = 0;
-
                 }
             }
         }
@@ -56,7 +54,12 @@ impl System for CarnivorousMindSystem {
 
             // Check herbivorous
             if let Some((distance_squared, closest_entity, closest_body, closest_path)) =
-                utils::find_closest_reachable::<HerbivorousComponent>(ecs, config, info.entity, body)
+                utils::find_closest_reachable::<HerbivorousComponent>(
+                    ecs,
+                    config,
+                    info.entity,
+                    body,
+                )
                 && distance_squared < closest_distance_squared
             {
                 target_found = true;
@@ -64,7 +67,7 @@ impl System for CarnivorousMindSystem {
                 target_body = Some(closest_body);
                 path_to_target = Some(closest_path);
             }
-            
+
             // If a reachable target is found, move to target
             if target_found {
                 let on_target_reached: Box<dyn Component> = if is_corpse {

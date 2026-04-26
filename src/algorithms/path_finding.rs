@@ -371,8 +371,8 @@ pub fn find_reverse_path(graph: &Graph, start: Node, goal: Node) -> Option<Vec<N
         let (u_index, u): (usize, Node) = open_list
             .iter()
             .enumerate()
-            .min_by(|x, y| x.1 .1.cmp(&y.1 .1))
-            .map(|x| (x.0, x.1 .0))
+            .min_by(|x, y| x.1.1.cmp(&y.1.1))
+            .map(|x| (x.0, x.1.0))
             .unwrap();
         open_list.remove(u_index);
 

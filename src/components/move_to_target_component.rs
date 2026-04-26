@@ -1,4 +1,4 @@
-use crate::algorithms::path_finding::{compute_path, Graph, WayPoint};
+use crate::algorithms::path_finding::{Graph, WayPoint, compute_path};
 use crate::components::body_component::BodyComponent;
 use crate::configuration::Config;
 use crate::ecs::{Component, EntityId};

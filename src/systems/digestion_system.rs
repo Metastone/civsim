@@ -1,9 +1,9 @@
+use crate::TypeId;
 use crate::components::all::{HerbivorousComponent, PlantComponent};
 use crate::components::body_component::BodyComponent;
 use crate::configuration::Config;
-use crate::ecs::{Ecs, System, Update, RESERVED_ENTITY_ID};
+use crate::ecs::{Ecs, RESERVED_ENTITY_ID, System, Update};
 use crate::shared_data::body_grid;
-use crate::TypeId;
 use std::f64::consts::PI;
 
 pub struct DigestionSystem;

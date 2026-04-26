@@ -12,8 +12,14 @@ impl System for EatPlantSystem {
         // Make sure that a plant is not eaten by more than one creature
         let mut plant_to_creature: HashMap<EntityId, (f64, usize, EntityInfo)> = HashMap::new();
         for info in iter_entities!(ecs, EatingPlantComponent) {
-            if let Some(eating_plant) = ecs.component::<EatingPlantComponent>(&info) && let Some(plant) = ecs.component_from_entity::<PlantComponent>(eating_plant.plant_entity) {
-                plant_to_creature.insert(eating_plant.plant_entity, (plant.size, plant.nb_seeds, info));
+            if let Some(eating_plant) = ecs.component::<EatingPlantComponent>(&info)
+                && let Some(plant) =
+                    ecs.component_from_entity::<PlantComponent>(eating_plant.plant_entity)
+            {
+                plant_to_creature.insert(
+                    eating_plant.plant_entity,
+                    (plant.size, plant.nb_seeds, info),
+                );
             }
             Ecs::push_delete::<EatingPlantComponent>(info, &mut updates);
             updates.push(Update::Add {
@@ -31,7 +37,9 @@ impl System for EatPlantSystem {
                 }
             }
             if let Some(herbivorous) = ecs.component_mut::<HerbivorousComponent>(info) {
-                herbivorous.seeds.push_back((*plant_nb_seeds, config.creature.herbivorous_ticks_to_digest));
+                herbivorous
+                    .seeds
+                    .push_back((*plant_nb_seeds, config.creature.herbivorous_ticks_to_digest));
             }
         }
 

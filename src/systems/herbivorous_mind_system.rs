@@ -3,7 +3,7 @@ use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
 use crate::components::move_to_target_component::MoveToTargetComponent;
 use crate::configuration::Config;
-use crate::ecs::{Ecs, System, Update, RESERVED_ENTITY_ID};
+use crate::ecs::{Ecs, RESERVED_ENTITY_ID, System, Update};
 use crate::systems::utils;
 use std::any::TypeId;
 use std::collections::HashMap;
