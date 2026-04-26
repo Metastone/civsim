@@ -56,9 +56,9 @@ impl System for AgentSystem {
         for agent in self.agents.iter_mut() {
             // Find a goal if necessary
             if agent.goal.is_none() {
-                if let Some(goal) =
-                    self.goap
-                        .find_goal(&*ecs, config, &agent.entity_info, agent.goal_set)
+                if let Some(goal) = self
+                    .goap
+                    .find_goal(&*ecs, &agent.entity_info, agent.goal_set)
                 {
                     let agent_component = ecs
                         .component_mut::<AgentComponent>(&agent.entity_info)

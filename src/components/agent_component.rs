@@ -1,7 +1,7 @@
-
 use std::collections::HashMap;
 
 use crate::{
+    components::all::CreatureComponent,
     configuration::Config,
     ecs::{Component, Ecs, EntityInfo, Update},
 };
@@ -68,8 +68,8 @@ pub enum ActionResult {
 }
 
 pub trait Action {
-    fn get_precondition(&self) -> &'static [Precondition];
-    fn get_effects(&self) -> &'static [Effect];
+    fn preconditions(&self) -> &[Precondition];
+    fn effects(&self) -> &[Effect];
     fn perform(
         &self,
         ecs: &Ecs,
@@ -82,11 +82,11 @@ pub trait Action {
 
 pub struct MoveToNearestPlantAction;
 impl Action for MoveToNearestPlantAction {
-    fn get_precondition(&self) -> &'static [Precondition] {
+    fn preconditions(&self) -> &[Precondition] {
         &[]
     }
 
-    fn get_effects(&self) -> &'static [Effect] {
+    fn effects(&self) -> &[Effect] {
         static EFFECTS: [Effect; 1] = [Effect {
             symbol: Symbol::IsNearPlant,
             modifier: Modifier::SetValue,
@@ -95,6 +95,9 @@ impl Action for MoveToNearestPlantAction {
         &EFFECTS
     }
 
+    /// Remark: Action can not respect their contract by not applying the promised effect on the
+    /// world state. It can be usefull, for example to force the GOAP to plan an action that does
+    /// nothing (temporisation)
     fn perform(
         &self,
         ecs: &Ecs,
@@ -108,13 +111,47 @@ impl Action for MoveToNearestPlantAction {
     }
 }
 
-pub trait Goal {}
+pub trait Goal {
+    fn preconditions(&self) -> &[Precondition];
+    fn utility(&self, ecs: &Ecs, info: &EntityInfo) -> f32;
+}
 
-pub struct ReplenishEnergyGoal {}
-impl Goal for ReplenishEnergyGoal {}
+pub struct ReplenishEnergyGoal {
+    max_energy: f32,
+    pre: [Precondition; 1],
+}
+impl ReplenishEnergyGoal {
+    pub fn new(config: &Config) -> Self {
+        let max_energy = config.creature.max_energy;
+        Self {
+            max_energy,
+            pre: [Precondition {
+                symbol: Symbol::Energy,
+                condition: Condition::GreaterOrEqual,
+                value: Value::F32(max_energy),
+            }],
+        }
+    }
+}
+impl Goal for ReplenishEnergyGoal {
+    fn preconditions(&self) -> &[Precondition] {
+        &self.pre
+    }
+    fn utility(&self, ecs: &Ecs, info: &EntityInfo) -> f32 {
+        let creature = ecs.component::<CreatureComponent>(info).unwrap();
+        f32::max(self.max_energy - creature.energy, 0.0)
+    }
+}
 
 pub struct IdleGoal {}
-impl Goal for IdleGoal {}
+impl Goal for IdleGoal {
+    fn preconditions(&self) -> &[Precondition] {
+        &[]
+    }
+    fn utility(&self, _ecs: &Ecs, _info: &EntityInfo) -> f32 {
+        0.0
+    }
+}
 
 pub struct GoalSet {
     goals: Vec<Box<dyn Goal>>,
@@ -166,15 +203,23 @@ impl Goap {
         self.action_sets.len() - 1
     }
 
-    pub fn find_goal(
-        &self,
-        ecs: &Ecs,
-        config: &Config,
-        info: &EntityInfo,
-        goal_set: usize,
-    ) -> Option<usize> {
-        // TODO
-        None
+    pub fn find_goal(&self, ecs: &Ecs, info: &EntityInfo, goal_set: usize) -> Option<usize> {
+        if goal_set >= self.goal_sets.len() {
+            error!("No goal set with index {}", goal_set);
+        }
+
+        let mut found = false;
+        let mut best_goal_idx = 0;
+        let mut best_utility = 0.0;
+        for (idx, goal) in self.goal_sets[goal_set].goals.iter().enumerate() {
+            let utility = goal.utility(ecs, info);
+            if utility > best_utility {
+                found = true;
+                best_goal_idx = idx;
+                best_utility = utility;
+            }
+        }
+        if found { Some(best_goal_idx) } else { None }
     }
 
     pub fn compute_plan(
@@ -189,7 +234,7 @@ impl Goap {
         None
     }
 
-    // assume that precondition is not already satisfied
+    // Assume that precondition is not already satisfied
     fn validates_precondition(
         &self,
         action: usize,
@@ -199,7 +244,7 @@ impl Goap {
     ) -> bool {
         // TODO take world_state into account
         // TODO assume indexes are valid or check ?
-        for effect in self.action_sets[action_set].actions[action].get_effects() {
+        for effect in self.action_sets[action_set].actions[action].effects() {
             // TODO check other possibilities (increment, etc)
             if effect.symbol == precond.symbol && effect.modifier == Modifier::SetValue {
                 match effect.value {

@@ -88,7 +88,7 @@ impl World {
 
 fn create_world(config: &Config) -> World {
     let mut goal_set = GoalSet::new();
-    goal_set.add(Box::new(ReplenishEnergyGoal {}));
+    goal_set.add(Box::new(ReplenishEnergyGoal::new(config)));
 
     let mut action_set = ActionSet::new();
     action_set.add(Box::new(MoveToNearestPlantAction {}));
