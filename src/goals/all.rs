@@ -33,13 +33,3 @@ impl Goal for ReplenishEnergyGoal {
         f32::max(self.max_energy - creature.energy, 0.0)
     }
 }
-
-pub struct IdleGoal {}
-impl Goal for IdleGoal {
-    fn conditions(&self) -> &[Condition] {
-        &[]
-    }
-    fn utility(&self, _ecs: &Ecs, _info: &EntityInfo) -> f32 {
-        0.0
-    }
-}

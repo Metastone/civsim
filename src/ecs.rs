@@ -15,6 +15,7 @@ macro_rules! to_ctype {
         TypeId::of::<$CompType>()
     };
 }
+pub(crate) use to_ctype;
 
 macro_rules! iter_entities {
     ($self:expr, $($CompType:ident),+) => {
@@ -458,6 +459,10 @@ impl Ecs {
     }
 
     pub fn get_entity_info(&self, entity: usize) -> Option<EntityInfo> {
+        if entity == RESERVED_ENTITY_ID {
+            return None;
+        }
+
         // Look in all archetypes to find the entity
         for (arch_index, archetype) in self.archetypes.iter().enumerate() {
             if let Some((entity_index, entity)) = archetype

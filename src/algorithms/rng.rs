@@ -7,7 +7,7 @@ use crate::configuration::Config;
 
 // Initialize RNG
 thread_local! {
-    static RNG: RefCell<Option<SmallRng>> = RefCell::new(None);
+    static RNG: RefCell<Option<SmallRng>> = const { RefCell::new(None) };
 }
 
 pub fn init(config: &Config) {

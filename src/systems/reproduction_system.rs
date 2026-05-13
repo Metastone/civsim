@@ -1,3 +1,4 @@
+use crate::components::agent_component::AgentComponent;
 use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
 use crate::configuration::Config;
@@ -5,7 +6,33 @@ use crate::ecs::{Component, Ecs, RESERVED_ENTITY_ID, System, Update};
 use crate::shared_data::body_grid;
 use std::any::TypeId;
 
-pub struct ReproductionSystem;
+pub struct ReproductionSystem {
+    herbivorous_goal_set: usize,
+    herbivorous_action_set: usize,
+    herbivorous_action_set_len: usize,
+    carnivorous_goal_set: usize,
+    carnivorous_action_set: usize,
+    carnivorous_action_set_len: usize,
+}
+impl ReproductionSystem {
+    pub fn new(
+        herbivorous_goal_set: usize,
+        herbivorous_action_set: usize,
+        herbivorous_action_set_len: usize,
+        carnivorous_goal_set: usize,
+        carnivorous_action_set: usize,
+        carnivorous_action_set_len: usize,
+    ) -> Self {
+        Self {
+            herbivorous_goal_set,
+            herbivorous_action_set,
+            herbivorous_action_set_len,
+            carnivorous_goal_set,
+            carnivorous_action_set,
+            carnivorous_action_set_len,
+        }
+    }
+}
 impl System for ReproductionSystem {
     fn run(&mut self, ecs: &mut Ecs, config: &Config) {
         let mut updates: Vec<Update> = Vec::new();
@@ -36,7 +63,6 @@ impl System for ReproductionSystem {
             let mut comps: Vec<Box<dyn Component>> = vec![
                 Box::new(CreatureComponent::new(&config.creature)),
                 Box::new(new_body),
-                Box::new(InactiveComponent::new()),
             ];
 
             // Check if herbivorous or carnivorous
@@ -44,8 +70,18 @@ impl System for ReproductionSystem {
                 ecs.has_component(info.arch_index, &to_ctype!(HerbivorousComponent));
             if is_herbivorous {
                 comps.push(Box::new(HerbivorousComponent::new()));
+                comps.push(Box::new(AgentComponent::new(
+                    self.herbivorous_goal_set,
+                    self.herbivorous_action_set,
+                    self.herbivorous_action_set_len,
+                )));
             } else {
                 comps.push(Box::new(CarnivorousComponent::new()));
+                comps.push(Box::new(AgentComponent::new(
+                    self.carnivorous_goal_set,
+                    self.carnivorous_action_set,
+                    self.carnivorous_action_set_len,
+                )));
             }
 
             // Create a new creature

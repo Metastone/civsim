@@ -15,6 +15,7 @@ pub struct Config {
     pub obstacle_size: f64,
     pub seed: SeedConfig,
     pub plant: PlantConfig,
+    pub agent: AgentConfig,
     pub creature: CreatureConfig,
     pub path: PathConfig,
     pub collision: CollisionConfig,
@@ -40,20 +41,23 @@ pub struct PlantConfig {
 }
 
 #[derive(Deserialize, Clone, Copy)]
+pub struct AgentConfig {
+    pub total_ticks_idle: usize,
+}
+
+#[derive(Deserialize, Clone, Copy)]
 pub struct CreatureConfig {
     pub size: f64,
     pub hunger_rate: f32,
     pub exhaustion_rate: f32,
     pub recovery_rate: f32,
     pub corpse_energy: f32,
-    pub carnivorous_attack: f32,
     pub reprod_energy_threshold: f32,
     pub reprod_energy_cost: f32,
     pub start_energy: f32,
     pub max_energy: f32,
     pub max_health: f32,
     pub herbivorous_ticks_to_digest: usize,
-    pub total_ticks_idle: usize,
     pub reprod_x_offset: f64,
     pub herbivorous_speed: f64,
     pub carnivorous_speed: f64,

@@ -6,14 +6,17 @@ use log::error;
 use ordered_float::OrderedFloat;
 
 use crate::{
+    components::agent_component::AgentComponent,
     configuration::Config,
-    ecs::{Ecs, EntityInfo, Update},
+    ecs::{Ecs, EntityInfo},
 };
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Symbol {
     Energy,
     IsNearPlant,
+    IsNearCorpse,
+    IsNearHerbivorous,
 
     #[cfg(test)]
     HasHouse,
@@ -37,18 +40,20 @@ pub enum Value {
 #[derive(PartialEq, Eq, Debug)]
 pub enum Operator {
     Equal,
+    #[allow(unused)]
     Less,
+    #[allow(unused)]
     LessOrEqual,
+    #[allow(unused)]
     Greater,
     GreaterOrEqual,
+    #[allow(unused)]
     Not,
 }
 
-// TODO remove decrement, increment with negative value is enough
 #[derive(PartialEq, Eq, Debug)]
 pub enum Modifier {
     SetValue,
-    Decrement,
     Increment,
 }
 
@@ -59,6 +64,7 @@ pub struct Fact {
 }
 
 impl Fact {
+    #[allow(unused)]
     pub fn new(symbol: Symbol, value: Value) -> Self {
         Fact { symbol, value }
     }
@@ -121,17 +127,12 @@ pub trait Action {
     fn preconditions(&self) -> &[Condition];
     fn effects(&self) -> &[Effect];
 
-    /// Remark: Action can not respect their contract by not applying the promised effect on the
-    /// world state. It can be usefull, for example to force the GOAP to plan an action that does
-    /// nothing (temporisation)
     fn perform(
         &self,
-        ecs: &Ecs,
-        updates: &mut Vec<Update>,
+        ecs: &mut Ecs,
         info: &EntityInfo,
         config: &Config,
-        world_state: &mut WorldState,
-    ) -> ActionResult;
+    ) -> Result<ActionResult, String>;
 }
 
 pub trait Goal {
@@ -163,6 +164,9 @@ impl ActionSet {
     }
     pub fn add(&mut self, goal: Box<dyn Action>) {
         self.actions.push(goal);
+    }
+    pub fn len(&self) -> usize {
+        self.actions.len()
     }
 }
 
@@ -250,6 +254,7 @@ impl Goap {
 
     pub fn compute_plan(
         &self,
+        agent: &AgentComponent,
         world_state: &WorldState,
         goal: usize,
         goal_set: usize,
@@ -259,6 +264,7 @@ impl Goap {
         action_set_exists_or_return!(self, action_set, None);
         let goal_conditions = self.goal_sets[goal_set].goals[goal].conditions();
         find_path(
+            agent,
             world_state,
             goal_conditions,
             &self.action_sets[action_set].actions,
@@ -267,8 +273,7 @@ impl Goap {
 
     pub fn perform_action(
         &self,
-        ecs: &Ecs,
-        ecs_updates: &mut Vec<Update>,
+        ecs: &mut Ecs,
         info: &EntityInfo,
         config: &Config,
         world_state: &mut WorldState,
@@ -277,22 +282,30 @@ impl Goap {
     ) -> ActionResult {
         action_exists_or_return!(self, action_set, action, ActionResult::Failure);
         let act = &self.action_sets[action_set].actions[action];
-        let result = act.perform(ecs, ecs_updates, info, config, world_state);
-        if matches!(result, ActionResult::Success) {
-            apply_effects(act.as_ref(), world_state);
+        match act.perform(ecs, info, config) {
+            Ok(result) => {
+                if matches!(result, ActionResult::Success) {
+                    apply_effects(act.as_ref(), world_state);
+                }
+                result
+            }
+            Err(msg) => {
+                error!("{msg}");
+                ActionResult::Failure
+            }
         }
-        result
     }
 
     #[cfg(test)]
-    fn get_action(&self, action_set: usize, action: usize) -> Option<&Box<dyn Action>> {
+    fn get_action(&self, action_set: usize, action: usize) -> Option<&dyn Action> {
         action_exists_or_return!(self, action_set, action, None);
-        Some(&self.action_sets[action_set].actions[action])
+        Some(self.action_sets[action_set].actions[action].as_ref())
     }
 }
 
 /// Apply the A* algorithm to find a path of actions from the initial world state to the goal world state
 pub fn find_path(
+    agent: &AgentComponent,
     start_state: &WorldState,
     goal_conditions: &[Condition],
     action_set: &Vec<Box<dyn Action>>,
@@ -337,7 +350,9 @@ pub fn find_path(
             .enumerate()
             .filter(|(_, a)| validate_conditions(&u, a.preconditions()))
         {
-            let action_cost = 1.0;
+            // Agents maintains a custom cost for each action (increased when performing an action
+            // fails, to allow alternative plans to emerge)
+            let action_cost = agent.get_action_cost(action_index);
 
             // Create the neighbour v (world state obtained when performing the action)
             let mut v = u.clone();
@@ -365,7 +380,7 @@ pub fn find_path(
         i += 1;
     }
     if i >= i_max {
-        error!("No action path found after {i} iterations");
+        error!("No action plan found after {i} iterations");
     }
 
     None
@@ -433,8 +448,8 @@ fn validates_condition(world_state: &WorldState, condition: &Condition) -> bool 
 
         // If we reach this point, it means that something went wrong when checking the condition
         error!(
-            "Inconsistency for symbol {:?}\n
-            Fact:      value = {:?}\n
+            "Inconsistency for symbol {:?}
+            Fact:      value = {:?}
             Condition: value = {:?}, operator = {:?}",
             symbol, value, condition.value, condition.operator
         );
@@ -499,18 +514,6 @@ fn apply_effects(action: &dyn Action, state: &mut WorldState) {
                         break;
                     }
                 }
-                Modifier::Decrement => {
-                    if let (Value::F32(f_v), Value::F32(e_v)) = (fact.value.clone(), value) {
-                        fact.value = Value::F32(f_v - e_v);
-                        symbol_in_state = true;
-                        break;
-                    }
-                    if let (Value::Isize(f_v), Value::Isize(e_v)) = (fact.value.clone(), value) {
-                        fact.value = Value::Isize(f_v - e_v);
-                        symbol_in_state = true;
-                        break;
-                    }
-                }
             };
 
             // If we reach this point, it means that something went wrong when editing the already
@@ -546,20 +549,6 @@ fn apply_effects(action: &dyn Action, state: &mut WorldState) {
                         })
                     }
                 }
-                Modifier::Decrement => {
-                    if let Value::F32(e_v) = value {
-                        state.facts.push(Fact {
-                            symbol: symbol.clone(),
-                            value: Value::F32(-e_v),
-                        })
-                    }
-                    if let Value::Isize(e_v) = value {
-                        state.facts.push(Fact {
-                            symbol: symbol.clone(),
-                            value: Value::Isize(-e_v),
-                        })
-                    }
-                }
             };
         }
     }
@@ -570,13 +559,26 @@ mod tests {
     use std::any::type_name;
 
     use crate::{
+        components::agent_component::AgentComponent,
         configuration::Config,
-        ecs::{Ecs, EntityInfo, Update},
+        ecs::{Ecs, EntityInfo},
         goap::{
             Action, ActionResult, ActionSet, Condition, Effect, Fact, Goal, GoalSet, Goap,
             Modifier, Operator, Symbol, Value, WorldState,
         },
     };
+    macro_rules! define_perform_success {
+        () => {
+            fn perform(
+                &self,
+                _ecs: &mut Ecs,
+                _info: &EntityInfo,
+                _config: &Config,
+            ) -> Result<ActionResult, String> {
+                Ok(ActionResult::Success)
+            }
+        };
+    }
 
     struct HaveHouseAndGardenGoal {
         preconditions: [Condition; 2],
@@ -625,16 +627,7 @@ mod tests {
         fn effects(&self) -> &[Effect] {
             &self.effects
         }
-        fn perform(
-            &self,
-            _ecs: &Ecs,
-            _updates: &mut Vec<Update>,
-            _info: &EntityInfo,
-            _config: &Config,
-            _world_state: &mut WorldState,
-        ) -> ActionResult {
-            ActionResult::Success
-        }
+        define_perform_success!();
     }
 
     struct PlantTreeAction {
@@ -658,16 +651,7 @@ mod tests {
         fn effects(&self) -> &[Effect] {
             &self.effects
         }
-        fn perform(
-            &self,
-            _ecs: &Ecs,
-            _updates: &mut Vec<Update>,
-            _info: &EntityInfo,
-            _config: &Config,
-            _world_state: &mut WorldState,
-        ) -> ActionResult {
-            ActionResult::Success
-        }
+        define_perform_success!();
     }
 
     struct WaitForOneTreeToGrowAction {
@@ -696,16 +680,7 @@ mod tests {
         fn effects(&self) -> &[Effect] {
             &self.effects
         }
-        fn perform(
-            &self,
-            _ecs: &Ecs,
-            _updates: &mut Vec<Update>,
-            _info: &EntityInfo,
-            _config: &Config,
-            _world_state: &mut WorldState,
-        ) -> ActionResult {
-            ActionResult::Success
-        }
+        define_perform_success!();
     }
 
     struct CutTreeAction {
@@ -734,16 +709,7 @@ mod tests {
         fn effects(&self) -> &[Effect] {
             &self.effects
         }
-        fn perform(
-            &self,
-            _ecs: &Ecs,
-            _updates: &mut Vec<Update>,
-            _info: &EntityInfo,
-            _config: &Config,
-            _world_state: &mut WorldState,
-        ) -> ActionResult {
-            ActionResult::Success
-        }
+        define_perform_success!();
     }
 
     struct BuyWoodAction {
@@ -773,26 +739,18 @@ mod tests {
         fn effects(&self) -> &[Effect] {
             &self.effects
         }
-        fn perform(
-            &self,
-            _ecs: &Ecs,
-            _updates: &mut Vec<Update>,
-            _info: &EntityInfo,
-            _config: &Config,
-            _world_state: &mut WorldState,
-        ) -> ActionResult {
-            ActionResult::Success
-        }
+        define_perform_success!();
     }
 
     #[test]
     fn test_plan_found_plant_trees() {
+        let mock_agent = AgentComponent::new(0, 0, 0);
         let goap = create_goap(/*patient*/ true);
         let world_state =
             create_world_state(/*house*/ false, /*trees*/ 3, /*money*/ 0);
 
         let plan = goap
-            .compute_plan(&world_state, 0, 0, 0)
+            .compute_plan(&mock_agent, &world_state, 0, 0, 0)
             .expect("No plan found");
         print_plan(&goap, 0, &plan);
 
@@ -810,12 +768,13 @@ mod tests {
 
     #[test]
     fn test_plan_found_buy_wood() {
+        let mock_agent = AgentComponent::new(0, 0, 0);
         let goap = create_goap(/*patient*/ false);
         let world_state =
             create_world_state(/*house*/ false, /*trees*/ 3, /*money*/ 10);
 
         let plan = goap
-            .compute_plan(&world_state, 0, 0, 0)
+            .compute_plan(&mock_agent, &world_state, 0, 0, 0)
             .expect("No plan found");
         print_plan(&goap, 0, &plan);
 
@@ -828,10 +787,11 @@ mod tests {
 
     #[test]
     fn test_plan_not_found() {
+        let mock_agent = AgentComponent::new(0, 0, 0);
         let goap = create_goap(/*patient*/ false);
         let world_state =
             create_world_state(/*house*/ false, /*trees*/ 3, /*money*/ 0);
-        assert_eq!(goap.compute_plan(&world_state, 0, 0, 0), None);
+        assert_eq!(goap.compute_plan(&mock_agent, &world_state, 0, 0, 0), None);
     }
 
     fn create_goap(patient: bool) -> Goap {
@@ -867,7 +827,7 @@ mod tests {
     fn print_plan(goap: &Goap, action_set: usize, plan: &Vec<usize>) {
         println!("Plan:");
         for a_index in plan {
-            let action = goap.get_action(action_set, *a_index).unwrap().as_ref();
+            let action = goap.get_action(action_set, *a_index).unwrap();
             println!("{:}", action.type_name());
         }
     }
@@ -875,7 +835,7 @@ mod tests {
     fn validate_plan(goap: &Goap, action_set: usize, plan: &[usize], expected_plan: Vec<&str>) {
         assert_eq!(plan.len(), expected_plan.len());
         for (i, a_index) in plan.iter().enumerate() {
-            let action = goap.get_action(action_set, *a_index).unwrap().as_ref();
+            let action = goap.get_action(action_set, *a_index).unwrap();
             assert_eq!(action.type_name(), expected_plan[i]);
         }
     }
