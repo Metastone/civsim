@@ -473,7 +473,7 @@ impl BodyGrid {
                         body.w() + margin.0,
                         body.h() + margin.1,
                     );
-                    if edge_collides_body(a, b, &inflated_body) {
+                    if edge_intersect_body(a, b, &inflated_body) {
                         return true;
                     }
                 }
@@ -577,7 +577,7 @@ impl BodyGrid {
 }
 
 // a, b are 2D points.
-fn edge_collides_body(a: (f64, f64), b: (f64, f64), body: &BodyComponent) -> bool {
+fn edge_intersect_body(a: (f64, f64), b: (f64, f64), body: &BodyComponent) -> bool {
     /*
      *   A       M ---- N
      *    \      |      |
@@ -599,13 +599,13 @@ fn edge_collides_body(a: (f64, f64), b: (f64, f64), body: &BodyComponent) -> boo
         && f64::max(a.1, b.1) <= o.1;
 
     edge_inside_square
-        || edge_collides_edge(a, b, m, n)
-        || edge_collides_edge(a, b, n, p)
-        || edge_collides_edge(a, b, p, o)
-        || edge_collides_edge(a, b, o, m)
+        || edge_intersect_edge(a, b, m, n)
+        || edge_intersect_edge(a, b, n, p)
+        || edge_intersect_edge(a, b, p, o)
+        || edge_intersect_edge(a, b, o, m)
 }
 
-fn edge_collides_edge(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64)) -> bool {
+fn edge_intersect_edge(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64)) -> bool {
     /*
      * a, b, c, d are points. First edge is [a, b], second edge is [c, d]
      *
@@ -618,10 +618,14 @@ fn edge_collides_edge(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64)
      * - The edges intersect if U is in the edges (u1 & u2 in [0.0, 1.0])
      */
 
-    let u1 = ((d.0 - c.0) * (a.1 - c.1) - (d.1 - c.1) * (a.0 - c.0))
-        / ((d.1 - c.1) * (b.0 - a.0) - (d.0 - c.0) * (b.1 - a.1));
-    let u2 = ((b.0 - a.0) * (a.1 - c.1) - (b.1 - a.1) * (a.0 - c.0))
-        / ((d.1 - c.1) * (b.0 - a.0) - (d.0 - c.0) * (b.1 - a.1));
+    let edge_product_z_norm = (d.1 - c.1) * (b.0 - a.0) - (d.0 - c.0) * (b.1 - a.1);
+    if edge_product_z_norm == 0.0 {
+        // Lines are parallel, they don't intersect
+        return false;
+    }
+
+    let u1 = ((d.0 - c.0) * (a.1 - c.1) - (d.1 - c.1) * (a.0 - c.0)) / edge_product_z_norm;
+    let u2 = ((b.0 - a.0) * (a.1 - c.1) - (b.1 - a.1) * (a.0 - c.0)) / edge_product_z_norm;
 
     (0.0..=1.0).contains(&u1) && (0.0..=1.0).contains(&u2)
 }

@@ -67,7 +67,7 @@ where
         }]);
         Ok(ActionResult::OnGoing)
     } else {
-        // No target found, go into idle state to lower the lower the load on the cpu
+        // No target found, go into idle state to lower cpu load
         let agent = get_comp_or_error::<A, AgentComponent>(ecs, info)?;
         agent.go_idle();
         Ok(ActionResult::Failure)

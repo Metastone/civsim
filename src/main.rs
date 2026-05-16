@@ -15,8 +15,7 @@ use ecs::{Component, Ecs, System, Update};
 use sdl2::event::{Event, WindowEvent};
 use sdl2::keyboard::Keycode;
 use shared_data::biome::humidity;
-use std::any::TypeId;
-use std::{thread, time};
+use std::{any::TypeId, thread, time};
 
 use components::agent_component::AgentComponent;
 use components::all::*;

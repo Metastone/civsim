@@ -809,21 +809,23 @@ impl Ecs {
     fn clear_obsolete_entries(&mut self) {
         if self.nb_obsolete_entries > MAX_OBSOLETE_ENTRIES {
             for arch in self.archetypes.iter_mut() {
-                let mut to_remove_idx: Vec<usize> = arch
-                    .entities
-                    .iter()
-                    .enumerate()
-                    .filter(|&(_, entity)| *entity == 0)
-                    .map(|(idx, _)| idx)
-                    .collect();
-                to_remove_idx.reverse(); // Sort big index first, for safe vec remove
-                for comps in arch.data.values_mut() {
-                    for idx in to_remove_idx.iter() {
-                        comps.remove(*idx);
+                // Copy valid entries into the empty slots lefts by deleted entries
+                let mut write_idx = 0;
+                for read_idx in 0..arch.entities.len() {
+                    if arch.entities[read_idx] != RESERVED_ENTITY_ID {
+                        if read_idx != write_idx {
+                            arch.entities[write_idx] = arch.entities[read_idx];
+                            for comps in arch.data.values_mut() {
+                                comps[write_idx] = comps[read_idx].clone();
+                            }
+                        }
+                        write_idx += 1;
                     }
                 }
-                for idx in to_remove_idx.iter() {
-                    arch.entities.remove(*idx);
+                // Truncate to remove duplicates
+                arch.entities.truncate(write_idx);
+                for comps in arch.data.values_mut() {
+                    comps.truncate(write_idx);
                 }
             }
             self.nb_obsolete_entries = 0;

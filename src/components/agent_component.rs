@@ -7,13 +7,13 @@ use log::error;
 
 #[derive(Clone)]
 pub struct AgentComponent {
-    goal: Option<usize>,
+    pub goal: Option<usize>,
     goal_set: usize,
     action_set: usize,
     action_costs: Vec<f64>,
     plan: Vec<usize>,
     current_action_index_in_plan: usize,
-    world_state: WorldState,
+    pub world_state: WorldState,
     idle: bool,
     idle_ticks_count: usize,
     pub target_entity: EntityId,
@@ -58,14 +58,6 @@ impl AgentComponent {
         !self.plan.is_empty()
     }
 
-    pub fn set_goal(&mut self, goal: usize) {
-        self.goal = Some(goal);
-    }
-
-    pub fn goal(&self) -> Option<usize> {
-        self.goal
-    }
-
     pub fn goal_set(&self) -> usize {
         self.goal_set
     }
@@ -103,14 +95,6 @@ impl AgentComponent {
         } else {
             1.0
         }
-    }
-
-    pub fn set_world_state(&mut self, world_state: &WorldState) {
-        self.world_state = world_state.clone()
-    }
-
-    pub fn world_state(&self) -> &WorldState {
-        &self.world_state
     }
 
     pub fn idle(&self) -> bool {

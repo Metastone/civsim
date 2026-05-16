@@ -33,11 +33,11 @@ impl AgentInfo {
         AgentInfo {
             info: *info,
             has_plan: agent.has_plan(),
-            goal: agent.goal(),
+            goal: agent.goal,
             goal_set: agent.goal_set(),
             action: agent.action(),
             action_set: agent.action_set(),
-            world_state: agent.world_state().clone(),
+            world_state: agent.world_state.clone(),
             idle: agent.idle(),
         }
     }
@@ -78,7 +78,8 @@ impl System for AgentSystem {
                 if let Some(goal) = self.goap.find_goal(&*ecs, &agent.info, agent.goal_set) {
                     let agent_component = ecs.component_mut::<AgentComponent>(&agent.info).unwrap();
                     agent.goal = Some(goal);
-                    agent_component.set_goal(goal);
+                    // TODO goal should be reset after plan execution
+                    agent_component.goal = Some(goal);
                 } else {
                     // If no goal was found, skip the agent
                     continue;
@@ -96,7 +97,6 @@ impl System for AgentSystem {
                     agent.action_set,
                 ) && !plan.is_empty()
                 {
-                    let agent_component = ecs.component_mut::<AgentComponent>(&agent.info).unwrap();
                     agent.action = Some(plan[0]);
                     agent.has_plan = true;
                     agent_component.set_plan(plan);
@@ -137,7 +137,7 @@ impl System for AgentSystem {
                     agent_component.increase_action_cost(agent.action.unwrap());
                 }
                 ActionResult::OnGoing => {
-                    agent_component.set_world_state(&agent.world_state);
+                    agent_component.world_state = agent.world_state.clone();
                 }
             }
         }

@@ -289,10 +289,8 @@ impl Graph {
         let max_d2 = max_d.powi(2);
         let nodes: Vec<Node> = self.neighbours.keys().cloned().collect();
 
-        for i in 0..nodes.len() {
-            for j in (i + 1)..nodes.len() {
-                let a = &nodes[i];
-                let b = &nodes[j];
+        for (i, a) in nodes.iter().enumerate() {
+            for b in nodes.iter().skip(i + 1) {
                 if !(a.is_cell_center && b.is_cell_center) // cell centers are already connected
                     && square_euclidian_distance(a, b) < max_d2
                     && !body_grid::edge_collides(
@@ -352,7 +350,61 @@ fn add_neighbour_cell_center(
     }
 }
 
-// Apply the A* algorithm to find a path
+/*
+
+*
+*
+*/
+/// Apply the A* algorithm to find a path
+///
+/// # Note about optimisation
+///
+/// I tried using a BinaryHeap sorted on best f score (minimal) to
+/// avoid linear searches in a Vec.
+/// But after testing, it was actually slower (~10%) with 100 random generated nodes (my current
+/// config), and barely faster with 10000 random generated nodes (~10%).
+///
+/// Here is my attempt (may be useful for later optimisations):
+///
+/// ## New structure:
+/// ```
+/// #[derive(Ord, PartialOrd, Eq, PartialEq)]
+/// struct NodeWithScore {
+///     score: OrderedFloat<f64>, // Important: score first because order is based on score
+///     node: Node,
+/// }
+/// ```
+///
+/// ## Set of discovered nodes, sorted in a "min score first" fashion (estimated distance to goal)
+/// ```
+/// let start_f_score = square_euclidian_distance(&start, &goal);
+/// let mut open_list = BinaryHeap::new();
+/// let mut best_f_score: HashMap<Node, f64> = HashMap::new();
+/// open_list.push(Reverse(NodeWithScore {
+///     node: start,
+///     score: OrderedFloat(start_f_score),
+/// }));
+/// best_f_score.insert(start, start_f_score);
+/// ```
+///
+/// ## Iterate on nodes with the best score, skipping outdated entries
+/// ```
+/// while let Some(Reverse(NodeWithScore { node, score })) = open_list.pop() {
+///     let best = best_f_score.get(&node).unwrap();
+///     if *best > score.into_inner() {
+///         continue;
+///     }
+///     let u = node;
+/// ```
+///
+/// ## Create a new entry for v with the estimated distance
+/// ```
+/// open_list.push(Reverse(NodeWithScore {
+///     node: *v,
+///     score: OrderedFloat(f_score),
+/// }));
+/// best_f_score.insert(*v, f_score);
+/// ```
 pub fn find_reverse_path(graph: &Graph, start: Node, goal: Node) -> Option<Vec<Node>> {
     // Set of discovered nodes
     let mut open_list: Vec<(Node, OrderedFloat<f64>)> = Vec::new();

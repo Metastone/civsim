@@ -33,6 +33,7 @@ pub enum Symbol {
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub enum Value {
     F32(OrderedFloat<f32>),
+    #[allow(unused)]
     Isize(isize),
     Bool(bool),
 }
@@ -104,6 +105,7 @@ impl Effect {
 
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub struct WorldState {
+    // Perfo: Consider using a hashmap in the future the WorldState becomes large
     facts: Vec<Fact>,
 }
 impl WorldState {
@@ -283,12 +285,11 @@ impl Goap {
         action_exists_or_return!(self, action_set, action, ActionResult::Failure);
         let act = &self.action_sets[action_set].actions[action];
         match act.perform(ecs, info, config) {
-            Ok(result) => {
-                if matches!(result, ActionResult::Success) {
-                    apply_effects(act.as_ref(), world_state);
-                }
-                result
+            Ok(ActionResult::Success) => {
+                apply_effects(act.as_ref(), world_state);
+                ActionResult::Success
             }
+            Ok(result) => result,
             Err(msg) => {
                 error!("{msg}");
                 ActionResult::Failure
@@ -304,11 +305,14 @@ impl Goap {
 }
 
 /// Apply the A* algorithm to find a path of actions from the initial world state to the goal world state
+///
+/// # Note about optimisation
+/// See note in path_finding (similar A* implementation)
 pub fn find_path(
     agent: &AgentComponent,
     start_state: &WorldState,
     goal_conditions: &[Condition],
-    action_set: &Vec<Box<dyn Action>>,
+    action_set: &[Box<dyn Action>],
 ) -> Option<Vec<usize>> {
     // Set of discovered nodes
     let mut open_list: Vec<(WorldState, OrderedFloat<f64>)> = Vec::new();
@@ -342,7 +346,7 @@ pub fn find_path(
 
         // Goal reached, return this path (the best one found yet)
         if validate_conditions(&u, goal_conditions) {
-            return Some(reconstruct_path(&came_from, &u));
+            return Some(reconstruct_path(&came_from, u));
         }
 
         for (action_index, action) in action_set
@@ -405,45 +409,38 @@ fn validates_condition(world_state: &WorldState, condition: &Condition) -> bool 
         }
 
         // Symbol found in the world state: check the condition
-        match condition.operator {
-            Operator::Equal => {
-                return *value == condition.value;
+        match (&condition.operator, &condition.value, value) {
+            (Operator::Equal, c_v, f_v) => {
+                return *f_v == *c_v;
             }
-            Operator::Not => {
-                return *value != condition.value;
+            (Operator::Not, c_v, f_v) => {
+                return *f_v != *c_v;
             }
-            Operator::Less => {
-                if let (Value::F32(s_f), Value::F32(c_f)) = (value, &condition.value) {
-                    return *s_f < *c_f;
-                }
-                if let (Value::Isize(s_i), Value::Isize(c_i)) = (value, &condition.value) {
-                    return *s_i < *c_i;
-                }
+            (Operator::Less, Value::F32(c_v), Value::F32(f_v)) => {
+                return *f_v < *c_v;
             }
-            Operator::LessOrEqual => {
-                if let (Value::F32(s_f), Value::F32(c_f)) = (value, &condition.value) {
-                    return *s_f <= *c_f;
-                }
-                if let (Value::Isize(s_i), Value::Isize(c_i)) = (value, &condition.value) {
-                    return *s_i <= *c_i;
-                }
+            (Operator::Less, Value::Isize(c_v), Value::Isize(f_v)) => {
+                return *f_v < *c_v;
             }
-            Operator::Greater => {
-                if let (Value::F32(s_f), Value::F32(c_f)) = (value, &condition.value) {
-                    return *s_f > *c_f;
-                }
-                if let (Value::Isize(s_i), Value::Isize(c_i)) = (value, &condition.value) {
-                    return *s_i > *c_i;
-                }
+            (Operator::LessOrEqual, Value::F32(c_v), Value::F32(f_v)) => {
+                return *f_v <= *c_v;
             }
-            Operator::GreaterOrEqual => {
-                if let (Value::F32(s_f), Value::F32(c_f)) = (value, &condition.value) {
-                    return *s_f >= *c_f;
-                }
-                if let (Value::Isize(s_i), Value::Isize(c_i)) = (value, &condition.value) {
-                    return *s_i >= *c_i;
-                }
+            (Operator::LessOrEqual, Value::Isize(c_v), Value::Isize(f_v)) => {
+                return *f_v <= *c_v;
             }
+            (Operator::Greater, Value::F32(c_v), Value::F32(f_v)) => {
+                return *f_v > *c_v;
+            }
+            (Operator::Greater, Value::Isize(c_v), Value::Isize(f_v)) => {
+                return *f_v > *c_v;
+            }
+            (Operator::GreaterOrEqual, Value::F32(c_v), Value::F32(f_v)) => {
+                return *f_v >= *c_v;
+            }
+            (Operator::GreaterOrEqual, Value::Isize(c_v), Value::Isize(f_v)) => {
+                return *f_v >= *c_v;
+            }
+            _ => {}
         }
 
         // If we reach this point, it means that something went wrong when checking the condition
@@ -466,12 +463,11 @@ fn validate_conditions(state: &WorldState, conditions: &[Condition]) -> bool {
 
 fn reconstruct_path(
     came_from: &HashMap<WorldState, (WorldState, usize)>,
-    final_state: &WorldState,
+    final_state: WorldState,
 ) -> Vec<usize> {
     let mut path = Vec::new();
-    let mut state = final_state.clone();
-    while came_from.contains_key(&state) {
-        let (s, action) = came_from.get(&state).unwrap();
+    let mut state = final_state;
+    while let Some((s, action)) = came_from.get(&state) {
         state = s.clone();
         path.push(*action);
     }
@@ -494,26 +490,25 @@ fn apply_effects(action: &dyn Action, state: &mut WorldState) {
             }
 
             // Symbol matches, edit the existing symbol in the world state
-            match modifier {
-                Modifier::SetValue => {
-                    if mem::discriminant(&fact.value) == mem::discriminant(value) {
-                        fact.value = value.clone();
+            match (modifier, value, &mut fact.value) {
+                (Modifier::SetValue, e_v, f_v) => {
+                    if mem::discriminant(f_v) == mem::discriminant(e_v) {
+                        *f_v = e_v.clone();
                         symbol_in_state = true;
                         break;
                     }
                 }
-                Modifier::Increment => {
-                    if let (Value::F32(f_v), Value::F32(e_v)) = (fact.value.clone(), value) {
-                        fact.value = Value::F32(f_v + e_v);
-                        symbol_in_state = true;
-                        break;
-                    }
-                    if let (Value::Isize(f_v), Value::Isize(e_v)) = (fact.value.clone(), value) {
-                        fact.value = Value::Isize(f_v + e_v);
-                        symbol_in_state = true;
-                        break;
-                    }
+                (Modifier::Increment, Value::F32(e_v), Value::F32(f_v)) => {
+                    fact.value = Value::F32(*f_v + e_v);
+                    symbol_in_state = true;
+                    break;
                 }
+                (Modifier::Increment, Value::Isize(e_v), Value::Isize(f_v)) => {
+                    fact.value = Value::Isize(*f_v + e_v);
+                    symbol_in_state = true;
+                    break;
+                }
+                _ => {}
             };
 
             // If we reach this point, it means that something went wrong when editing the already
@@ -530,25 +525,20 @@ fn apply_effects(action: &dyn Action, state: &mut WorldState) {
         // For increment / decrement operations, acts as if there was a zero value and increment /
         // decrement it.
         if !symbol_in_state {
-            match modifier {
-                Modifier::SetValue => state.facts.push(Fact {
+            match (modifier, value) {
+                (Modifier::SetValue, v) => state.facts.push(Fact {
                     symbol: symbol.clone(),
-                    value: value.clone(),
+                    value: v.clone(),
                 }),
-                Modifier::Increment => {
-                    if let Value::F32(e_v) = value {
-                        state.facts.push(Fact {
-                            symbol: symbol.clone(),
-                            value: Value::F32(*e_v),
-                        })
-                    }
-                    if let Value::Isize(e_v) = value {
-                        state.facts.push(Fact {
-                            symbol: symbol.clone(),
-                            value: Value::Isize(*e_v),
-                        })
-                    }
-                }
+                (Modifier::Increment, Value::F32(e_v)) => state.facts.push(Fact {
+                    symbol: symbol.clone(),
+                    value: Value::F32(*e_v),
+                }),
+                (Modifier::Increment, Value::Isize(e_v)) => state.facts.push(Fact {
+                    symbol: symbol.clone(),
+                    value: Value::Isize(*e_v),
+                }),
+                _ => {}
             };
         }
     }
