@@ -1,3 +1,4 @@
+use crate::components::all::MoveToTargetResultComponent;
 use crate::components::body_component::BodyComponent;
 use crate::components::move_to_target_component::MoveToTargetComponent;
 use crate::configuration::Config;
@@ -17,7 +18,7 @@ enum MoveToTargetResult {
  */
 pub struct MoveToTargetSystem;
 impl System for MoveToTargetSystem {
-    fn run(&self, ecs: &mut Ecs, config: &Config) {
+    fn run(&mut self, ecs: &mut Ecs, config: &Config) {
         let mut updates: Vec<Update> = Vec::new();
 
         // Get the positions (bodies) of all targets
@@ -39,7 +40,7 @@ impl System for MoveToTargetSystem {
                     Ecs::push_delete::<MoveToTargetComponent>(info, &mut updates);
                     updates.push(Update::Add {
                         info,
-                        comp: move_to_target.on_failure().clone_box(),
+                        comp: Box::new(MoveToTargetResultComponent::new(false)),
                     });
                 }
                 MoveToTargetResult::Reached => {
@@ -47,7 +48,7 @@ impl System for MoveToTargetSystem {
                     Ecs::push_delete::<MoveToTargetComponent>(info, &mut updates);
                     updates.push(Update::Add {
                         info,
-                        comp: move_to_target.on_target_reached().clone_box(),
+                        comp: Box::new(MoveToTargetResultComponent::new(true)),
                     });
                 }
                 _ => {}
@@ -88,6 +89,7 @@ fn try_move(
     // Check if the next waypoint is reached
     if body.almost_at_position(waypoint_x, waypoint_y, move_to_target.speed()) {
         move_to_target.waypoint_reached();
+        // If the path is finished, but target not reached, it's a failure
         if move_to_target.is_last_waypoint_reached() {
             return MoveToTargetResult::Stopped;
         }

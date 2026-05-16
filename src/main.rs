@@ -1,9 +1,12 @@
+mod actions;
 mod algorithms;
 mod components;
 mod configuration;
-#[macro_use]
+#[macro_use] // TODO remove macro_use, export macro in ecs like for to_ctype
 mod ecs;
 mod display;
+mod goals;
+mod goap;
 mod shared_data;
 mod systems;
 
@@ -15,25 +18,28 @@ use shared_data::biome::humidity;
 use std::any::TypeId;
 use std::{thread, time};
 
+use components::agent_component::AgentComponent;
 use components::all::*;
 use components::body_component::BodyComponent;
 use configuration::load_config;
 use shared_data::body_grid;
-use systems::attack_herbivorous_system::AttackHerbivorousSystem;
-use systems::carnivorous_mind_system::CarnivorousMindSystem;
 use systems::death_system::DeathSystem;
 use systems::digestion_system::DigestionSystem;
-use systems::eat_corpse_system::EatCorpseSystem;
-use systems::eat_plant_system::EatPlantSystem;
 use systems::health_system::HealthSystem;
-use systems::herbivorous_mind_system::HerbivorousMindSystem;
 use systems::hunger_system::HungerSystem;
 use systems::move_to_target_system::MoveToTargetSystem;
 use systems::plant_growth_system::PlantGrowthSystem;
 use systems::reproduction_system::ReproductionSystem;
 
+use crate::actions::all::{EatCorpseAction, EatHerbivorousAction, EatPlantAction};
+use crate::actions::move_to_actions::{
+    MoveToNearestCorpseAction, MoveToNearestHerbivorousAction, MoveToNearestPlantAction,
+};
 use crate::algorithms::rng;
 use crate::configuration::Config;
+use crate::goals::all::ReplenishEnergyGoal;
+use crate::goap::{ActionSet, GoalSet, Goap};
+use crate::systems::agent_system::AgentSystem;
 
 pub struct World {
     ecs: Ecs,
@@ -73,8 +79,8 @@ impl World {
     }
 
     fn force_iterate(&mut self, config: &Config) {
-        for s in &self.systems {
-            s.run(&mut self.ecs, config);
+        for system in self.systems.iter_mut() {
+            system.run(&mut self.ecs, config);
         }
         body_grid::purge_deleted_bodies();
     }
@@ -85,6 +91,29 @@ impl World {
 }
 
 fn create_world(config: &Config) -> World {
+    let mut goap = Goap::new();
+
+    let mut gs = GoalSet::new();
+    gs.add(Box::new(ReplenishEnergyGoal::new(config)));
+
+    let mut h_as = ActionSet::new();
+    h_as.add(Box::new(MoveToNearestPlantAction::new()));
+    h_as.add(Box::new(EatPlantAction::new(config)));
+
+    let herbivorous_goal_set = goap.add_goal_set(gs);
+    let herbivorous_action_set_len = h_as.len();
+    let herbivorous_action_set = goap.add_action_set(h_as);
+
+    let mut c_as = ActionSet::new();
+    c_as.add(Box::new(MoveToNearestCorpseAction::new()));
+    c_as.add(Box::new(EatCorpseAction::new(config)));
+    c_as.add(Box::new(MoveToNearestHerbivorousAction::new()));
+    c_as.add(Box::new(EatHerbivorousAction::new(config)));
+
+    let carnivorous_goal_set = herbivorous_goal_set;
+    let carnivorous_action_set_len = c_as.len();
+    let carnivorous_action_set = goap.add_action_set(c_as);
+
     let mut world = World::new();
 
     for _ in 0..config.plant_nb {
@@ -110,7 +139,11 @@ fn create_world(config: &Config) -> World {
                 config.creature.size,
             ),
             &HerbivorousComponent::new(),
-            &InactiveComponent::new(),
+            &AgentComponent::new(
+                herbivorous_goal_set,
+                herbivorous_action_set,
+                herbivorous_action_set_len,
+            ),
         ]);
     }
 
@@ -124,7 +157,11 @@ fn create_world(config: &Config) -> World {
                 config.creature.size,
             ),
             &CarnivorousComponent::new(),
-            &InactiveComponent::new(),
+            &AgentComponent::new(
+                carnivorous_goal_set,
+                carnivorous_action_set,
+                carnivorous_action_set_len,
+            ),
         ]);
     }
 
@@ -156,15 +193,18 @@ fn create_world(config: &Config) -> World {
     world.add_system(Box::new(DeathSystem));
     world.add_system(Box::new(HealthSystem));
     world.add_system(Box::new(PlantGrowthSystem));
-    world.add_system(Box::new(ReproductionSystem));
-    world.add_system(Box::new(HerbivorousMindSystem));
-    world.add_system(Box::new(EatPlantSystem));
-    world.add_system(Box::new(CarnivorousMindSystem));
-    world.add_system(Box::new(EatCorpseSystem));
-    world.add_system(Box::new(AttackHerbivorousSystem));
+    world.add_system(Box::new(ReproductionSystem::new(
+        herbivorous_goal_set,
+        herbivorous_action_set,
+        herbivorous_action_set_len,
+        carnivorous_goal_set,
+        carnivorous_action_set,
+        carnivorous_action_set_len,
+    )));
     world.add_system(Box::new(HungerSystem));
     world.add_system(Box::new(MoveToTargetSystem));
     world.add_system(Box::new(DigestionSystem));
+    world.add_system(Box::new(AgentSystem::new(goap)));
 
     world
 }

@@ -15,6 +15,7 @@ macro_rules! to_ctype {
         TypeId::of::<$CompType>()
     };
 }
+pub(crate) use to_ctype;
 
 macro_rules! iter_entities {
     ($self:expr, $($CompType:ident),+) => {
@@ -303,7 +304,7 @@ impl<'a> Iterator for ComponentIteratorN<'a> {
 }
 
 pub trait System {
-    fn run(&self, ecs: &mut Ecs, config: &Config);
+    fn run(&mut self, ecs: &mut Ecs, config: &Config);
 }
 
 pub enum Update {
@@ -453,7 +454,15 @@ impl Ecs {
         }
     }
 
+    pub fn test(&mut self) -> Vec<&usize> {
+        vec![&self.nb_obsolete_entries]
+    }
+
     pub fn get_entity_info(&self, entity: usize) -> Option<EntityInfo> {
+        if entity == RESERVED_ENTITY_ID {
+            return None;
+        }
+
         // Look in all archetypes to find the entity
         for (arch_index, archetype) in self.archetypes.iter().enumerate() {
             if let Some((entity_index, entity)) = archetype

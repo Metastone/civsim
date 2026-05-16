@@ -22,20 +22,21 @@ max_seeds = 10
 ticks_per_seed = 100
 energy_per_size_unit = 1.0
 
+[agent]
+total_ticks_idle = 100
+
 [creature]
 size = 30.0
 hunger_rate = 0.025
 exhaustion_rate = 0.1
 recovery_rate = 0.025
-corpse_energy = 80.0
-carnivorous_attack = 20.0
+corpse_energy = 50.0
 reprod_energy_threshold = 90.0
 reprod_energy_cost = 50.0
 start_energy = 40.0
 max_energy = 100.0
 max_health = 100.0
 herbivorous_ticks_to_digest = 100
-total_ticks_idle = 100
 reprod_x_offset = 10.0
 herbivorous_speed = 1.5
 carnivorous_speed = 2.0

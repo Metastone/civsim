@@ -1,5 +1,5 @@
 use crate::configuration::{Config, CreatureConfig};
-use crate::ecs::{Component, EntityId};
+use crate::ecs::Component;
 use std::collections::VecDeque;
 
 #[derive(Clone)]
@@ -36,7 +36,7 @@ pub struct PlantComponent {
 impl Component for PlantComponent {}
 impl PlantComponent {
     pub fn new(config: &Config) -> Self {
-        // Temporary values. The plant will be properly initialiazed taking into account the
+        // Temporary values. The plant will be properly initialized taking into account the
         // humidity level, when the plant position is known (body component added to the ECS)
         Self {
             is_seed_initialized: false,
@@ -86,39 +86,6 @@ impl PlantComponent {
 }
 
 #[derive(Clone)]
-pub struct EatingPlantComponent {
-    pub plant_entity: EntityId,
-}
-impl Component for EatingPlantComponent {}
-impl EatingPlantComponent {
-    pub fn new(plant_entity: EntityId) -> Self {
-        Self { plant_entity }
-    }
-}
-
-#[derive(Clone)]
-pub struct EatingCorpseComponent {
-    pub corpse_entity: EntityId,
-}
-impl Component for EatingCorpseComponent {}
-impl EatingCorpseComponent {
-    pub fn new(corpse_entity: EntityId) -> Self {
-        Self { corpse_entity }
-    }
-}
-
-#[derive(Clone)]
-pub struct AttackingHerbivorousComponent {
-    pub herbivorous_entity: EntityId,
-}
-impl Component for AttackingHerbivorousComponent {}
-impl AttackingHerbivorousComponent {
-    pub fn new(herbivorous_entity: EntityId) -> Self {
-        Self { herbivorous_entity }
-    }
-}
-
-#[derive(Clone)]
 pub struct CorpseComponent;
 impl Component for CorpseComponent {}
 impl CorpseComponent {
@@ -151,25 +118,21 @@ impl CarnivorousComponent {
 }
 
 #[derive(Clone)]
-pub struct InactiveComponent {
-    pub idle: bool,
-    pub idle_ticks_count: usize,
-}
-impl Component for InactiveComponent {}
-impl InactiveComponent {
-    pub fn new() -> Self {
-        Self {
-            idle: false,
-            idle_ticks_count: 0,
-        }
-    }
-}
-
-#[derive(Clone)]
 pub struct ObstacleComponent {}
 impl Component for ObstacleComponent {}
 impl ObstacleComponent {
     pub fn new() -> Self {
         Self {}
+    }
+}
+
+#[derive(Clone)]
+pub struct MoveToTargetResultComponent {
+    pub success: bool,
+}
+impl Component for MoveToTargetResultComponent {}
+impl MoveToTargetResultComponent {
+    pub fn new(success: bool) -> Self {
+        Self { success }
     }
 }

@@ -1,12 +1,12 @@
 use crate::components::all::*;
-use crate::configuration::Config;
 use crate::components::body_component::BodyComponent;
+use crate::configuration::Config;
 use crate::ecs::{Ecs, System, Update};
 use std::any::TypeId;
 
 pub struct DeathSystem;
 impl System for DeathSystem {
-    fn run(&self, ecs: &mut Ecs, _config: &Config) {
+    fn run(&mut self, ecs: &mut Ecs, _config: &Config) {
         let mut updates: Vec<Update> = Vec::new();
 
         for info in iter_entities!(ecs, CreatureComponent, BodyComponent) {

@@ -1,4 +1,4 @@
-use crate::algorithms::path_finding::{compute_path, Graph, WayPoint};
+use crate::algorithms::path_finding::{Graph, WayPoint, compute_path};
 use crate::components::body_component::BodyComponent;
 use crate::configuration::Config;
 use crate::ecs::{Component, EntityId};
@@ -10,8 +10,6 @@ pub struct MoveToTargetComponent {
     path_to_target: Vec<WayPoint>,
     graph: Graph,
     speed: f64,
-    on_target_reached: Box<dyn Component>,
-    on_failure: Box<dyn Component>,
 }
 
 impl Component for MoveToTargetComponent {}
@@ -22,8 +20,6 @@ impl MoveToTargetComponent {
         target_body: BodyComponent,
         path_to_target: Vec<WayPoint>,
         speed: f64,
-        on_target_reached: Box<dyn Component>,
-        on_failure: Box<dyn Component>,
     ) -> Self {
         Self {
             target_entity,
@@ -31,8 +27,6 @@ impl MoveToTargetComponent {
             path_to_target,
             graph: Graph::new(),
             speed,
-            on_target_reached,
-            on_failure,
         }
     }
 
@@ -93,14 +87,6 @@ impl MoveToTargetComponent {
 
     pub fn speed(&self) -> f64 {
         self.speed
-    }
-
-    pub fn on_target_reached(&self) -> &dyn Component {
-        &*self.on_target_reached
-    }
-
-    pub fn on_failure(&self) -> &dyn Component {
-        &*self.on_failure
     }
 
     // For display

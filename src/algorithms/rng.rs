@@ -1,13 +1,13 @@
-use rand::rngs::SmallRng;
 use rand::Rng;
 use rand::SeedableRng;
+use rand::rngs::SmallRng;
 use std::cell::RefCell;
 
 use crate::configuration::Config;
 
 // Initialize RNG
 thread_local! {
-    static RNG: RefCell<Option<SmallRng>> = RefCell::new(None);
+    static RNG: RefCell<Option<SmallRng>> = const { RefCell::new(None) };
 }
 
 pub fn init(config: &Config) {

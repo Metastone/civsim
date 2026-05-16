@@ -17,7 +17,7 @@ use std::cell::RefCell;
  */
 
 thread_local! {
-    static BODY_GRID: RefCell<Option<BodyGrid>> = RefCell::new(None)
+    static BODY_GRID: RefCell<Option<BodyGrid>> = const { RefCell::new(None) }
 }
 
 pub fn init(config: &Config) {

@@ -297,9 +297,9 @@ impl Display {
 
     fn draw_path(&self, ecs: &mut Ecs, canvas: &mut Canvas<Window>) {
         for (move_to_target_component, ..) in iter_components!(ecs, (), (MoveToTargetComponent)) {
-            for i in 0..(move_to_target_component.path().len() - 1) {
-                let waypoint = move_to_target_component.path()[i].clone();
-                let next_waypoint = move_to_target_component.path()[i + 1].clone();
+            for i in 0..(move_to_target_component.path().len() as isize - 1) {
+                let waypoint = move_to_target_component.path()[i as usize].clone();
+                let next_waypoint = move_to_target_component.path()[i as usize + 1].clone();
                 self.draw_line(
                     (waypoint.x(), waypoint.y()),
                     (next_waypoint.x(), next_waypoint.y()),
