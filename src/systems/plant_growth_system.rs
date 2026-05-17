@@ -1,7 +1,7 @@
 use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
 use crate::configuration::Config;
-use crate::ecs::{Ecs, System};
+use crate::ecs::{Ecs, System, iter_components};
 use crate::humidity;
 use crate::shared_data::body_grid;
 use std::any::TypeId;

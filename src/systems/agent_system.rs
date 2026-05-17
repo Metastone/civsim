@@ -1,6 +1,6 @@
 use crate::components::agent_component::AgentComponent;
 use crate::configuration::Config;
-use crate::ecs::{Ecs, EntityInfo, System};
+use crate::ecs::{Ecs, EntityInfo, System, iter_components, to_ctype};
 use crate::goap::{ActionResult, Goap, WorldState};
 use std::any::TypeId;
 

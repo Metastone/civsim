@@ -26,6 +26,7 @@ macro_rules! iter_entities {
         )
     };
 }
+pub(crate) use iter_entities;
 
 // TODO make a mutable and imutable iterator to allow immutable loops with get_component inside
 // body ?
@@ -71,6 +72,7 @@ macro_rules! iter_components {
         )
     };
 }
+pub(crate) use iter_components;
 
 pub trait Component: Any + CloneComponent {
     fn get_type(&self) -> ComponentType {

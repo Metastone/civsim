@@ -1,7 +1,7 @@
 use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
 use crate::configuration::Config;
-use crate::ecs::{Ecs, System, Update};
+use crate::ecs::{Ecs, System, Update, iter_entities};
 use std::any::TypeId;
 
 pub struct DeathSystem;

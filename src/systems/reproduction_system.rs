@@ -2,7 +2,7 @@ use crate::components::agent_component::AgentComponent;
 use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
 use crate::configuration::Config;
-use crate::ecs::{Component, Ecs, RESERVED_ENTITY_ID, System, Update};
+use crate::ecs::{Component, Ecs, RESERVED_ENTITY_ID, System, Update, iter_entities, to_ctype};
 use crate::shared_data::body_grid;
 use std::any::TypeId;
 

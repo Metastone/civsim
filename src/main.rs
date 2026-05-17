@@ -2,9 +2,8 @@ mod actions;
 mod algorithms;
 mod components;
 mod configuration;
-#[macro_use] // TODO remove macro_use, export macro in ecs like for to_ctype
-mod ecs;
 mod display;
+mod ecs;
 mod goals;
 mod goap;
 mod shared_data;

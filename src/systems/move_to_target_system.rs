@@ -2,7 +2,7 @@ use crate::components::all::MoveToTargetResultComponent;
 use crate::components::body_component::BodyComponent;
 use crate::components::move_to_target_component::MoveToTargetComponent;
 use crate::configuration::Config;
-use crate::ecs::{Ecs, EntityId, EntityInfo, System, Update};
+use crate::ecs::{Ecs, EntityId, EntityInfo, System, Update, iter_components};
 use std::any::TypeId;
 use std::collections::HashMap;
 

@@ -3,6 +3,8 @@ use crate::algorithms::path_finding::compute_path;
 use crate::components::all::PlantComponent;
 use crate::components::body_component::BodyComponent;
 use crate::configuration::Config;
+use crate::ecs::iter_components;
+use crate::ecs::to_ctype;
 use crate::ecs::{Component, Ecs, EntityId};
 use crate::shared_data::body_grid;
 use std::any::TypeId;

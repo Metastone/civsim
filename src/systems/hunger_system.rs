@@ -1,6 +1,6 @@
 use crate::components::all::*;
 use crate::configuration::Config;
-use crate::ecs::{Ecs, System};
+use crate::ecs::{Ecs, System, iter_components};
 use std::any::TypeId;
 
 pub struct HungerSystem;

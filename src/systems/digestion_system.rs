@@ -2,7 +2,7 @@ use crate::TypeId;
 use crate::components::all::{HerbivorousComponent, PlantComponent};
 use crate::components::body_component::BodyComponent;
 use crate::configuration::Config;
-use crate::ecs::{Ecs, RESERVED_ENTITY_ID, System, Update};
+use crate::ecs::{Ecs, RESERVED_ENTITY_ID, System, Update, iter_components};
 use crate::shared_data::body_grid;
 use std::f64::consts::PI;
 
