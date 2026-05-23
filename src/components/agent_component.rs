@@ -37,7 +37,7 @@ impl AgentComponent {
         }
     }
 
-    pub fn advance_to_next_action(&mut self) {
+    pub fn next_action(&mut self) {
         self.current_action_index_in_plan += 1;
         if self.current_action_index_in_plan >= self.plan.len() {
             self.reset_plan();

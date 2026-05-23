@@ -78,7 +78,6 @@ impl System for AgentSystem {
                 if let Some(goal) = self.goap.find_goal(&*ecs, &agent.info, agent.goal_set) {
                     let agent_component = ecs.component_mut::<AgentComponent>(&agent.info).unwrap();
                     agent.goal = Some(goal);
-                    // TODO goal should be reset after plan execution
                     agent_component.goal = Some(goal);
                 } else {
                     // If no goal was found, skip the agent
@@ -129,7 +128,7 @@ impl System for AgentSystem {
             let agent_component = ecs.component_mut::<AgentComponent>(&agent.info).unwrap();
             match result {
                 ActionResult::Success => {
-                    agent_component.advance_to_next_action();
+                    agent_component.next_action();
                     agent_component.reset_action_cost(agent.action.unwrap());
                 }
                 ActionResult::Failure => {
