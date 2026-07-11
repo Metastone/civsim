@@ -110,6 +110,10 @@ impl Action for MoveToNearestPlantAction {
             config.creature.herbivorous_speed,
         )
     }
+
+    fn description(&self) -> String {
+        String::from("move to nearest plant")
+    }
 }
 
 pub struct MoveToNearestCorpseAction {
@@ -147,6 +151,10 @@ impl Action for MoveToNearestCorpseAction {
             config,
             config.creature.carnivorous_speed,
         )
+    }
+
+    fn description(&self) -> String {
+        String::from("move to nearest corpse")
     }
 }
 
@@ -187,5 +195,9 @@ impl Action for MoveToNearestHerbivorousAction {
             // attributed to herbivorous agents also, not just carninvorous)
             config.creature.carnivorous_speed,
         )
+    }
+
+    fn description(&self) -> String {
+        String::from("move to nearest herbivorous")
     }
 }

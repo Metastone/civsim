@@ -135,6 +135,8 @@ pub trait Action {
         info: &EntityInfo,
         config: &Config,
     ) -> Result<ActionResult, String>;
+
+    fn description(&self) -> String;
 }
 
 pub trait Goal {
@@ -295,6 +297,11 @@ impl Goap {
                 ActionResult::Failure
             }
         }
+    }
+
+    pub fn get_description(&self, action_set: usize, action: usize) -> Option<String> {
+        action_exists_or_return!(self, action_set, action, None);
+        Some(self.action_sets[action_set].actions[action].description())
     }
 
     #[cfg(test)]

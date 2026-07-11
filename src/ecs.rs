@@ -305,8 +305,14 @@ impl<'a> Iterator for ComponentIteratorN<'a> {
     }
 }
 
-pub trait System {
+pub trait System: Any {
     fn run(&mut self, ecs: &mut Ecs, config: &Config);
+}
+
+impl dyn System {
+    pub fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 pub enum Update {

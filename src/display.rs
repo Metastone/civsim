@@ -1,8 +1,11 @@
 use sdl2::pixels::{Color, PixelFormatEnum};
 use sdl2::rect::{Point, Rect};
 use sdl2::render::Canvas;
+use sdl2::ttf::Sdl2TtfContext;
 use sdl2::video::Window;
 
+use crate::World;
+use crate::components::agent_component::AgentComponent;
 use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
 use crate::components::move_to_target_component::MoveToTargetComponent;
@@ -11,29 +14,37 @@ use crate::ecs::{Ecs, iter_components};
 use crate::ecs::{EntityInfo, iter_entities, to_ctype};
 use crate::shared_data::biome::humidity;
 use crate::shared_data::body_grid;
+use crate::systems::agent_system::AgentSystem;
 use std::any::TypeId;
 use std::f64::consts::PI;
 
 pub struct Display {
+    canvas: Canvas<Window>,
+    ttf_context: Sdl2TtfContext,
     debug_mode: usize,
     window_width: u32,
     window_height: u32,
     camera_offset_x: isize,
     camera_offset_y: isize,
     zoom: f64,
-    config: Config,
+    selected_agent: Option<usize>,
+    selected_agent_description: Option<String>,
 }
 
 impl Display {
-    pub fn new(config: &Config) -> Self {
+    pub fn new(config: &Config, canvas: Canvas<Window>) -> Self {
+        let ttf_context = sdl2::ttf::init().unwrap();
         Display {
+            canvas,
+            ttf_context,
             debug_mode: 0,
             window_width: config.display.screen_width,
             window_height: config.display.screen_height,
             camera_offset_x: 0,
             camera_offset_y: 0,
             zoom: config.display.initial_zoom,
-            config: *config,
+            selected_agent: None,
+            selected_agent_description: None,
         }
     }
 
@@ -47,12 +58,12 @@ impl Display {
         self.debug_mode %= 3;
     }
 
-    pub fn zoom_in(&mut self) {
-        self.zoom(self.config.display.zoom_factor);
+    pub fn zoom_in(&mut self, config: &Config) {
+        self.zoom(config.display.zoom_factor);
     }
 
-    pub fn zoom_out(&mut self) {
-        self.zoom(1.0 / self.config.display.zoom_factor);
+    pub fn zoom_out(&mut self, config: &Config) {
+        self.zoom(1.0 / config.display.zoom_factor);
     }
 
     fn zoom(&mut self, zoom_factor: f64) {
@@ -61,20 +72,20 @@ impl Display {
         self.zoom *= zoom_factor;
     }
 
-    pub fn move_camera_up(&mut self) {
-        self.move_camera(0, self.config.display.move_camera_offset);
+    pub fn move_camera_up(&mut self, config: &Config) {
+        self.move_camera(0, config.display.move_camera_offset);
     }
 
-    pub fn move_camera_down(&mut self) {
-        self.move_camera(0, -self.config.display.move_camera_offset);
+    pub fn move_camera_down(&mut self, config: &Config) {
+        self.move_camera(0, -config.display.move_camera_offset);
     }
 
-    pub fn move_camera_left(&mut self) {
-        self.move_camera(self.config.display.move_camera_offset, 0);
+    pub fn move_camera_left(&mut self, config: &Config) {
+        self.move_camera(config.display.move_camera_offset, 0);
     }
 
-    pub fn move_camera_right(&mut self) {
-        self.move_camera(-self.config.display.move_camera_offset, 0);
+    pub fn move_camera_right(&mut self, config: &Config) {
+        self.move_camera(-config.display.move_camera_offset, 0);
     }
 
     fn move_camera(&mut self, offset_x: isize, offset_y: isize) {
@@ -82,37 +93,48 @@ impl Display {
         self.camera_offset_y += offset_y;
     }
 
+    pub fn select_agent_by_click(&mut self, ecs: &mut Ecs, p_x: i32, p_y: i32) {
+        let (x, y) = self.pixel_to_simu_coords(p_x, p_y);
+        for (body, info) in iter_components!(ecs, (AgentComponent), (BodyComponent)) {
+            if body.collides_point(x, y) {
+                self.selected_agent = Some(info.entity);
+                self.selected_agent_description = None;
+                break;
+            }
+        }
+    }
+
     fn to_color(c: &[u8]) -> Color {
         Color::RGBA(c[0], c[1], c[2], c[3])
     }
 
-    pub fn draw(&self, ecs: &mut Ecs, canvas: &mut Canvas<Window>) {
+    pub fn draw(&mut self, world: &mut World, config: &Config) {
+        self.build_selected_agent_description(world);
+
+        let ecs = &mut world.ecs;
+
         // Default background
-        canvas.set_draw_color(Self::to_color(&self.config.display.color.background_color));
-        canvas.clear();
+        self.canvas
+            .set_draw_color(Self::to_color(&config.display.color.background_color));
+        self.canvas.clear();
 
         match self.debug_mode {
             1 => {
-                self.draw_perlin_noise(canvas);
+                self.draw_perlin_noise();
             }
             2 => {
-                self.draw_body_grid(canvas);
-                self.draw_graph(ecs, canvas);
-                self.draw_path(ecs, canvas);
+                self.draw_body_grid(config);
+                self.draw_graph(ecs, config);
+                self.draw_path(ecs, config);
             }
             _ => {}
         }
 
-        let colors = &self.config.display.color;
+        let colors = &config.display.color;
 
         // Draw corpses
         for (body, _) in iter_components!(ecs, (CorpseComponent, BodyComponent), (BodyComponent)) {
-            self.draw_square(
-                body,
-                &colors.corpse_color,
-                self.config.creature.size,
-                canvas,
-            );
+            self.draw_square(body, &colors.corpse_color, config.creature.size);
         }
 
         // Get all creatures in the order of their entity ID.
@@ -133,7 +155,7 @@ impl Display {
             let pos;
             if let Some(body) = ecs.component::<BodyComponent>(&info) {
                 pos = *body;
-                self.draw_square(body, color, self.config.creature.size, canvas);
+                self.draw_square(body, color, config.creature.size);
             } else {
                 continue;
             }
@@ -144,17 +166,16 @@ impl Display {
                     (
                         pos.x(),
                         pos.y()
-                            - self.config.creature.size / 2.0
-                            - self.config.display.bar_height / 2.0
+                            - config.creature.size / 2.0
+                            - config.display.bar_height / 2.0
                             - 5.0,
                     ),
                     &colors.health_color,
                     (
-                        self.config.display.bar_width * creature.health as f64
-                            / self.config.creature.max_health as f64,
-                        self.config.display.bar_height,
+                        config.display.bar_width * creature.health as f64
+                            / config.creature.max_health as f64,
+                        config.display.bar_height,
                     ),
-                    canvas,
                 );
 
                 // Draw energy bar
@@ -162,17 +183,16 @@ impl Display {
                     (
                         pos.x(),
                         pos.y()
-                            - self.config.creature.size / 2.0
-                            - self.config.display.bar_height * 1.5
+                            - config.creature.size / 2.0
+                            - config.display.bar_height * 1.5
                             - 5.0 * 2.0,
                     ),
                     &colors.energy_color,
                     (
-                        self.config.display.bar_width * creature.energy as f64
-                            / self.config.creature.max_energy as f64,
-                        self.config.display.bar_height,
+                        config.display.bar_width * creature.energy as f64
+                            / config.creature.max_energy as f64,
+                        config.display.bar_height,
                     ),
-                    canvas,
                 );
             }
         }
@@ -180,28 +200,18 @@ impl Display {
         // Draw obstacles
         for info in iter_entities!(ecs, ObstacleComponent, BodyComponent) {
             if let Some(body) = ecs.component::<BodyComponent>(&info) {
-                self.draw_square(
-                    body,
-                    &colors.obstacle_color,
-                    self.config.obstacle_size,
-                    canvas,
-                );
+                self.draw_square(body, &colors.obstacle_color, config.obstacle_size);
             }
         }
 
         // Draw seeds & plants
         for (plant, body, _) in iter_components!(ecs, (), (PlantComponent, BodyComponent)) {
             if plant.is_seed {
-                self.draw_square(
-                    body,
-                    &colors.seed_color,
-                    self.config.seed.display_size,
-                    canvas,
-                );
+                self.draw_square(body, &colors.seed_color, config.seed.display_size);
                 continue;
             }
 
-            self.draw_square(body, &colors.plant_color, plant.size, canvas);
+            self.draw_square(body, &colors.plant_color, plant.size);
 
             // Draw the plant's seeds
             let arc = 2.0 * PI / (plant.nb_seeds as f64);
@@ -211,20 +221,63 @@ impl Display {
                 let y = a.sin() * plant.size / 2.0;
                 let seed_body =
                     BodyComponent::new_traversable(body.x() + x, body.y() + y, 0.0, 0.0);
-                self.draw_square(
-                    &seed_body,
-                    &colors.seed_color,
-                    self.config.seed.display_size,
-                    canvas,
-                );
+                self.draw_square(&seed_body, &colors.seed_color, config.seed.display_size);
                 a += arc;
             }
         }
+
+        self.draw_selected_agent_description();
+
+        self.canvas.present();
     }
 
-    fn draw_perlin_noise(&self, canvas: &mut Canvas<Window>) {
+    fn build_selected_agent_description(&mut self, world: &mut World) {
+        let agent_opt = if let Some(agent_entity) = self.selected_agent
+            && self.selected_agent_description.is_none()
+            && let Some(info) = world.ecs.get_entity_info(agent_entity)
+        {
+            Some(
+                world
+                    .ecs
+                    .component::<AgentComponent>(&info)
+                    .unwrap()
+                    .clone(),
+            )
+        } else {
+            None
+        };
+
+        if let Some(agent) = agent_opt
+            && let Some(goap) = world.agent_system().map(|a| a.goap())
+        {
+            self.selected_agent_description = Some(agent.description(goap));
+        }
+    }
+
+    fn draw_selected_agent_description(&mut self) {
+        if let Some(text) = &self.selected_agent_description {
+            let font = self
+                .ttf_context
+                .load_font("assets/DejaVuSans.ttf", 30)
+                .unwrap();
+            let surface = font
+                .render(text.as_str())
+                .blended(Color::RGBA(255, 0, 0, 255))
+                .unwrap();
+            let texture_creator = self.canvas.texture_creator();
+            let texture = texture_creator
+                .create_texture_from_surface(&surface)
+                .unwrap();
+            let query = texture.query();
+
+            let target = Rect::new(0, 0, query.width, query.height);
+            self.canvas.copy(&texture, None, Some(target)).unwrap();
+        }
+    }
+
+    fn draw_perlin_noise(&mut self) {
         // Perlin noise visualisation for tests
-        let texture_creator = canvas.texture_creator();
+        let texture_creator = self.canvas.texture_creator();
         let mut texture = texture_creator
             .create_texture_streaming(
                 PixelFormatEnum::RGB24,
@@ -257,23 +310,22 @@ impl Display {
                 }
             })
             .unwrap();
-        canvas.copy(&texture, None, None).unwrap();
+        self.canvas.copy(&texture, None, None).unwrap();
     }
 
-    fn draw_body_grid(&self, canvas: &mut Canvas<Window>) {
+    fn draw_body_grid(&mut self, config: &Config) {
         let (g_x, g_y, g_w, g_h, g_cell_size, _, _) = body_grid::coords();
 
         let mut j = 0;
         loop {
             let y = g_y + g_cell_size * (j as f64);
-            if y - self.config.display.grid_line_wideness / 2.0 > g_y + g_h {
+            if y - config.display.grid_line_wideness / 2.0 > g_y + g_h {
                 break;
             }
             self.draw_rec(
                 (g_x + g_w / 2.0, y),
-                &self.config.display.color.grid_color,
-                (g_w, self.config.display.grid_line_wideness),
-                canvas,
+                &config.display.color.grid_color,
+                (g_w, config.display.grid_line_wideness),
             );
             j += 1;
         }
@@ -282,20 +334,19 @@ impl Display {
         let mut i = 0;
         loop {
             let x = g_x + g_cell_size * (i as f64);
-            if x - self.config.display.grid_line_wideness / 2.0 > g_x + g_w {
+            if x - config.display.grid_line_wideness / 2.0 > g_x + g_w {
                 break;
             }
             self.draw_rec(
                 (x, g_y + g_h / 2.0),
-                &self.config.display.color.grid_color,
-                (self.config.display.grid_line_wideness, g_h),
-                canvas,
+                &config.display.color.grid_color,
+                (config.display.grid_line_wideness, g_h),
             );
             i += 1;
         }
     }
 
-    fn draw_path(&self, ecs: &mut Ecs, canvas: &mut Canvas<Window>) {
+    fn draw_path(&mut self, ecs: &mut Ecs, config: &Config) {
         for (move_to_target_component, ..) in iter_components!(ecs, (), (MoveToTargetComponent)) {
             for i in 0..(move_to_target_component.path().len() as isize - 1) {
                 let waypoint = move_to_target_component.path()[i as usize].clone();
@@ -304,70 +355,50 @@ impl Display {
                     (waypoint.x(), waypoint.y()),
                     (next_waypoint.x(), next_waypoint.y()),
                     if waypoint.reached() {
-                        &self.config.display.color.waypoint_reached_color
+                        &config.display.color.waypoint_reached_color
                     } else {
-                        &self.config.display.color.waypoint_color
+                        &config.display.color.waypoint_color
                     },
-                    canvas,
                 );
             }
         }
     }
 
-    fn draw_graph(&self, ecs: &mut Ecs, canvas: &mut Canvas<Window>) {
+    fn draw_graph(&mut self, ecs: &mut Ecs, config: &Config) {
         for (move_to_target_component, ..) in iter_components!(ecs, (), (MoveToTargetComponent)) {
             for (node, neighbours) in move_to_target_component.graph().neighbours().iter() {
                 for nb_node in neighbours {
                     self.draw_line(
                         (node.x(), node.y()),
                         (nb_node.x(), nb_node.y()),
-                        &self.config.display.color.graph_color,
-                        canvas,
+                        &config.display.color.graph_color,
                     );
                 }
             }
         }
     }
 
-    fn draw_square(
-        &self,
-        body: &BodyComponent,
-        color: &[u8],
-        size: f64,
-        canvas: &mut Canvas<Window>,
-    ) {
-        self.draw_rec((body.x(), body.y()), color, (size, size), canvas);
+    fn draw_square(&mut self, body: &BodyComponent, color: &[u8], size: f64) {
+        self.draw_rec((body.x(), body.y()), color, (size, size));
     }
 
-    fn draw_line(
-        &self,
-        (ax, ay): (f64, f64),
-        (bx, by): (f64, f64),
-        color: &[u8],
-        canvas: &mut Canvas<Window>,
-    ) {
+    fn draw_line(&mut self, (ax, ay): (f64, f64), (bx, by): (f64, f64), color: &[u8]) {
         let (p_ax, p_ay) = self.simu_to_pixel_coords(ax, ay);
         let (p_bx, p_by) = self.simu_to_pixel_coords(bx, by);
         let start = Point::new(p_ax, p_ay);
         let end = Point::new(p_bx, p_by);
-        canvas.set_draw_color(Self::to_color(color));
-        let _ = canvas.draw_line(start, end);
+        self.canvas.set_draw_color(Self::to_color(color));
+        let _ = self.canvas.draw_line(start, end);
     }
 
-    pub fn draw_rec(
-        &self,
-        (x, y): (f64, f64),
-        color: &[u8],
-        (w, h): (f64, f64),
-        canvas: &mut Canvas<Window>,
-    ) {
+    pub fn draw_rec(&mut self, (x, y): (f64, f64), color: &[u8], (w, h): (f64, f64)) {
         let p_w = if w == 0.0 { 0 } else { (w * self.zoom) as u32 };
         let p_h = if h == 0.0 { 0 } else { (h * self.zoom) as u32 };
         let (mut p_x, mut p_y) = self.simu_to_pixel_coords(x, y);
         p_x -= (p_w / 2) as i32;
         p_y -= (p_h / 2) as i32;
-        canvas.set_draw_color(Self::to_color(color));
-        let _ = canvas.fill_rect(Rect::new(p_x, p_y, p_w, p_h));
+        self.canvas.set_draw_color(Self::to_color(color));
+        let _ = self.canvas.fill_rect(Rect::new(p_x, p_y, p_w, p_h));
     }
 
     fn simu_to_pixel_coords(&self, x: f64, y: f64) -> (i32, i32) {
@@ -377,5 +408,14 @@ impl Display {
         let p_y = (y * self.zoom + (self.window_height as f64) / 2.0) as i32
             + self.camera_offset_y as i32;
         (p_x, p_y)
+    }
+
+    fn pixel_to_simu_coords(&self, p_x: i32, p_y: i32) -> (f64, f64) {
+        // The simulation coordinates origin should be in the center of the window
+        let x = (p_x as f64 - self.camera_offset_x as f64 - (self.window_width as f64 / 2.0))
+            / self.zoom;
+        let y = (p_y as f64 - self.camera_offset_y as f64 - (self.window_height as f64 / 2.0))
+            / self.zoom;
+        (x, y)
     }
 }

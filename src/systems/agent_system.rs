@@ -16,6 +16,10 @@ impl AgentSystem {
             agents: Vec::new(),
         }
     }
+
+    pub fn goap(&self) -> &Goap {
+        &self.goap
+    }
 }
 
 struct AgentInfo {

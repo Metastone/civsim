@@ -2,6 +2,7 @@ use crate::algorithms::rng;
 use crate::ecs::Component;
 use crate::ecs::EntityId;
 use crate::shared_data::body_grid;
+use crate::shared_data::body_grid::collides;
 
 #[derive(Clone, Copy)]
 pub struct BodyComponent {
@@ -173,6 +174,11 @@ impl BodyComponent {
             return true;
         }
         false
+    }
+
+    pub fn collides_point(&self, x: f64, y: f64) -> bool {
+        let other = BodyComponent::new_traversable(x, y, 0.0, 0.0);
+        self.collides(&other)
     }
 
     pub fn collides(&self, other: &BodyComponent) -> bool {

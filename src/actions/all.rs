@@ -97,6 +97,10 @@ impl Action for EatPlantAction {
             Ok(ActionResult::Failure)
         }
     }
+
+    fn description(&self) -> String {
+        String::from("eat plant")
+    }
 }
 
 pub struct EatCorpseAction {
@@ -160,6 +164,10 @@ impl Action for EatCorpseAction {
             // Corpse not found, maybe it was already eaten by someone else
             Ok(ActionResult::Failure)
         }
+    }
+
+    fn description(&self) -> String {
+        String::from("eat corpse")
     }
 }
 
@@ -228,5 +236,9 @@ impl Action for EatHerbivorousAction {
             // Herbivorous not found, maybe it was already eaten by someone else
             Ok(ActionResult::Failure)
         }
+    }
+
+    fn description(&self) -> String {
+        String::from("eat herbivorous")
     }
 }

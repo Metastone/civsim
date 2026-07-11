@@ -1,7 +1,7 @@
 use crate::{
     configuration::Config,
     ecs::{Component, EntityId, RESERVED_ENTITY_ID},
-    goap::WorldState,
+    goap::{Goap, WorldState},
 };
 use log::error;
 
@@ -112,5 +112,25 @@ impl AgentComponent {
             self.idle = false;
             self.idle_ticks_count = 0;
         }
+    }
+
+    pub fn description(&self, goap: &Goap) -> String {
+        let mut desc = String::new();
+        desc.push_str("PLAN: ");
+        if self.has_plan() {
+            for (i, action) in self.plan.iter().enumerate() {
+                if i != 0 {
+                    desc.push_str(", ");
+                }
+                if let Some(description) = goap.get_description(self.action_set(), *action) {
+                    desc.push_str(description.as_str());
+                } else {
+                    desc.push_str(format!("unknown action {action}").as_str());
+                }
+            }
+        } else {
+            desc.push_str("none");
+        }
+        desc
     }
 }
