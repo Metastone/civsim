@@ -89,12 +89,12 @@ impl MoveToTargetComponent {
         self.speed
     }
 
-    // For display
+    // For renderer
     pub fn path(&self) -> &Vec<WayPoint> {
         &self.path_to_target
     }
 
-    // For display
+    // For renderer
     pub fn graph(&self) -> &Graph {
         &self.graph
     }

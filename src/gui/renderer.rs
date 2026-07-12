@@ -12,15 +12,15 @@ use crate::components::move_to_target_component::MoveToTargetComponent;
 use crate::configuration::Config;
 use crate::ecs::{Ecs, iter_components};
 use crate::ecs::{EntityInfo, iter_entities, to_ctype};
+use crate::gui::text_renderer::TextRenderer;
 use crate::shared_data::biome::humidity;
 use crate::shared_data::body_grid;
-use crate::systems::agent_system::AgentSystem;
 use std::any::TypeId;
 use std::f64::consts::PI;
 
-pub struct Display {
+pub struct Renderer<'ttf> {
     canvas: Canvas<Window>,
-    ttf_context: Sdl2TtfContext,
+    text_renderer: TextRenderer<'ttf>,
     debug_mode: usize,
     window_width: u32,
     window_height: u32,
@@ -28,21 +28,20 @@ pub struct Display {
     camera_offset_y: isize,
     zoom: f64,
     selected_agent: Option<usize>,
-    selected_agent_description: Option<String>,
+    selected_agent_description: Option<Vec<String>>,
 }
 
-impl Display {
-    pub fn new(config: &Config, canvas: Canvas<Window>) -> Self {
-        let ttf_context = sdl2::ttf::init().unwrap();
-        Display {
+impl<'ttf> Renderer<'ttf> {
+    pub fn new(config: &Config, canvas: Canvas<Window>, ttf_context: &'ttf Sdl2TtfContext) -> Self {
+        Renderer {
             canvas,
-            ttf_context,
+            text_renderer: TextRenderer::new(ttf_context),
             debug_mode: 0,
-            window_width: config.display.screen_width,
-            window_height: config.display.screen_height,
+            window_width: config.renderer.screen_width,
+            window_height: config.renderer.screen_height,
             camera_offset_x: 0,
             camera_offset_y: 0,
-            zoom: config.display.initial_zoom,
+            zoom: config.renderer.initial_zoom,
             selected_agent: None,
             selected_agent_description: None,
         }
@@ -59,11 +58,11 @@ impl Display {
     }
 
     pub fn zoom_in(&mut self, config: &Config) {
-        self.zoom(config.display.zoom_factor);
+        self.zoom(config.renderer.zoom_factor);
     }
 
     pub fn zoom_out(&mut self, config: &Config) {
-        self.zoom(1.0 / config.display.zoom_factor);
+        self.zoom(1.0 / config.renderer.zoom_factor);
     }
 
     fn zoom(&mut self, zoom_factor: f64) {
@@ -73,19 +72,19 @@ impl Display {
     }
 
     pub fn move_camera_up(&mut self, config: &Config) {
-        self.move_camera(0, config.display.move_camera_offset);
+        self.move_camera(0, config.renderer.move_camera_offset);
     }
 
     pub fn move_camera_down(&mut self, config: &Config) {
-        self.move_camera(0, -config.display.move_camera_offset);
+        self.move_camera(0, -config.renderer.move_camera_offset);
     }
 
     pub fn move_camera_left(&mut self, config: &Config) {
-        self.move_camera(config.display.move_camera_offset, 0);
+        self.move_camera(config.renderer.move_camera_offset, 0);
     }
 
     pub fn move_camera_right(&mut self, config: &Config) {
-        self.move_camera(-config.display.move_camera_offset, 0);
+        self.move_camera(-config.renderer.move_camera_offset, 0);
     }
 
     fn move_camera(&mut self, offset_x: isize, offset_y: isize) {
@@ -115,7 +114,7 @@ impl Display {
 
         // Default background
         self.canvas
-            .set_draw_color(Self::to_color(&config.display.color.background_color));
+            .set_draw_color(Self::to_color(&config.renderer.color.background_color));
         self.canvas.clear();
 
         match self.debug_mode {
@@ -130,7 +129,7 @@ impl Display {
             _ => {}
         }
 
-        let colors = &config.display.color;
+        let colors = &config.renderer.color;
 
         // Draw corpses
         for (body, _) in iter_components!(ecs, (CorpseComponent, BodyComponent), (BodyComponent)) {
@@ -167,14 +166,14 @@ impl Display {
                         pos.x(),
                         pos.y()
                             - config.creature.size / 2.0
-                            - config.display.bar_height / 2.0
+                            - config.renderer.bar_height / 2.0
                             - 5.0,
                     ),
                     &colors.health_color,
                     (
-                        config.display.bar_width * creature.health as f64
+                        config.renderer.bar_width * creature.health as f64
                             / config.creature.max_health as f64,
-                        config.display.bar_height,
+                        config.renderer.bar_height,
                     ),
                 );
 
@@ -184,14 +183,14 @@ impl Display {
                         pos.x(),
                         pos.y()
                             - config.creature.size / 2.0
-                            - config.display.bar_height * 1.5
+                            - config.renderer.bar_height * 1.5
                             - 5.0 * 2.0,
                     ),
                     &colors.energy_color,
                     (
-                        config.display.bar_width * creature.energy as f64
+                        config.renderer.bar_width * creature.energy as f64
                             / config.creature.max_energy as f64,
-                        config.display.bar_height,
+                        config.renderer.bar_height,
                     ),
                 );
             }
@@ -207,7 +206,7 @@ impl Display {
         // Draw seeds & plants
         for (plant, body, _) in iter_components!(ecs, (), (PlantComponent, BodyComponent)) {
             if plant.is_seed {
-                self.draw_square(body, &colors.seed_color, config.seed.display_size);
+                self.draw_square(body, &colors.seed_color, config.seed.renderer_size);
                 continue;
             }
 
@@ -221,17 +220,21 @@ impl Display {
                 let y = a.sin() * plant.size / 2.0;
                 let seed_body =
                     BodyComponent::new_traversable(body.x() + x, body.y() + y, 0.0, 0.0);
-                self.draw_square(&seed_body, &colors.seed_color, config.seed.display_size);
+                self.draw_square(&seed_body, &colors.seed_color, config.seed.renderer_size);
                 a += arc;
             }
         }
 
-        self.draw_selected_agent_description();
+        if let Some(text) = &self.selected_agent_description {
+            self.text_renderer
+                .draw_multi_line(text, 0, 0, &mut self.canvas);
+        }
 
         self.canvas.present();
     }
 
     fn build_selected_agent_description(&mut self, world: &mut World) {
+        // Borrow the ecs (from world) and copy the agent information
         let agent_opt = if let Some(agent_entity) = self.selected_agent
             && self.selected_agent_description.is_none()
             && let Some(info) = world.ecs.get_entity_info(agent_entity)
@@ -247,31 +250,11 @@ impl Display {
             None
         };
 
+        // Borrow the goap (from world) to get the description
         if let Some(agent) = agent_opt
             && let Some(goap) = world.agent_system().map(|a| a.goap())
         {
             self.selected_agent_description = Some(agent.description(goap));
-        }
-    }
-
-    fn draw_selected_agent_description(&mut self) {
-        if let Some(text) = &self.selected_agent_description {
-            let font = self
-                .ttf_context
-                .load_font("assets/DejaVuSans.ttf", 30)
-                .unwrap();
-            let surface = font
-                .render(text.as_str())
-                .blended(Color::RGBA(255, 0, 0, 255))
-                .unwrap();
-            let texture_creator = self.canvas.texture_creator();
-            let texture = texture_creator
-                .create_texture_from_surface(&surface)
-                .unwrap();
-            let query = texture.query();
-
-            let target = Rect::new(0, 0, query.width, query.height);
-            self.canvas.copy(&texture, None, Some(target)).unwrap();
         }
     }
 
@@ -319,13 +302,13 @@ impl Display {
         let mut j = 0;
         loop {
             let y = g_y + g_cell_size * (j as f64);
-            if y - config.display.grid_line_wideness / 2.0 > g_y + g_h {
+            if y - config.renderer.grid_line_wideness / 2.0 > g_y + g_h {
                 break;
             }
             self.draw_rec(
                 (g_x + g_w / 2.0, y),
-                &config.display.color.grid_color,
-                (g_w, config.display.grid_line_wideness),
+                &config.renderer.color.grid_color,
+                (g_w, config.renderer.grid_line_wideness),
             );
             j += 1;
         }
@@ -334,13 +317,13 @@ impl Display {
         let mut i = 0;
         loop {
             let x = g_x + g_cell_size * (i as f64);
-            if x - config.display.grid_line_wideness / 2.0 > g_x + g_w {
+            if x - config.renderer.grid_line_wideness / 2.0 > g_x + g_w {
                 break;
             }
             self.draw_rec(
                 (x, g_y + g_h / 2.0),
-                &config.display.color.grid_color,
-                (config.display.grid_line_wideness, g_h),
+                &config.renderer.color.grid_color,
+                (config.renderer.grid_line_wideness, g_h),
             );
             i += 1;
         }
@@ -355,9 +338,9 @@ impl Display {
                     (waypoint.x(), waypoint.y()),
                     (next_waypoint.x(), next_waypoint.y()),
                     if waypoint.reached() {
-                        &config.display.color.waypoint_reached_color
+                        &config.renderer.color.waypoint_reached_color
                     } else {
-                        &config.display.color.waypoint_color
+                        &config.renderer.color.waypoint_color
                     },
                 );
             }
@@ -371,7 +354,7 @@ impl Display {
                     self.draw_line(
                         (node.x(), node.y()),
                         (nb_node.x(), nb_node.y()),
-                        &config.display.color.graph_color,
+                        &config.renderer.color.graph_color,
                     );
                 }
             }

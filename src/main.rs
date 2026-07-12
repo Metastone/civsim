@@ -2,15 +2,15 @@ mod actions;
 mod algorithms;
 mod components;
 mod configuration;
-mod display;
 mod ecs;
 mod goals;
 mod goap;
+mod gui;
 mod shared_data;
 mod systems;
 
-use display::Display;
 use ecs::{Component, Ecs, System, Update};
+use gui::renderer::Renderer;
 use sdl2::event::{Event, WindowEvent};
 use sdl2::keyboard::Keycode;
 use sdl2::mouse::MouseButton;
@@ -228,8 +228,8 @@ fn main() {
     let window = video_subsystem
         .window(
             "civsim",
-            config.display.screen_width,
-            config.display.screen_height,
+            config.renderer.screen_width,
+            config.renderer.screen_height,
         )
         .resizable()
         .position_centered()
@@ -237,7 +237,8 @@ fn main() {
         .unwrap();
 
     let canvas = window.into_canvas().build().unwrap();
-    let mut display = Display::new(&config, canvas);
+    let ttf_context = sdl2::ttf::init().unwrap();
+    let mut renderer = Renderer::new(&config, canvas, &ttf_context);
     let mut event_pump = sdl_context.event_pump().unwrap();
     'running: loop {
         for event in event_pump.poll_iter() {
@@ -246,7 +247,7 @@ fn main() {
                     win_event: WindowEvent::Resized(w, h),
                     ..
                 } => {
-                    display.resize(w as u32, h as u32);
+                    renderer.resize(w as u32, h as u32);
                 }
                 Event::Quit { .. } => break 'running,
                 Event::KeyDown {
@@ -259,7 +260,7 @@ fn main() {
                     ..
                 } => match key {
                     Keycode::D => {
-                        display.toogle_debug_mode();
+                        renderer.toogle_debug_mode();
                     }
                     Keycode::P => {
                         world.toogle_pause();
@@ -275,30 +276,30 @@ fn main() {
                         };
                     }
                     Keycode::PageUp => {
-                        display.zoom_in(&config);
+                        renderer.zoom_in(&config);
                     }
                     Keycode::PageDown => {
-                        display.zoom_out(&config);
+                        renderer.zoom_out(&config);
                     }
                     Keycode::Up => {
-                        display.move_camera_up(&config);
+                        renderer.move_camera_up(&config);
                     }
                     Keycode::Down => {
-                        display.move_camera_down(&config);
+                        renderer.move_camera_down(&config);
                     }
                     Keycode::Left => {
-                        display.move_camera_left(&config);
+                        renderer.move_camera_left(&config);
                     }
                     Keycode::Right => {
-                        display.move_camera_right(&config);
+                        renderer.move_camera_right(&config);
                     }
                     _ => {}
                 },
                 Event::MouseWheel { y, .. } => {
                     if y > 0 {
-                        display.zoom_in(&config);
+                        renderer.zoom_in(&config);
                     } else {
-                        display.zoom_out(&config);
+                        renderer.zoom_out(&config);
                     }
                 }
                 Event::MouseButtonDown {
@@ -311,14 +312,14 @@ fn main() {
                     y,
                 } => {
                     if mouse_btn == MouseButton::Left {
-                        display.select_agent_by_click(&mut world.ecs, x, y);
+                        renderer.select_agent_by_click(&mut world.ecs, x, y);
                     }
                 }
                 _ => {}
             }
         }
         world.iterate(&config);
-        display.draw(&mut world, &config);
+        renderer.draw(&mut world, &config);
         thread::sleep(time::Duration::from_millis(config.ms_per_iteration));
     }
 }

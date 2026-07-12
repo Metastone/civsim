@@ -2,7 +2,6 @@ use crate::algorithms::rng;
 use crate::ecs::Component;
 use crate::ecs::EntityId;
 use crate::shared_data::body_grid;
-use crate::shared_data::body_grid::collides;
 
 #[derive(Clone, Copy)]
 pub struct BodyComponent {

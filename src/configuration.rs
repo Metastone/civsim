@@ -19,14 +19,14 @@ pub struct Config {
     pub creature: CreatureConfig,
     pub path: PathConfig,
     pub collision: CollisionConfig,
-    pub display: DisplayConfig,
+    pub renderer: RendererConfig,
 }
 
 #[derive(Deserialize, Clone, Copy)]
 pub struct SeedConfig {
-    // Seed display size different to make it more visible
+    // Seed renderer size different to make it more visible
     pub size: f64,
-    pub display_size: f64,
+    pub renderer_size: f64,
 }
 
 #[derive(Deserialize, Clone, Copy)]
@@ -76,7 +76,7 @@ pub struct CollisionConfig {
 }
 
 #[derive(Deserialize, Clone, Copy)]
-pub struct DisplayConfig {
+pub struct RendererConfig {
     pub screen_width: u32,
     pub screen_height: u32,
     pub initial_zoom: f64,
@@ -86,11 +86,11 @@ pub struct DisplayConfig {
     pub bar_height: f64,
     pub grid_line_wideness: f64,
     pub graph_edge_thickness: f64,
-    pub color: DisplayColorConfig,
+    pub color: RendererColorConfig,
 }
 
 #[derive(Deserialize, Clone, Copy)]
-pub struct DisplayColorConfig {
+pub struct RendererColorConfig {
     pub background_color: [u8; 4],
     pub herbivorous_color: [u8; 4],
     pub carnivorous_color: [u8; 4],

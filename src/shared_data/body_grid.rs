@@ -12,7 +12,7 @@ use std::cell::RefCell;
  * For quick reads I use vecs for storage. Deleted bodies are recognized with w = 0 && h == 0,
  * and they are deleted later during the next periodic grid cleanup.
  *
- * The grid starts with a certain size and is automatically resized when required
+ * The grid starts wth a certain size and is automatically resized when required
  * (when a body position is out of the grid)
  */
 
@@ -204,10 +204,10 @@ impl BodyGrid {
 
     pub fn new(config: &Config) -> Self {
         let max_entity_size = config.creature.size;
-        let min_x = (-(config.display.screen_width as f64) - max_entity_size) / 2.0;
-        let max_x = (config.display.screen_width as f64 + max_entity_size) / 2.0;
-        let min_y = (-(config.display.screen_height as f64) - max_entity_size) / 2.0;
-        let max_y = (config.display.screen_height as f64 + max_entity_size) / 2.0;
+        let min_x = (-(config.renderer.screen_width as f64) - max_entity_size) / 2.0;
+        let max_x = (config.renderer.screen_width as f64 + max_entity_size) / 2.0;
+        let min_y = (-(config.renderer.screen_height as f64) - max_entity_size) / 2.0;
+        let max_y = (config.renderer.screen_height as f64 + max_entity_size) / 2.0;
         let cell_size = max_entity_size * config.collision.cell_size_factor;
 
         // Compute the minimal size for the grid (float)

@@ -114,22 +114,19 @@ impl AgentComponent {
         }
     }
 
-    pub fn description(&self, goap: &Goap) -> String {
-        let mut desc = String::new();
-        desc.push_str("PLAN: ");
+    pub fn description(&self, goap: &Goap) -> Vec<String> {
+        let mut desc = Vec::new();
+        desc.push("PLAN".to_string());
         if self.has_plan() {
-            for (i, action) in self.plan.iter().enumerate() {
-                if i != 0 {
-                    desc.push_str(", ");
-                }
+            for action in self.plan.iter() {
                 if let Some(description) = goap.get_description(self.action_set(), *action) {
-                    desc.push_str(description.as_str());
+                    desc.push(format!("    {description}"));
                 } else {
-                    desc.push_str(format!("unknown action {action}").as_str());
+                    desc.push(format!("    unknown action {action}"));
                 }
             }
         } else {
-            desc.push_str("none");
+            desc.push("    none".to_string());
         }
         desc
     }
