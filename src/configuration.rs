@@ -104,6 +104,8 @@ pub struct RendererColorConfig {
     pub grid_color: [u8; 4],
     pub graph_color: [u8; 4],
     pub seed_color: [u8; 4],
+    pub text_color: [u8; 4],
+    pub text_background_color: [u8; 4],
 }
 
 pub fn load_config(file_name: &str) -> Config {

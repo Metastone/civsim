@@ -11,7 +11,7 @@ obstacle_size = 85.0
 
 [seed]
 size = 1.0
-display_size = 10.0
+renderer_size = 10.0
 
 [plant]
 ticks_as_seed = 400
@@ -49,7 +49,7 @@ nb_prm_positions_generated = 100
 cell_size_factor = 3.0
 contact_center_2_center_factor = 1.01
 
-[display]
+[renderer]
 screen_width = 2560
 screen_height = 1440
 initial_zoom = 0.5
@@ -60,7 +60,7 @@ bar_height = 5.0
 grid_line_wideness = 5.0
 graph_edge_thickness = 5.0
 
-[display.color]
+[renderer.color]
 background_color = [0xcc, 0xcc, 0xcc, 0xff]
 herbivorous_color = [0xff, 0x99, 0x11, 0xff]
 carnivorous_color = [0xff, 0x22, 0x11, 0xff]
@@ -74,4 +74,6 @@ waypoint_reached_color = [0x55, 0xaa, 0xff, 0xff]
 grid_color = [0xff, 0x00, 0x00, 0xff]
 graph_color = [0xc9, 0x00, 0xff, 0xff]
 seed_color = [0x84, 0x34, 0x0b, 0xff]
+text_color = [0x00, 0x00, 0x00, 0xff]
+text_background_color = [0xff, 0xff, 0xff, 0xff]
 

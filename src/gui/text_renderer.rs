@@ -6,6 +6,8 @@ use sdl2::{
     video::Window,
 };
 
+use crate::{configuration::Config, gui::renderer::Renderer};
+
 pub struct TextRenderer<'ttf> {
     font: Font<'ttf, 'static>,
 }
@@ -23,16 +25,19 @@ impl<'ttf> TextRenderer<'ttf> {
         x: i32,
         y: i32,
         canvas: &mut Canvas<Window>,
+        config: &Config,
     ) {
         // Draw background
         let (width, height) = self.get_size(multi_line_text);
-        canvas.set_draw_color(Color::RGBA(255, 255, 255, 255));
+        canvas.set_draw_color(Renderer::to_color(
+            &config.renderer.color.text_background_color,
+        ));
         let _ = canvas.fill_rect(Rect::new(x, y, width, height));
 
         // Draw text
         let mut y_offset: u32 = 0;
         for line in multi_line_text.iter() {
-            let (_, h) = self.draw(line, x, y + y_offset as i32, canvas);
+            let (_, h) = self.draw(line, x, y + y_offset as i32, canvas, config);
             y_offset += h;
         }
     }
@@ -50,11 +55,18 @@ impl<'ttf> TextRenderer<'ttf> {
         (max_width, total_height)
     }
 
-    pub fn draw(&mut self, text: &str, x: i32, y: i32, canvas: &mut Canvas<Window>) -> (u32, u32) {
+    pub fn draw(
+        &mut self,
+        text: &str,
+        x: i32,
+        y: i32,
+        canvas: &mut Canvas<Window>,
+        config: &Config,
+    ) -> (u32, u32) {
         let surface = self
             .font
             .render(text)
-            .shaded(Color::RGBA(0, 0, 0, 255), Color::RGBA(255, 255, 255, 255))
+            .blended(Renderer::to_color(&config.renderer.color.text_color))
             .unwrap();
         let texture_creator = canvas.texture_creator();
         let texture = texture_creator

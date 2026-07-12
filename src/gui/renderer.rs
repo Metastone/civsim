@@ -103,7 +103,7 @@ impl<'ttf> Renderer<'ttf> {
         }
     }
 
-    fn to_color(c: &[u8]) -> Color {
+    pub fn to_color(c: &[u8]) -> Color {
         Color::RGBA(c[0], c[1], c[2], c[3])
     }
 
@@ -227,7 +227,7 @@ impl<'ttf> Renderer<'ttf> {
 
         if let Some(text) = &self.selected_agent_description {
             self.text_renderer
-                .draw_multi_line(text, 0, 0, &mut self.canvas);
+                .draw_multi_line(text, 0, 0, &mut self.canvas, config);
         }
 
         self.canvas.present();
