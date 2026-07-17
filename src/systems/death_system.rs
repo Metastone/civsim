@@ -12,7 +12,7 @@ impl System for DeathSystem {
         for info in iter_entities!(ecs, CreatureComponent, BodyComponent) {
             // Check if the creature should die
             if let Some(creature) = ecs.component::<CreatureComponent>(&info)
-                && creature.health <= 0.0
+                && creature.health() <= 0.0
             {
                 // Create a corpse
                 if let Some(body) = ecs.component::<BodyComponent>(&info) {

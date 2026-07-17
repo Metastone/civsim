@@ -5,22 +5,28 @@ herbivorous_nb = 10
 carnivorous_nb = 1
 obstacle_nb = 1
 corpse_nb = 0
-plant_nb = 100
+bush_nb = 100
+tree_nb = 100
 ms_per_iteration = 16
 obstacle_size = 85.0
 
 [seed]
 size = 1.0
-renderer_size = 10.0
 
 [plant]
-ticks_as_seed = 400
-initial_size = 1.0
-max_size = 100.0
+ticks_as_seed = 1000
+initial_bush_size = 1.0
+max_bush_size = 200.0
+initial_tree_size = 1.0
+max_tree_size = 100.0
 size_growth_per_tick = 0.1
-max_seeds = 10
-ticks_per_seed = 100
-energy_per_size_unit = 1.0
+fruit_energy = 10.0
+max_fruits = 10
+ticks_per_fruit = 500
+max_fruit_seeds = 5
+ticks_per_fruit_seed = 500
+max_stolon_length = 200.0
+stolon_length_growth_per_tick = 0.1
 
 [agent]
 total_ticks_idle = 100
@@ -36,7 +42,7 @@ reprod_energy_cost = 50.0
 start_energy = 40.0
 max_energy = 100.0
 max_health = 100.0
-herbivorous_ticks_to_digest = 100
+herbivorous_ticks_to_digest = 2000
 reprod_x_offset = 10.0
 herbivorous_speed = 1.5
 carnivorous_speed = 2.0
@@ -46,7 +52,7 @@ max_search_distance = 2000.0
 nb_prm_positions_generated = 100
 
 [collision]
-cell_size_factor = 3.0
+cell_size_factor = 7.0
 contact_center_2_center_factor = 1.05
 
 [renderer]
@@ -59,12 +65,17 @@ bar_width = 30.0
 bar_height = 5.0
 grid_line_wideness = 5.0
 graph_edge_thickness = 5.0
+fruit_size = 20.0
+seed_size = 10.0
+trunk_height_factor = 4.0
 
 [renderer.color]
 background_color = [0xcc, 0xcc, 0xcc, 0xff]
 herbivorous_color = [0xff, 0x99, 0x11, 0xff]
 carnivorous_color = [0xff, 0x22, 0x11, 0xff]
-plant_color = [0x22, 0xbb, 0x11, 0xff]
+bush_color = [0x0d, 0x6d, 0x0d, 0xff]
+tree_color = [0x90, 0x62, 0x33, 0xff]
+foliage_color = [0x6a, 0xae, 0x3a, 0xff]
 energy_color = [0x11, 0xff, 0x88, 0xff]
 health_color = [0xff, 0x11, 0x11, 0xff]
 corpse_color = [0x44, 0x11, 0x11, 0xff]
@@ -73,7 +84,8 @@ waypoint_color = [0x22, 0x33, 0xff, 0xff]
 waypoint_reached_color = [0x55, 0xaa, 0xff, 0xff]
 grid_color = [0xff, 0x00, 0x00, 0xff]
 graph_color = [0xc9, 0x00, 0xff, 0xff]
-seed_color = [0x84, 0x34, 0x0b, 0xff]
+fruit_color = [0xce, 0xf5, 0x2f, 0xff]
+seed_color = [0x5c, 0x37, 0x28, 0xff]
 text_color = [0x00, 0x00, 0x00, 0xff]
 text_background_color = [0xff, 0xff, 0xff, 0xff]
 

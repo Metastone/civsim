@@ -264,8 +264,8 @@ impl Graph {
         // In a radius (squared) around the target, randomly generate positions
         let r = graph_connection_radius();
         for _ in 0..config.path.nb_prm_positions_generated {
-            let x = rng::random_range(center_x - r, center_x + r);
-            let y = rng::random_range(center_y - r, center_y + r);
+            let x = rng::random_range_float(center_x - r, center_x + r);
+            let y = rng::random_range_float(center_y - r, center_y + r);
             let node = Node::new(x, y);
             self.neighbours.entry(node).or_default();
         }

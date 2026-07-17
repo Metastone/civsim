@@ -14,7 +14,7 @@ use crate::{
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Symbol {
     Energy,
-    IsNearPlant,
+    IsNearPlantWithFruit,
     IsNearCorpse,
     IsNearHerbivorous,
 

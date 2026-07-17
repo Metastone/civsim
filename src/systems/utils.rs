@@ -1,6 +1,5 @@
 use crate::algorithms::path_finding::WayPoint;
 use crate::algorithms::path_finding::compute_path;
-use crate::components::all::PlantComponent;
 use crate::components::body_component::BodyComponent;
 use crate::configuration::Config;
 use crate::ecs::iter_components;
@@ -11,14 +10,16 @@ use std::any::TypeId;
 use std::collections::HashSet;
 
 // If an empty path is returned, it means that the target is already reached
-pub fn find_closest_reachable<C>(
+pub fn find_closest_reachable<C, F>(
     ecs: &mut Ecs,
     config: &Config,
     entity: EntityId,
     body: &BodyComponent,
+    condition: F,
 ) -> Option<(f64, EntityId, BodyComponent, Vec<WayPoint>)>
 where
     C: Component,
+    F: Fn(&C) -> bool,
 {
     for (target_entity, distance_squared) in
         body_grid::iter_closest(entity, body, config.path.max_search_distance)
@@ -29,10 +30,9 @@ where
                 &HashSet::from([to_ctype!(C), to_ctype!(BodyComponent)]),
             )
         {
-            // If the target is a plant, check if it is eatable
-            if let Some(target_plant) = ecs.component::<PlantComponent>(&info)
-                && !target_plant.is_eatable()
-            {
+            // Skip the component if it does not satisfy the condition
+            let target_component = ecs.component::<C>(&info).unwrap();
+            if !condition(target_component) {
                 continue;
             }
 

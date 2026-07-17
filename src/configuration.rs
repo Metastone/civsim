@@ -10,7 +10,8 @@ pub struct Config {
     pub carnivorous_nb: usize,
     pub obstacle_nb: usize,
     pub corpse_nb: usize,
-    pub plant_nb: usize,
+    pub bush_nb: usize,
+    pub tree_nb: usize,
     pub ms_per_iteration: u64,
     pub obstacle_size: f64,
     pub seed: SeedConfig,
@@ -24,20 +25,24 @@ pub struct Config {
 
 #[derive(Deserialize, Clone, Copy)]
 pub struct SeedConfig {
-    // Seed renderer size different to make it more visible
     pub size: f64,
-    pub renderer_size: f64,
 }
 
 #[derive(Deserialize, Clone, Copy)]
 pub struct PlantConfig {
     pub ticks_as_seed: usize,
-    pub initial_size: f64,
-    pub max_size: f64,
+    pub initial_bush_size: f64,
+    pub max_bush_size: f64,
+    pub initial_tree_size: f64,
+    pub max_tree_size: f64,
     pub size_growth_per_tick: f64,
-    pub max_seeds: usize,
-    pub ticks_per_seed: usize,
-    pub energy_per_size_unit: f32,
+    pub fruit_energy: f32,
+    pub max_fruits: usize,
+    pub ticks_per_fruit: usize,
+    pub max_fruit_seeds: usize,
+    pub ticks_per_fruit_seed: usize,
+    pub max_stolon_length: f64,
+    pub stolon_length_growth_per_tick: f64,
 }
 
 #[derive(Deserialize, Clone, Copy)]
@@ -86,6 +91,9 @@ pub struct RendererConfig {
     pub bar_height: f64,
     pub grid_line_wideness: f64,
     pub graph_edge_thickness: f64,
+    pub fruit_size: f64,
+    pub seed_size: f64,
+    pub trunk_height_factor: f64,
     pub color: RendererColorConfig,
 }
 
@@ -94,7 +102,9 @@ pub struct RendererColorConfig {
     pub background_color: [u8; 4],
     pub herbivorous_color: [u8; 4],
     pub carnivorous_color: [u8; 4],
-    pub plant_color: [u8; 4],
+    pub bush_color: [u8; 4],
+    pub tree_color: [u8; 4],
+    pub foliage_color: [u8; 4],
     pub energy_color: [u8; 4],
     pub health_color: [u8; 4],
     pub corpse_color: [u8; 4],
@@ -103,6 +113,7 @@ pub struct RendererColorConfig {
     pub waypoint_reached_color: [u8; 4],
     pub grid_color: [u8; 4],
     pub graph_color: [u8; 4],
+    pub fruit_color: [u8; 4],
     pub seed_color: [u8; 4],
     pub text_color: [u8; 4],
     pub text_background_color: [u8; 4],

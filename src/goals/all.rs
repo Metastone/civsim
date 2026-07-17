@@ -30,6 +30,6 @@ impl Goal for ReplenishEnergyGoal {
     }
     fn utility(&self, ecs: &Ecs, info: &EntityInfo) -> f32 {
         let creature = ecs.component::<CreatureComponent>(info).unwrap();
-        f32::max(self.max_energy - creature.energy, 0.0)
+        f32::max(self.max_energy - creature.energy(), 0.0)
     }
 }
