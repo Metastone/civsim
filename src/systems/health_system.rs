@@ -7,12 +7,11 @@ pub struct HealthSystem;
 impl System for HealthSystem {
     fn run(&mut self, ecs: &mut Ecs, config: &Config) {
         for (creature, _) in iter_components!(ecs, (), (CreatureComponent)) {
-            creature.health += if creature.energy > 0.0 {
-                config.creature.recovery_rate
+            if creature.energy() > 0.0 {
+                creature.increment_health(config.creature.recovery_rate);
             } else {
-                -config.creature.exhaustion_rate
+                creature.increment_health(-config.creature.exhaustion_rate);
             };
-            creature.health = creature.health.clamp(0.0, config.creature.max_health);
         }
     }
 }

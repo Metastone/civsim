@@ -20,6 +20,10 @@ pub fn init(config: &Config) {
     });
 }
 
-pub fn random_range(lower_bound: f64, upper_bound: f64) -> f64 {
+pub fn random_range_float(lower_bound: f64, upper_bound: f64) -> f64 {
+    RNG.with_borrow_mut(|rng| rng.as_mut().unwrap().random_range(lower_bound..upper_bound))
+}
+
+pub fn random_range_int(lower_bound: usize, upper_bound: usize) -> usize {
     RNG.with_borrow_mut(|rng| rng.as_mut().unwrap().random_range(lower_bound..upper_bound))
 }

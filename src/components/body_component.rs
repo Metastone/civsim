@@ -27,11 +27,11 @@ impl Component for BodyComponent {
         // Generate a random position that does not collides with any already existing body
         if self.init_with_random_pos {
             loop {
-                let x = rng::random_range(
+                let x = rng::random_range_float(
                     self.body_domain_initial_width / -2.0,
                     self.body_domain_initial_width / 2.0,
                 );
-                let y = rng::random_range(
+                let y = rng::random_range_float(
                     self.body_domain_initial_height / -2.0,
                     self.body_domain_initial_height / 2.0,
                 );

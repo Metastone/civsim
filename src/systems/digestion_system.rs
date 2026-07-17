@@ -1,5 +1,5 @@
 use crate::TypeId;
-use crate::components::all::{HerbivorousComponent, PlantComponent};
+use crate::components::all::{HerbivorousComponent, SeedComponent};
 use crate::components::body_component::BodyComponent;
 use crate::configuration::Config;
 use crate::ecs::{Ecs, RESERVED_ENTITY_ID, System, Update, iter_components};
@@ -18,7 +18,7 @@ impl System for DigestionSystem {
             if herbivorous.seeds.is_empty() {
                 continue;
             }
-            let (nb_seeds, ref mut coutdown_to_excretion) = herbivorous.seeds[0];
+            let (nb_seeds, plant_kind, ref mut coutdown_to_excretion) = herbivorous.seeds[0];
 
             // Check if seeds ready to be excreted
             if *coutdown_to_excretion > 0 {
@@ -35,7 +35,6 @@ impl System for DigestionSystem {
                 let y = a.sin() * body_size;
                 a += arc;
 
-                // Plants start as seed, which have no collision. They gain collision later on.
                 let seed_body = BodyComponent::new_traversable(
                     body.x() + x,
                     body.y() + y,
@@ -45,8 +44,8 @@ impl System for DigestionSystem {
 
                 if !body_grid::collides(RESERVED_ENTITY_ID, &seed_body) {
                     updates.push(Update::Create(vec![
+                        Box::new(SeedComponent::new(plant_kind, config)),
                         Box::new(seed_body),
-                        Box::new(PlantComponent::new(config)),
                     ]));
                 }
             }

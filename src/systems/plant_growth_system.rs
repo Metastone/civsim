@@ -1,54 +1,83 @@
 use crate::components::all::*;
 use crate::components::body_component::BodyComponent;
 use crate::configuration::Config;
-use crate::ecs::{Ecs, System, iter_components};
+use crate::ecs::{Ecs, System, Update, iter_components};
 use crate::humidity;
-use crate::shared_data::body_grid;
 use std::any::TypeId;
 
 pub struct PlantGrowthSystem;
 impl System for PlantGrowthSystem {
     fn run(&mut self, ecs: &mut Ecs, config: &Config) {
-        for (plant, body, info) in iter_components!(ecs, (), (PlantComponent, BodyComponent)) {
-            // Initialize seeds with humidity level
-            if !plant.is_seed_initialized {
-                plant.init_seed(config, humidity(body.x(), body.y()));
+        let mut updates: Vec<Update> = Vec::new();
+
+        for (seed, body, info) in iter_components!(ecs, (), (SeedComponent, BodyComponent)) {
+            let h = humidity(body.x(), body.y());
+
+            // Initialize seed with humidity level
+            if !seed.is_seed_initialized {
+                seed.init_seed(config, h);
             }
 
-            // Grow from seed to plant
-            if plant.is_seed {
-                if plant.countdown_ticks_as_seed == 0 {
-                    if body_grid::try_update_size(
-                        info.entity,
-                        body,
-                        config.plant.initial_size,
-                        config.plant.initial_size,
-                    ) {
-                        plant.become_plant(config, humidity(body.x(), body.y()));
+            if seed.countdown_ticks_as_seed == 0 {
+                updates.push(Update::DeleteEntity(info));
 
-                        // Add collision to the plant
-                        // TODO not great to have to do this both in ECS and in body grid...
-                        body_grid::set_traversable(info.entity, body, false);
-                        body.set_traversable(false);
-                    }
-                } else {
-                    plant.countdown_ticks_as_seed -= 1;
-                    continue;
+                let initial_width = config.plant.initial_size;
+                match seed.plant_kind {
+                    PlantKind::Bush => updates.push(Update::Create(vec![
+                        Box::new(BushComponent {}),
+                        Box::new(PlantGrowthComponent::new(config, initial_width, h)),
+                        Box::new(PlantWithFruitComponent::new(config, h)),
+                        Box::new(PlantWithStolonComponent::new(config, h)),
+                        Box::new(BodyComponent::new_not_traversable(
+                            body.x(),
+                            body.y(),
+                            initial_width,
+                            initial_width,
+                        )),
+                    ])),
+                    PlantKind::Tree => updates.push(Update::Create(vec![
+                        Box::new(TreeComponent {}),
+                        Box::new(PlantGrowthComponent::new(config, initial_width, h)),
+                        Box::new(PlantWithFruitComponent::new(config, h)),
+                        Box::new(BodyComponent::new_not_traversable(
+                            body.x(),
+                            body.y(),
+                            initial_width,
+                            initial_width,
+                        )),
+                    ])),
                 }
+            } else {
+                seed.countdown_ticks_as_seed -= 1;
+                continue;
             }
-
-            // Grow plant, if there is enough space
-            let new_size = (plant.size + plant.growth_per_tick).min(plant.max_size);
-            if new_size != plant.size && body.try_update_size(info.entity, new_size, new_size) {
-                plant.size = new_size;
-            }
-
-            // Grow new seeds
-            if plant.count_ticks_to_seed >= plant.ticks_per_seed {
-                plant.count_ticks_to_seed = 0;
-                plant.nb_seeds = (plant.nb_seeds + 1).min(plant.max_nb_seeds);
-            }
-            plant.count_ticks_to_seed += 1;
         }
+
+        // Grow plant, if there is enough space
+        for (plant, body, info) in iter_components!(ecs, (), (PlantGrowthComponent, BodyComponent))
+        {
+            let new_size = (plant.width + plant.growth_per_tick).min(plant.max_width);
+            if new_size != plant.width && body.try_update_size(info.entity, new_size, new_size) {
+                plant.width = new_size;
+            }
+        }
+
+        // Grow fruits
+        for (plant, _) in iter_components!(ecs, (), (PlantWithFruitComponent)) {
+            plant.grow_fruits();
+            if plant.count_ticks_to_fruit >= plant.ticks_per_fruit {
+                plant.count_ticks_to_fruit = 0;
+                plant.add_new_fruit(config);
+            }
+            plant.count_ticks_to_fruit += 1;
+        }
+
+        // Grow stolons on plants
+        for (plant, _) in iter_components!(ecs, (), (PlantWithStolonComponent)) {
+            plant.stolon_length =
+                (plant.stolon_length + plant.stolon_growth_per_tick).min(plant.stolon_max_length);
+        }
+
+        ecs.apply(updates);
     }
 }

@@ -5,7 +5,7 @@ use ordered_float::OrderedFloat;
 use crate::{
     components::{
         agent_component::AgentComponent,
-        all::{CreatureComponent, HerbivorousComponent, PlantComponent},
+        all::{CreatureComponent, HerbivorousComponent, PlantKind, PlantWithFruitComponent},
     },
     configuration::Config,
     ecs::{Component, Ecs, EntityInfo, RESERVED_ENTITY_ID, Update},
@@ -26,16 +26,15 @@ where
     })
 }
 
-pub struct EatPlantAction {
+pub struct EatFruitAction {
     preconditions: [Condition; 1],
     effects: [Effect; 2],
 }
-impl EatPlantAction {
+impl EatFruitAction {
     pub fn new(config: &Config) -> Self {
-        let estimated_gain = config.plant.max_size as f32 / 2.0 * config.plant.energy_per_size_unit;
         Self {
             preconditions: [Condition::new(
-                Symbol::IsNearPlant,
+                Symbol::IsNearPlantWithFruit,
                 Operator::Equal,
                 Value::Bool(true),
             )],
@@ -43,15 +42,19 @@ impl EatPlantAction {
                 Effect::new(
                     Symbol::Energy,
                     Modifier::Increment,
-                    Value::F32(OrderedFloat(estimated_gain)),
+                    Value::F32(OrderedFloat(config.plant.fruit_energy)),
                 ),
-                Effect::new(Symbol::IsNearPlant, Modifier::SetValue, Value::Bool(false)),
+                Effect::new(
+                    Symbol::IsNearPlantWithFruit,
+                    Modifier::SetValue,
+                    Value::Bool(false),
+                ),
             ],
         }
     }
 }
 
-impl Action for EatPlantAction {
+impl Action for EatFruitAction {
     fn preconditions(&self) -> &[Condition] {
         &self.preconditions
     }
@@ -67,39 +70,39 @@ impl Action for EatPlantAction {
         config: &Config,
     ) -> Result<ActionResult, String> {
         // Get the target plant entity ID
-        let agent = get_comp_or_error::<EatPlantAction, AgentComponent>(ecs, info)?;
+        let agent = get_comp_or_error::<EatFruitAction, AgentComponent>(ecs, info)?;
         let plant_entity = agent.target_entity;
         agent.target_entity = RESERVED_ENTITY_ID;
 
         // Get the target plant component
         if let Some(p_info) = ecs.get_entity_info(plant_entity) {
-            let plant = get_comp_or_error::<EatPlantAction, PlantComponent>(ecs, &p_info)?.clone();
+            let mut plant =
+                get_comp_or_error::<EatFruitAction, PlantWithFruitComponent>(ecs, &p_info)?.clone();
 
-            // Eat the plant's seeds
             let herbivorous = ecs.component_mut::<HerbivorousComponent>(info).unwrap();
-            herbivorous
-                .seeds
-                .push_back((plant.nb_seeds, config.creature.herbivorous_ticks_to_digest));
 
-            // Increase energy
-            let creature = get_comp_or_error::<EatPlantAction, CreatureComponent>(ecs, info)?;
-            creature.energy += (plant.size as f32) * config.plant.energy_per_size_unit;
-            if creature.energy > config.creature.max_energy {
-                creature.energy = config.creature.max_energy;
+            // Eat one of the fruits of the plant and its seeds
+            if let Some(fruit) = plant.detach_one_fruit() {
+                herbivorous.seeds.push_back((
+                    fruit.nb_seeds,
+                    PlantKind::Bush,
+                    config.creature.herbivorous_ticks_to_digest,
+                ));
+
+                // Increase energy
+                let creature = get_comp_or_error::<EatFruitAction, CreatureComponent>(ecs, info)?;
+                creature.increment_energy(config.plant.fruit_energy);
+
+                return Ok(ActionResult::Success);
             }
-
-            // Delete the plant
-            ecs.apply(vec![Update::DeleteEntity(p_info)]);
-
-            Ok(ActionResult::Success)
-        } else {
-            // Plant not found, maybe it was already eaten by someone else
-            Ok(ActionResult::Failure)
         }
+
+        // Plant or fruit not found, maybe it was already eaten by someone else
+        Ok(ActionResult::Failure)
     }
 
     fn description(&self) -> String {
-        String::from("eat plant")
+        String::from("eat fruit")
     }
 }
 
@@ -151,10 +154,7 @@ impl Action for EatCorpseAction {
         if let Some(c_info) = ecs.get_entity_info(corpse_entity) {
             // Increase energy
             let creature = get_comp_or_error::<EatCorpseAction, CreatureComponent>(ecs, info)?;
-            creature.energy += config.creature.corpse_energy;
-            if creature.energy > config.creature.max_energy {
-                creature.energy = config.creature.max_energy;
-            }
+            creature.increment_energy(config.creature.corpse_energy);
 
             // Delete the corpse
             ecs.apply(vec![Update::DeleteEntity(c_info)]);
@@ -223,10 +223,7 @@ impl Action for EatHerbivorousAction {
         if let Some(h_info) = ecs.get_entity_info(herbivorous_entity) {
             // Increase energy
             let creature = get_comp_or_error::<EatCorpseAction, CreatureComponent>(ecs, info)?;
-            creature.energy += config.creature.corpse_energy;
-            if creature.energy > config.creature.max_energy {
-                creature.energy = config.creature.max_energy;
-            }
+            creature.increment_health(config.creature.corpse_energy);
 
             // Delete the herbivorous
             ecs.apply(vec![Update::DeleteEntity(h_info)]);

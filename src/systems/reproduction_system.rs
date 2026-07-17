@@ -42,7 +42,7 @@ impl System for ReproductionSystem {
             // Check if the creature has enough energy to reproduce
             {
                 let creature = ecs.component_mut::<CreatureComponent>(&info).unwrap();
-                if creature.energy < config.creature.reprod_energy_threshold {
+                if creature.energy() < config.creature.reprod_energy_threshold {
                     continue;
                 }
             }
@@ -90,7 +90,7 @@ impl System for ReproductionSystem {
             // Apply reproduction energy cost to parent creature
             {
                 let creature = ecs.component_mut::<CreatureComponent>(&info).unwrap();
-                creature.energy -= config.creature.reprod_energy_cost;
+                creature.increment_energy(config.creature.reprod_energy_cost);
             }
         }
 

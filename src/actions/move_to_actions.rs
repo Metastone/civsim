@@ -2,7 +2,10 @@ use crate::{
     actions::all::get_comp_or_error,
     components::{
         agent_component::AgentComponent,
-        all::{CorpseComponent, HerbivorousComponent, MoveToTargetResultComponent, PlantComponent},
+        all::{
+            CorpseComponent, HerbivorousComponent, MoveToTargetResultComponent,
+            PlantWithFruitComponent,
+        },
         body_component::BodyComponent,
         move_to_target_component::MoveToTargetComponent,
     },
@@ -15,15 +18,17 @@ use std::any::TypeId;
 
 /// Create a MoveToTarget component and let the corresponding system handle the move.
 /// Consider that the move is finished when the entity has a TargetReached component.
-fn perform_move_to_target_action<A, T>(
+fn perform_move_to_target_action<A, C, F>(
     ecs: &mut Ecs,
     info: &EntityInfo,
     config: &Config,
     speed: f64,
+    condition: F,
 ) -> Result<ActionResult, String>
 where
     A: Action,
-    T: Component,
+    C: Component,
+    F: Fn(&C) -> bool,
 {
     // If the move is over, return the result
     if let Some(result) = ecs.component::<MoveToTargetResultComponent>(info).cloned() {
@@ -49,8 +54,9 @@ where
     let body = *get_comp_or_error::<A, BodyComponent>(ecs, info)?;
 
     // Find the closest reachable entity (if there is one)
+    // with the given component, and which satisfies the condition
     if let Some((_, closest_entity, closest_body, closest_path)) =
-        utils::find_closest_reachable::<T>(ecs, config, info.entity, &body)
+        utils::find_closest_reachable::<C, F>(ecs, config, info.entity, &body, condition)
     {
         let agent = get_comp_or_error::<A, AgentComponent>(ecs, info)?;
         agent.target_entity = closest_entity;
@@ -74,21 +80,21 @@ where
     }
 }
 
-pub struct MoveToNearestPlantAction {
+pub struct MoveToNearestPlantWithFruitAction {
     effects: [Effect; 1],
 }
-impl MoveToNearestPlantAction {
+impl MoveToNearestPlantWithFruitAction {
     pub fn new() -> Self {
         Self {
             effects: [Effect::new(
-                Symbol::IsNearPlant,
+                Symbol::IsNearPlantWithFruit,
                 Modifier::SetValue,
                 Value::Bool(true),
             )],
         }
     }
 }
-impl Action for MoveToNearestPlantAction {
+impl Action for MoveToNearestPlantWithFruitAction {
     fn preconditions(&self) -> &[Condition] {
         &[]
     }
@@ -103,11 +109,12 @@ impl Action for MoveToNearestPlantAction {
         info: &EntityInfo,
         config: &Config,
     ) -> Result<ActionResult, String> {
-        perform_move_to_target_action::<MoveToNearestPlantAction, PlantComponent>(
+        perform_move_to_target_action::<MoveToNearestPlantWithFruitAction, PlantWithFruitComponent, _>(
             ecs,
             info,
             config,
             config.creature.herbivorous_speed,
+            |plant| plant.has_fruits(),
         )
     }
 
@@ -145,11 +152,12 @@ impl Action for MoveToNearestCorpseAction {
         info: &EntityInfo,
         config: &Config,
     ) -> Result<ActionResult, String> {
-        perform_move_to_target_action::<MoveToNearestCorpseAction, CorpseComponent>(
+        perform_move_to_target_action::<MoveToNearestCorpseAction, CorpseComponent, _>(
             ecs,
             info,
             config,
             config.creature.carnivorous_speed,
+            |_| true,
         )
     }
 
@@ -187,13 +195,14 @@ impl Action for MoveToNearestHerbivorousAction {
         info: &EntityInfo,
         config: &Config,
     ) -> Result<ActionResult, String> {
-        perform_move_to_target_action::<MoveToNearestHerbivorousAction, HerbivorousComponent>(
+        perform_move_to_target_action::<MoveToNearestHerbivorousAction, HerbivorousComponent, _>(
             ecs,
             info,
             config,
             // TODO speed should depend on the running agent ideally (so that the action may be
             // attributed to herbivorous agents also, not just carninvorous)
             config.creature.carnivorous_speed,
+            |_| true,
         )
     }
 

@@ -171,7 +171,7 @@ impl<'ttf> Renderer<'ttf> {
                     ),
                     &colors.health_color,
                     (
-                        config.renderer.bar_width * creature.health as f64
+                        config.renderer.bar_width * creature.health() as f64
                             / config.creature.max_health as f64,
                         config.renderer.bar_height,
                     ),
@@ -188,7 +188,7 @@ impl<'ttf> Renderer<'ttf> {
                     ),
                     &colors.energy_color,
                     (
-                        config.renderer.bar_width * creature.energy as f64
+                        config.renderer.bar_width * creature.energy() as f64
                             / config.creature.max_energy as f64,
                         config.renderer.bar_height,
                     ),
@@ -203,26 +203,39 @@ impl<'ttf> Renderer<'ttf> {
             }
         }
 
-        // Draw seeds & plants
-        for (plant, body, _) in iter_components!(ecs, (), (PlantComponent, BodyComponent)) {
-            if plant.is_seed {
-                self.draw_square(body, &colors.seed_color, config.seed.renderer_size);
-                continue;
-            }
+        // Draw bushes
+        for (plant, body, _) in iter_components!(
+            ecs,
+            (BushComponent),
+            (PlantWithFruitComponent, BodyComponent)
+        ) {
+            self.draw_square(body, &colors.bush_color, body.w());
+            self.draw_fruits(body.x(), body.y(), body.w() / 2.0, plant, config);
+        }
 
-            self.draw_square(body, &colors.plant_color, plant.size);
+        // Draw trees
+        for (plant, body, _) in iter_components!(
+            ecs,
+            (TreeComponent),
+            (PlantWithFruitComponent, BodyComponent)
+        ) {
+            // Display a tree in a 2D isometric style for good looks.
+            // The base of the tree corresponds to the real simulation body.
 
-            // Draw the plant's seeds
-            let arc = 2.0 * PI / (plant.nb_seeds as f64);
-            let mut a: f64 = 0.0;
-            for _ in 0..plant.nb_seeds {
-                let x = a.cos() * plant.size / 2.0;
-                let y = a.sin() * plant.size / 2.0;
-                let seed_body =
-                    BodyComponent::new_traversable(body.x() + x, body.y() + y, 0.0, 0.0);
-                self.draw_square(&seed_body, &colors.seed_color, config.seed.renderer_size);
-                a += arc;
-            }
+            let rendered_height = body.h() * config.renderer.trunk_height_factor;
+            let offset_y = rendered_height - body.y();
+            self.draw_rec(
+                (body.x(), body.y() - offset_y / 2.0),
+                &colors.tree_color,
+                (body.w(), rendered_height),
+            );
+
+            self.draw_fruits(body.x(), body.y() - offset_y, body.w() / 2.0, plant, config);
+        }
+
+        // Draw independant (not in fruits) nb_seeds
+        for (_, body, _) in iter_components!(ecs, (), (SeedComponent, BodyComponent)) {
+            self.draw_square(body, &colors.seed_color, config.renderer.seed_size);
         }
 
         if let Some(text) = &self.selected_agent_description {
@@ -231,6 +244,41 @@ impl<'ttf> Renderer<'ttf> {
         }
 
         self.canvas.present();
+    }
+
+    fn draw_fruits(
+        &mut self,
+        x: f64,
+        y: f64,
+        radius: f64,
+        plant: &PlantWithFruitComponent,
+        config: &Config,
+    ) {
+        let f_size = config.renderer.fruit_size;
+        let s_size = config.renderer.seed_size;
+
+        // Draw the fruits in a circle
+        let f_arc = 2.0 * PI / (plant.fruits.len() as f64);
+        let mut f_a: f64 = 0.0;
+        for fruit in plant.fruits.iter() {
+            let f_x = f_a.cos() * radius;
+            let f_y = f_a.sin() * radius;
+            let f_body = BodyComponent::new_traversable(x + f_x, y + f_y, f_size, f_size);
+            self.draw_square(&f_body, &config.renderer.color.fruit_color, f_body.w());
+            f_a += f_arc;
+
+            // Draw the fruit's seeds
+            let s_arc = 2.0 * PI / (fruit.nb_seeds as f64);
+            let mut s_a: f64 = 0.0;
+            for _ in 0..fruit.nb_seeds {
+                let s_x = s_a.cos() * f_size / 2.0;
+                let s_y = s_a.sin() * f_size / 2.0;
+                let s_body =
+                    BodyComponent::new_traversable(x + f_x + s_x, y + f_y + s_y, s_size, s_size);
+                self.draw_square(&s_body, &config.renderer.color.seed_color, s_size);
+                s_a += s_arc;
+            }
+        }
     }
 
     fn build_selected_agent_description(&mut self, world: &mut World) {

@@ -30,9 +30,9 @@ use systems::move_to_target_system::MoveToTargetSystem;
 use systems::plant_growth_system::PlantGrowthSystem;
 use systems::reproduction_system::ReproductionSystem;
 
-use crate::actions::all::{EatCorpseAction, EatHerbivorousAction, EatPlantAction};
+use crate::actions::all::{EatCorpseAction, EatFruitAction, EatHerbivorousAction};
 use crate::actions::move_to_actions::{
-    MoveToNearestCorpseAction, MoveToNearestHerbivorousAction, MoveToNearestPlantAction,
+    MoveToNearestCorpseAction, MoveToNearestHerbivorousAction, MoveToNearestPlantWithFruitAction,
 };
 use crate::algorithms::rng;
 use crate::configuration::Config;
@@ -102,8 +102,8 @@ fn create_world(config: &Config) -> World {
     gs.add(Box::new(ReplenishEnergyGoal::new(config)));
 
     let mut h_as = ActionSet::new();
-    h_as.add(Box::new(MoveToNearestPlantAction::new()));
-    h_as.add(Box::new(EatPlantAction::new(config)));
+    h_as.add(Box::new(MoveToNearestPlantWithFruitAction::new()));
+    h_as.add(Box::new(EatFruitAction::new(config)));
 
     let herbivorous_goal_set = goap.add_goal_set(gs);
     let herbivorous_action_set_len = h_as.len();
@@ -121,10 +121,21 @@ fn create_world(config: &Config) -> World {
 
     let mut world = World::new();
 
-    for _ in 0..config.plant_nb {
-        // Plants start as seed, which have no collision. They gain collision later on.
+    for _ in 0..config.bush_nb {
         world.create_entity_with(&[
-            &PlantComponent::new(config),
+            &SeedComponent::new(PlantKind::Bush, config),
+            &BodyComponent::new_rand_pos_traversable(
+                config.body_domain_initial_width,
+                config.body_domain_initial_height,
+                config.seed.size,
+                config.seed.size,
+            ),
+        ]);
+    }
+
+    for _ in 0..config.tree_nb {
+        world.create_entity_with(&[
+            &SeedComponent::new(PlantKind::Tree, config),
             &BodyComponent::new_rand_pos_traversable(
                 config.body_domain_initial_width,
                 config.body_domain_initial_height,
