@@ -31,8 +31,10 @@ pub struct SeedConfig {
 #[derive(Deserialize, Clone, Copy)]
 pub struct PlantConfig {
     pub ticks_as_seed: usize,
-    pub initial_size: f64,
-    pub max_size: f64,
+    pub initial_bush_size: f64,
+    pub max_bush_size: f64,
+    pub initial_tree_size: f64,
+    pub max_tree_size: f64,
     pub size_growth_per_tick: f64,
     pub fruit_energy: f32,
     pub max_fruits: usize,
@@ -102,6 +104,7 @@ pub struct RendererColorConfig {
     pub carnivorous_color: [u8; 4],
     pub bush_color: [u8; 4],
     pub tree_color: [u8; 4],
+    pub foliage_color: [u8; 4],
     pub energy_color: [u8; 4],
     pub health_color: [u8; 4],
     pub corpse_color: [u8; 4],

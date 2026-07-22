@@ -30,13 +30,11 @@ impl CreatureComponent {
     }
 
     pub fn increment_energy(&mut self, e: f32) {
-        self.energy += e;
-        self.energy.clamp(0.0, self.max_energy);
+        self.energy = (self.energy + e).clamp(0.0, self.max_energy);
     }
 
     pub fn increment_health(&mut self, h: f32) {
-        self.health += h;
-        self.health.clamp(0.0, self.max_health);
+        self.health = (self.health + h).clamp(0.0, self.max_health);
     }
 }
 
@@ -58,18 +56,26 @@ pub struct SeedComponent {
 impl Component for SeedComponent {}
 impl SeedComponent {
     pub fn new(plant_kind: PlantKind, config: &Config) -> Self {
+        Self::new_with_countdown(plant_kind, config.plant.ticks_as_seed)
+    }
+
+    pub fn new_instant_germination(plant_kind: PlantKind) -> Self {
+        Self::new_with_countdown(plant_kind, 0)
+    }
+
+    pub fn new_with_countdown(plant_kind: PlantKind, countdown: usize) -> Self {
         // Temporary values. The seed will be properly initialized taking into account the
         // humidity level, when the seed position is known (body component added to the ECS)
         Self {
             is_seed_initialized: false,
-            countdown_ticks_as_seed: config.plant.ticks_as_seed,
+            countdown_ticks_as_seed: countdown,
             plant_kind,
         }
     }
 
-    pub fn init_seed(&mut self, config: &Config, humidity: f64 /* in [0; 1] */) {
+    pub fn init_seed(&mut self, humidity: f64 /* in [0; 1] */) {
         self.countdown_ticks_as_seed =
-            (config.plant.ticks_as_seed as f64 * (1.0 / humidity)) as usize;
+            (self.countdown_ticks_as_seed as f64 * (1.0 / humidity)) as usize;
         self.is_seed_initialized = true;
     }
 }
@@ -83,12 +89,16 @@ pub struct PlantGrowthComponent {
 
 impl Component for PlantGrowthComponent {}
 impl PlantGrowthComponent {
-    pub fn new(config: &Config, width: f64, humidity: f64 /* in [0; 1] */) -> Self {
+    pub fn new(config: &Config, plant_kind: PlantKind, humidity: f64 /* in [0; 1] */) -> Self {
+        let (init_size, max_size) = match plant_kind {
+            PlantKind::Bush => (config.plant.initial_bush_size, config.plant.max_bush_size),
+            PlantKind::Tree => (config.plant.initial_tree_size, config.plant.max_tree_size),
+        };
         let h_2 = humidity.powi(2);
         Self {
             growth_per_tick: config.plant.size_growth_per_tick * h_2,
-            width,
-            max_width: config.plant.max_size * h_2,
+            width: init_size,
+            max_width: max_size * h_2,
         }
     }
 }
@@ -103,13 +113,11 @@ pub struct Fruit {
 
 impl Component for Fruit {}
 impl Fruit {
-    pub fn new(config: &Config, humidity: f64 /* in [0; 1] */) -> Self {
-        let h_2 = humidity.powi(2);
-
+    pub fn new(config: &Config, humidity: f64 /* in [0; 1] */, humidity_2: f64) -> Self {
         // Minimum 1 fruit to allow reproduction even in deserts
         Self {
             nb_seeds: 0,
-            max_nb_seeds: ((config.plant.max_fruit_seeds as f64 * h_2) as usize).max(1),
+            max_nb_seeds: ((config.plant.max_fruit_seeds as f64 * humidity_2) as usize).max(1),
             count_ticks_to_seed: 0,
             ticks_per_seed: (config.plant.ticks_per_fruit_seed as f64 * (1.0 / humidity)) as usize,
         }
@@ -129,14 +137,14 @@ pub struct PlantWithFruitComponent {
 impl Component for PlantWithFruitComponent {}
 impl PlantWithFruitComponent {
     pub fn new(config: &Config, humidity: f64 /* in [0; 1] */) -> Self {
-        let h_2 = humidity.powi(2);
+        let humidity_2 = humidity.powi(2);
 
         // Minimum 1 fruit to allow reproduction even in deserts
         Self {
             humidity,
-            humidity_2: h_2,
+            humidity_2,
             fruits: VecDeque::new(),
-            max_nb_fruits: ((config.plant.max_fruits as f64 * h_2) as usize).max(1),
+            max_nb_fruits: ((config.plant.max_fruits as f64 * humidity_2) as usize).max(1),
             count_ticks_to_fruit: 0,
             ticks_per_fruit: (config.plant.ticks_per_fruit as f64 * (1.0 / humidity)) as usize,
         }
@@ -144,7 +152,8 @@ impl PlantWithFruitComponent {
 
     pub fn add_new_fruit(&mut self, config: &Config) {
         if self.fruits.len() < self.max_nb_fruits {
-            self.fruits.push_back(Fruit::new(config, self.humidity));
+            self.fruits
+                .push_back(Fruit::new(config, self.humidity, self.humidity_2));
         }
     }
 

@@ -223,14 +223,34 @@ impl<'ttf> Renderer<'ttf> {
             // The base of the tree corresponds to the real simulation body.
 
             let rendered_height = body.h() * config.renderer.trunk_height_factor;
-            let offset_y = rendered_height - body.y();
+            let offset_y = (rendered_height - body.h()) / 2.0;
+
+            // Draw trunk
             self.draw_rec(
-                (body.x(), body.y() - offset_y / 2.0),
+                (body.x(), body.y() - offset_y),
                 &colors.tree_color,
                 (body.w(), rendered_height),
             );
 
-            self.draw_fruits(body.x(), body.y() - offset_y, body.w() / 2.0, plant, config);
+            // Draw foliage
+            // TODO draw circles
+            let foliage_size = body.w() * 2.0;
+            let foliage_body = BodyComponent::new_traversable(
+                body.x(),
+                body.y() - rendered_height,
+                foliage_size,
+                foliage_size,
+            );
+            self.draw_square(&foliage_body, &colors.foliage_color, foliage_size);
+
+            // Draw fruits
+            self.draw_fruits(
+                body.x(),
+                body.y() - rendered_height,
+                body.w() * 0.9,
+                plant,
+                config,
+            );
         }
 
         // Draw independant (not in fruits) nb_seeds

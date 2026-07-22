@@ -90,7 +90,7 @@ impl System for ReproductionSystem {
             // Apply reproduction energy cost to parent creature
             {
                 let creature = ecs.component_mut::<CreatureComponent>(&info).unwrap();
-                creature.increment_energy(config.creature.reprod_energy_cost);
+                creature.increment_energy(-config.creature.reprod_energy_cost);
             }
         }
 

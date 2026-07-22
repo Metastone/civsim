@@ -76,13 +76,11 @@ impl Action for EatFruitAction {
 
         // Get the target plant component
         if let Some(p_info) = ecs.get_entity_info(plant_entity) {
-            let mut plant =
-                get_comp_or_error::<EatFruitAction, PlantWithFruitComponent>(ecs, &p_info)?.clone();
-
-            let herbivorous = ecs.component_mut::<HerbivorousComponent>(info).unwrap();
+            let plant = get_comp_or_error::<EatFruitAction, PlantWithFruitComponent>(ecs, &p_info)?;
 
             // Eat one of the fruits of the plant and its seeds
-            if let Some(fruit) = plant.detach_one_fruit() {
+            if let Some(fruit) = plant.detach_one_fruit().clone() {
+                let herbivorous = ecs.component_mut::<HerbivorousComponent>(info).unwrap();
                 herbivorous.seeds.push_back((
                     fruit.nb_seeds,
                     PlantKind::Bush,

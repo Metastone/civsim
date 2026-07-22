@@ -15,36 +15,36 @@ impl System for PlantGrowthSystem {
 
             // Initialize seed with humidity level
             if !seed.is_seed_initialized {
-                seed.init_seed(config, h);
+                seed.init_seed(h);
             }
 
             if seed.countdown_ticks_as_seed == 0 {
                 updates.push(Update::DeleteEntity(info));
 
-                let initial_width = config.plant.initial_size;
+                let plant = PlantGrowthComponent::new(config, seed.plant_kind, h);
                 match seed.plant_kind {
                     PlantKind::Bush => updates.push(Update::Create(vec![
+                        Box::new(BodyComponent::new_not_traversable(
+                            body.x(),
+                            body.y(),
+                            plant.width,
+                            plant.width,
+                        )),
                         Box::new(BushComponent {}),
-                        Box::new(PlantGrowthComponent::new(config, initial_width, h)),
+                        Box::new(plant),
                         Box::new(PlantWithFruitComponent::new(config, h)),
                         Box::new(PlantWithStolonComponent::new(config, h)),
-                        Box::new(BodyComponent::new_not_traversable(
-                            body.x(),
-                            body.y(),
-                            initial_width,
-                            initial_width,
-                        )),
                     ])),
                     PlantKind::Tree => updates.push(Update::Create(vec![
-                        Box::new(TreeComponent {}),
-                        Box::new(PlantGrowthComponent::new(config, initial_width, h)),
-                        Box::new(PlantWithFruitComponent::new(config, h)),
                         Box::new(BodyComponent::new_not_traversable(
                             body.x(),
                             body.y(),
-                            initial_width,
-                            initial_width,
+                            plant.width,
+                            plant.width,
                         )),
+                        Box::new(TreeComponent {}),
+                        Box::new(plant),
+                        Box::new(PlantWithFruitComponent::new(config, h)),
                     ])),
                 }
             } else {

@@ -121,9 +121,11 @@ fn create_world(config: &Config) -> World {
 
     let mut world = World::new();
 
+    // Create seeds that will germinate instantly, so that herbivorous don't die of hunder at the
+    // start of the simulation
     for _ in 0..config.bush_nb {
         world.create_entity_with(&[
-            &SeedComponent::new(PlantKind::Bush, config),
+            &SeedComponent::new_instant_germination(PlantKind::Bush),
             &BodyComponent::new_rand_pos_traversable(
                 config.body_domain_initial_width,
                 config.body_domain_initial_height,

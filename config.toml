@@ -1,12 +1,16 @@
 rng_seed = 1
 body_domain_initial_width = 5000.0
 body_domain_initial_height = 3000.0
-herbivorous_nb = 10
-carnivorous_nb = 1
+#herbivorous_nb = 10
+herbivorous_nb = 1
+carnivorous_nb = 0
+#carnivorous_nb = 1
 obstacle_nb = 1
 corpse_nb = 0
-bush_nb = 100
-tree_nb = 100
+bush_nb = 10
+#bush_nb = 100
+#tree_nb = 100
+tree_nb = 0
 ms_per_iteration = 16
 obstacle_size = 85.0
 
@@ -14,15 +18,17 @@ obstacle_size = 85.0
 size = 1.0
 
 [plant]
-ticks_as_seed = 400
-initial_size = 1.0
-max_size = 100.0
+ticks_as_seed = 1000
+initial_bush_size = 1.0
+max_bush_size = 200.0
+initial_tree_size = 1.0
+max_tree_size = 100.0
 size_growth_per_tick = 0.1
 fruit_energy = 10.0
 max_fruits = 10
-ticks_per_fruit = 100
+ticks_per_fruit = 500
 max_fruit_seeds = 5
-ticks_per_fruit_seed = 50
+ticks_per_fruit_seed = 500
 max_stolon_length = 200.0
 stolon_length_growth_per_tick = 0.1
 
@@ -40,7 +46,7 @@ reprod_energy_cost = 50.0
 start_energy = 40.0
 max_energy = 100.0
 max_health = 100.0
-herbivorous_ticks_to_digest = 100
+herbivorous_ticks_to_digest = 2000
 reprod_x_offset = 10.0
 herbivorous_speed = 1.5
 carnivorous_speed = 2.0
@@ -50,7 +56,7 @@ max_search_distance = 2000.0
 nb_prm_positions_generated = 100
 
 [collision]
-cell_size_factor = 3.0
+cell_size_factor = 7.0
 contact_center_2_center_factor = 1.01
 
 [renderer]
@@ -71,8 +77,9 @@ trunk_height_factor = 4.0
 background_color = [0xcc, 0xcc, 0xcc, 0xff]
 herbivorous_color = [0xff, 0x99, 0x11, 0xff]
 carnivorous_color = [0xff, 0x22, 0x11, 0xff]
-bush_color = [0x22, 0xbb, 0x11, 0xff]
-tree_color = [0x25, 0x96, 0xbe, 0xff]
+bush_color = [0x0d, 0x6d, 0x0d, 0xff]
+tree_color = [0x90, 0x62, 0x33, 0xff]
+foliage_color = [0x6a, 0xae, 0x3a, 0xff]
 energy_color = [0x11, 0xff, 0x88, 0xff]
 health_color = [0xff, 0x11, 0x11, 0xff]
 corpse_color = [0x44, 0x11, 0x11, 0xff]
@@ -81,8 +88,8 @@ waypoint_color = [0x22, 0x33, 0xff, 0xff]
 waypoint_reached_color = [0x55, 0xaa, 0xff, 0xff]
 grid_color = [0xff, 0x00, 0x00, 0xff]
 graph_color = [0xc9, 0x00, 0xff, 0xff]
-fruit_color = [0xf9, 0x8c, 0x01, 0xff]
-seed_color = [0x84, 0x34, 0x0b, 0xff]
+fruit_color = [0xf7, 0x9e, 0x0f, 0xff]
+seed_color = [0x5c, 0x37, 0x28, 0xff]
 text_color = [0x00, 0x00, 0x00, 0xff]
 text_background_color = [0xff, 0xff, 0xff, 0xff]
 
