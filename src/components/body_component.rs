@@ -151,14 +151,8 @@ impl BodyComponent {
         self.is_traversable = traversable;
     }
 
-    pub fn try_translate(
-        &mut self,
-        entity: EntityId,
-        target_entity: EntityId,
-        offset_x: f64,
-        offset_y: f64,
-    ) -> bool {
-        if body_grid::try_translate(entity, target_entity, self, offset_x, offset_y) {
+    pub fn try_translate(&mut self, entity: EntityId, offset_x: f64, offset_y: f64) -> bool {
+        if body_grid::try_translate(entity, self, offset_x, offset_y) {
             self.x += offset_x;
             self.y += offset_y;
             return true;

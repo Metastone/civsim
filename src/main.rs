@@ -95,6 +95,8 @@ impl World {
     }
 }
 
+// TODO fix doc (cargo doc)
+
 fn create_world(config: &Config) -> World {
     let mut goap = Goap::new();
 

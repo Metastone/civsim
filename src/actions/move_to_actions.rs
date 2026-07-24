@@ -14,7 +14,7 @@ use crate::{
 use std::any::TypeId;
 
 /// Create a MoveToTarget component and let the corresponding system handle the move.
-/// Consider that the move is finished when the entity has a TargetReached component.
+/// Consider that the move is finished when the entity has a [`MoveToTargetResultComponent`] component.
 fn perform_move_to_target_action<A, T>(
     ecs: &mut Ecs,
     info: &EntityInfo,

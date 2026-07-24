@@ -328,13 +328,12 @@ impl BodyGrid {
     fn try_translate(
         &mut self,
         entity: EntityId,
-        target_entity: EntityId,
         body: &BodyComponent,
         offset_x: f64,
         offset_y: f64,
     ) -> bool {
         let translated_body = body.clone_translated(offset_x, offset_y);
-        if !self.collides_except_target(entity, target_entity, &translated_body) {
+        if !self.collides(entity, &translated_body) {
             self.translate(entity, body, translated_body);
             return true;
         }
@@ -634,17 +633,11 @@ fn edge_intersect_edge(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64
  *                          PUBLIC FUNCTIONS
  *****************************************************************************/
 
-pub fn try_translate(
-    entity: EntityId,
-    target_entity: EntityId,
-    body: &BodyComponent,
-    offset_x: f64,
-    offset_y: f64,
-) -> bool {
+pub fn try_translate(entity: EntityId, body: &BodyComponent, offset_x: f64, offset_y: f64) -> bool {
     BODY_GRID.with_borrow_mut(|grid| {
         grid.as_mut()
             .unwrap()
-            .try_translate(entity, target_entity, body, offset_x, offset_y)
+            .try_translate(entity, body, offset_x, offset_y)
     })
 }
 

@@ -47,7 +47,7 @@ nb_prm_positions_generated = 100
 
 [collision]
 cell_size_factor = 3.0
-contact_center_2_center_factor = 1.01
+contact_center_2_center_factor = 1.05
 
 [renderer]
 screen_width = 2560

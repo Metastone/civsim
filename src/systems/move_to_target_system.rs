@@ -100,12 +100,7 @@ fn try_move(
         let norm = (vec_to_target.0.powi(2) + vec_to_target.1.powi(2)).sqrt();
         let offset_x = vec_to_target.0 / norm * move_to_target.speed();
         let offset_y = vec_to_target.1 / norm * move_to_target.speed();
-        if body.try_translate(
-            info.entity,
-            move_to_target.target_entity(),
-            offset_x,
-            offset_y,
-        ) {
+        if body.try_translate(info.entity, offset_x, offset_y) {
             return MoveToTargetResult::Moved;
         } else {
             // Move failed: try to re-compute a new path
