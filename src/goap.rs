@@ -576,6 +576,13 @@ mod tests {
             }
         };
     }
+    macro_rules! define_dummy_description {
+        () => {
+            fn description(&self) -> String {
+                String::new()
+            }
+        };
+    }
 
     struct HaveHouseAndGardenGoal {
         preconditions: [Condition; 2],
@@ -625,6 +632,7 @@ mod tests {
             &self.effects
         }
         define_perform_success!();
+        define_dummy_description!();
     }
 
     struct PlantTreeAction {
@@ -649,6 +657,7 @@ mod tests {
             &self.effects
         }
         define_perform_success!();
+        define_dummy_description!();
     }
 
     struct WaitForOneTreeToGrowAction {
@@ -678,6 +687,7 @@ mod tests {
             &self.effects
         }
         define_perform_success!();
+        define_dummy_description!();
     }
 
     struct CutTreeAction {
@@ -707,6 +717,7 @@ mod tests {
             &self.effects
         }
         define_perform_success!();
+        define_dummy_description!();
     }
 
     struct BuyWoodAction {
@@ -737,6 +748,7 @@ mod tests {
             &self.effects
         }
         define_perform_success!();
+        define_dummy_description!();
     }
 
     #[test]
