@@ -44,6 +44,7 @@ pub struct World {
     ecs: Ecs,
     systems: Vec<Box<dyn System>>,
     pause: bool,
+    nb_iterations_computed: usize,
 }
 
 impl Default for World {
@@ -58,6 +59,7 @@ impl World {
             ecs: Ecs::new(),
             systems: Vec::new(),
             pause: false,
+            nb_iterations_computed: 0,
         }
     }
 
@@ -82,6 +84,7 @@ impl World {
             system.run(&mut self.ecs, config);
         }
         body_grid::purge_deleted_bodies();
+        self.nb_iterations_computed += 1;
     }
 
     pub fn toogle_pause(&mut self) {
@@ -92,6 +95,10 @@ impl World {
         self.systems
             .iter()
             .find_map(|system| system.as_any().downcast_ref::<AgentSystem>())
+    }
+
+    pub fn nb_iterations_computed(&self) -> usize {
+        self.nb_iterations_computed
     }
 }
 

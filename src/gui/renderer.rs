@@ -230,6 +230,12 @@ impl<'ttf> Renderer<'ttf> {
                 .draw_multi_line(text, 0, 0, &mut self.canvas, config);
         }
 
+        self.text_renderer.draw_top_right(
+            &world.nb_iterations_computed().to_string(),
+            &mut self.canvas,
+            config,
+        );
+
         self.canvas.present();
     }
 

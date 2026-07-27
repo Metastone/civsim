@@ -41,6 +41,22 @@ impl<'ttf> TextRenderer<'ttf> {
         }
     }
 
+    pub fn draw_top_right(
+        &mut self,
+        text: &str,
+        canvas: &mut Canvas<Window>,
+        config: &Config,
+    ) -> (u32, u32) {
+        let (width, _) = self.get_size(&[text.to_string()]);
+        self.draw(
+            text,
+            (canvas.window().size().0 - width) as i32,
+            0,
+            canvas,
+            config,
+        )
+    }
+
     pub fn get_size(&self, multi_line_text: &[String]) -> (u32, u32) {
         let mut max_width: u32 = 0;
         let mut total_height: u32 = 0;
