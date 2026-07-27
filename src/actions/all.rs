@@ -34,7 +34,7 @@ impl EatFruitAction {
     pub fn new(config: &Config) -> Self {
         Self {
             preconditions: [Condition::new(
-                Symbol::IsNearPlantWithFruit,
+                Symbol::IsNearBushWithFruit,
                 Operator::Equal,
                 Value::Bool(true),
             )],
@@ -45,7 +45,7 @@ impl EatFruitAction {
                     Value::F32(OrderedFloat(config.plant.fruit_energy)),
                 ),
                 Effect::new(
-                    Symbol::IsNearPlantWithFruit,
+                    Symbol::IsNearBushWithFruit,
                     Modifier::SetValue,
                     Value::Bool(false),
                 ),

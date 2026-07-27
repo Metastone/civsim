@@ -3,7 +3,7 @@ use crate::{
     components::{
         agent_component::AgentComponent,
         all::{
-            CorpseComponent, HerbivorousComponent, MoveToTargetResultComponent,
+            BushComponent, CorpseComponent, HerbivorousComponent, MoveToTargetResultComponent,
             PlantWithFruitComponent,
         },
         body_component::BodyComponent,
@@ -28,7 +28,7 @@ fn perform_move_to_target_action<A, C, F>(
 where
     A: Action,
     C: Component,
-    F: Fn(&C) -> bool,
+    F: Fn(&mut Ecs, &EntityInfo) -> bool,
 {
     // If the move is over, return the result
     if let Some(result) = ecs.component::<MoveToTargetResultComponent>(info).cloned() {
@@ -80,21 +80,21 @@ where
     }
 }
 
-pub struct MoveToNearestPlantWithFruitAction {
+pub struct MoveToNearestBushWithFruitAction {
     effects: [Effect; 1],
 }
-impl MoveToNearestPlantWithFruitAction {
+impl MoveToNearestBushWithFruitAction {
     pub fn new() -> Self {
         Self {
             effects: [Effect::new(
-                Symbol::IsNearPlantWithFruit,
+                Symbol::IsNearBushWithFruit,
                 Modifier::SetValue,
                 Value::Bool(true),
             )],
         }
     }
 }
-impl Action for MoveToNearestPlantWithFruitAction {
+impl Action for MoveToNearestBushWithFruitAction {
     fn preconditions(&self) -> &[Condition] {
         &[]
     }
@@ -109,12 +109,16 @@ impl Action for MoveToNearestPlantWithFruitAction {
         info: &EntityInfo,
         config: &Config,
     ) -> Result<ActionResult, String> {
-        perform_move_to_target_action::<MoveToNearestPlantWithFruitAction, PlantWithFruitComponent, _>(
+        perform_move_to_target_action::<MoveToNearestBushWithFruitAction, BushComponent, _>(
             ecs,
             info,
             config,
             config.creature.herbivorous_speed,
-            |plant| plant.has_fruits(),
+            |b_ecs, b_info| {
+                b_ecs
+                    .component::<PlantWithFruitComponent>(b_info)
+                    .is_some_and(|plant| plant.has_fruits())
+            },
         )
     }
 
@@ -157,7 +161,7 @@ impl Action for MoveToNearestCorpseAction {
             info,
             config,
             config.creature.carnivorous_speed,
-            |_| true,
+            |_, _| true,
         )
     }
 
@@ -202,7 +206,7 @@ impl Action for MoveToNearestHerbivorousAction {
             // TODO speed should depend on the running agent ideally (so that the action may be
             // attributed to herbivorous agents also, not just carninvorous)
             config.creature.carnivorous_speed,
-            |_| true,
+            |_, _| true,
         )
     }
 

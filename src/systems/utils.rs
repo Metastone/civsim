@@ -2,6 +2,7 @@ use crate::algorithms::path_finding::WayPoint;
 use crate::algorithms::path_finding::compute_path;
 use crate::components::body_component::BodyComponent;
 use crate::configuration::Config;
+use crate::ecs::EntityInfo;
 use crate::ecs::iter_components;
 use crate::ecs::to_ctype;
 use crate::ecs::{Component, Ecs, EntityId};
@@ -19,7 +20,7 @@ pub fn find_closest_reachable<C, F>(
 ) -> Option<(f64, EntityId, BodyComponent, Vec<WayPoint>)>
 where
     C: Component,
-    F: Fn(&C) -> bool,
+    F: Fn(&mut Ecs, &EntityInfo) -> bool,
 {
     for (target_entity, distance_squared) in
         body_grid::iter_closest(entity, body, config.path.max_search_distance)
@@ -31,8 +32,7 @@ where
             )
         {
             // Skip the component if it does not satisfy the condition
-            let target_component = ecs.component::<C>(&info).unwrap();
-            if !condition(target_component) {
+            if !condition(ecs, &info) {
                 continue;
             }
 

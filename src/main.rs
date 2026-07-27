@@ -32,7 +32,7 @@ use systems::reproduction_system::ReproductionSystem;
 
 use crate::actions::all::{EatCorpseAction, EatFruitAction, EatHerbivorousAction};
 use crate::actions::move_to_actions::{
-    MoveToNearestCorpseAction, MoveToNearestHerbivorousAction, MoveToNearestPlantWithFruitAction,
+    MoveToNearestBushWithFruitAction, MoveToNearestCorpseAction, MoveToNearestHerbivorousAction,
 };
 use crate::algorithms::rng;
 use crate::configuration::Config;
@@ -104,7 +104,7 @@ fn create_world(config: &Config) -> World {
     gs.add(Box::new(ReplenishEnergyGoal::new(config)));
 
     let mut h_as = ActionSet::new();
-    h_as.add(Box::new(MoveToNearestPlantWithFruitAction::new()));
+    h_as.add(Box::new(MoveToNearestBushWithFruitAction::new()));
     h_as.add(Box::new(EatFruitAction::new(config)));
 
     let herbivorous_goal_set = goap.add_goal_set(gs);
